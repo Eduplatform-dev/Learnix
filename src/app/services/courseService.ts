@@ -1,21 +1,9 @@
-﻿import {
-  collection,
-  getDocs,
-  query,
-  orderBy,
-  addDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  updateDoc,
-} from "firebase/firestore";
-import { db } from "../../firebase";
+﻿// src/app/services/courseService.ts
 
-/* ================= TYPES ================= */
 export type CourseStatus = "In Progress" | "Completed" | "Not Started";
 
 export type Course = {
-  id: string;
+  _id: string;
   title: string;
   instructor: string;
   duration: string;
@@ -24,87 +12,53 @@ export type Course = {
   progress: number;
   status: CourseStatus;
   image: string;
-  createdAt?: unknown;
 };
 
-/* ================= HELPERS ================= */
-function normalizeStatus(value: any): CourseStatus {
-  if (
-    value === "In Progress" ||
-    value === "Completed" ||
-    value === "Not Started"
-  ) {
-    return value;
-  }
-  return "Not Started";
-}
+const API = "http://localhost:5000/api/courses";
 
-/* ================= GET ================= */
+const getAuthHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
+  "Content-Type": "application/json",
+});
+
 export const getCourses = async (): Promise<Course[]> => {
-  try {
-    const q = query(collection(db, "courses"), orderBy("createdAt", "desc"));
-    const snap = await getDocs(q);
-
-    return snap.docs.map((d) => {
-      const data = d.data();
-
-      return {
-        id: d.id,
-        title: String(data.title ?? ""),
-        instructor: String(data.instructor ?? ""),
-        duration: String(data.duration ?? ""),
-        students: Number(data.students ?? 0),
-        rating: Number(data.rating ?? 0),
-        progress: Number(data.progress ?? 0),
-        status: normalizeStatus(data.status),
-        image: String(data.image ?? ""),
-        createdAt: data.createdAt,
-      };
-    });
-  } catch (err) {
-    console.error("Failed to load courses:", err);
-    return [];
-  }
+  const res = await fetch(API, { headers: getAuthHeader() });
+  if (!res.ok) throw new Error("Fetch failed");
+  return res.json();
 };
 
-/* ================= CREATE ================= */
 export const createCourse = async (data: {
   title: string;
   instructor: string;
   duration: string;
 }) => {
-  await addDoc(collection(db, "courses"), {
-    title: data.title,
-    instructor: data.instructor,
-    duration: data.duration,
-    students: 0,
-    rating: 0,
-    progress: 0,
-    status: "Not Started",
-    image: "",
-    createdAt: serverTimestamp(),
+  const res = await fetch(API, {
+    method: "POST",
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
   });
+
+  if (!res.ok) throw new Error("Create failed");
+
+  return res.json();
 };
 
-/* ================= UPDATE ================= */
 export const updateCourse = async (
   id: string,
-  data: {
-    title: string;
-    instructor: string;
-    duration: string;
-  }
+  data: Partial<Course>
 ) => {
-  const ref = doc(db, "courses", id);
-
-  await updateDoc(ref, {
-    title: data.title,
-    instructor: data.instructor,
-    duration: data.duration,
+  const res = await fetch(`${API}/${id}`, {
+    method: "PUT",
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
   });
+  if (!res.ok) throw new Error("Update failed");
 };
 
-/* ================= DELETE ================= */
 export const deleteCourse = async (id: string) => {
-  await deleteDoc(doc(db, "courses", id));
+  const res = await fetch(`${API}/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeader(),
+  });
+  if (!res.ok) throw new Error("Delete failed");
 };

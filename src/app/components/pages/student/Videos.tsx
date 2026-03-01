@@ -91,11 +91,11 @@ export function Videos() {
 
             <div className="max-h-[600px] overflow-y-auto">
               {videos.map((v, index) => {
-                const isActive = v.id === current.id;
+                const isActive = v._id === current._id;
 
                 return (
                   <div
-                    key={v.id}
+                    key={v._id}
                     onClick={() => setCurrent(v)}
                     className={`p-4 cursor-pointer border-b transition ${
                       isActive

@@ -1,15 +1,18 @@
-import { useState } from "react";
-import {
-  loginUser,
-  registerUser,
-  loginWithGoogle,
-} from "../../app/services/authService";
+// src/app/components/Login.tsx
+
+import { useState, useEffect } from "react";
+import { loginUser, registerUser } from "../../app/services/authService";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../app/providers/AuthProvider";
 
 import { User, Lock, Mail } from "lucide-react";
 import loginImg from "../../assets/4d6ab98f39ae75e687adcc13329d1df80212a3d4.png";
 import registerImg from "../../assets/b087d7bc1149e49b815ebddc955d693760362ab7.png";
 
 export function Login() {
+  const navigate = useNavigate();
+  const { setAuthUser, user, loading: authLoading } = useAuth();
+
   const [isSignUpMode, setIsSignUpMode] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,20 +28,19 @@ export function Login() {
     password: "",
   });
 
-  /* ---------------- ERROR FORMATTER ---------------- */
-  const getErrorMessage = (err: any) => {
-    const msg = err?.message || "";
+  /* AUTO REDIRECT */
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) return;
 
-    if (msg.includes("auth/user-not-found")) return "User not found";
-    if (msg.includes("auth/wrong-password")) return "Wrong password";
-    if (msg.includes("auth/email-already-in-use")) return "Email already used";
-    if (msg.includes("auth/invalid-email")) return "Invalid email";
-    if (msg.includes("auth/popup-closed")) return "Google popup closed";
+    if (user.role === "admin") {
+      navigate("/admin/dashboard", { replace: true });
+    } else {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
-    return "Something went wrong. Try again.";
-  };
-
-  /* ---------------- SIGN IN ---------------- */
+  /* LOGIN */
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -47,15 +49,20 @@ export function Login() {
     setError(null);
 
     try {
-      await loginUser(signInData.email, signInData.password);
+      const { user, token } = await loginUser(
+        signInData.email,
+        signInData.password
+      );
+
+      setAuthUser(user, token);
     } catch (err: any) {
-      setError(getErrorMessage(err));
+      setError(err?.message || "Login failed");
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------------- SIGN UP ---------------- */
+  /* REGISTER */
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -69,29 +76,15 @@ export function Login() {
     setError(null);
 
     try {
-      await registerUser(
+      const { user, token } = await registerUser(
         signUpData.email,
         signUpData.password,
         signUpData.username
       );
+
+      setAuthUser(user, token);
     } catch (err: any) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  /* ---------------- GOOGLE LOGIN ---------------- */
-  const handleGoogle = async () => {
-    if (loading) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      await loginWithGoogle();
-    } catch (err: any) {
-      setError(getErrorMessage(err));
+      setError(err?.message || "Signup failed");
     } finally {
       setLoading(false);
     }
@@ -104,7 +97,7 @@ export function Login() {
       <section className="login-forms-container">
         <div className="login-signin-signup">
 
-          {/* SIGN IN */}
+          {/* LOGIN */}
           <form
             onSubmit={handleSignIn}
             className={`login-form ${!isSignUpMode ? "active" : ""}`}
@@ -144,20 +137,9 @@ export function Login() {
             <button type="submit" className="login-btn solid" disabled={loading}>
               {loading ? "Logging in..." : "Login"}
             </button>
-
-            <p className="login-social-text">Or continue with</p>
-
-            <button
-              type="button"
-              className="login-btn"
-              onClick={handleGoogle}
-              disabled={loading}
-            >
-              Continue with Google
-            </button>
           </form>
 
-          {/* SIGN UP */}
+          {/* REGISTER */}
           <form
             onSubmit={handleSignUp}
             className={`login-form ${isSignUpMode ? "active" : ""}`}

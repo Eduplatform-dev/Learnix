@@ -1,62 +1,110 @@
-import { app, db, googleProvider } from "../../firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  UserCredential,
-} from "firebase/auth";
+// src/app/services/authService.ts
 
-export type UserRole = "user" | "admin";
+export type UserRole = "student" | "admin" | "instructor";
 
-export const auth = getAuth(app);
+export type User = {
+  _id: string;
+  email: string;
+  username: string;
+  role: UserRole;
+};
 
-/* ---------------- REGISTER ---------------- */
+export type AuthResponse = {
+  user: User;
+  token: string;
+};
+
+const API = "http://localhost:5000/api/auth";
+
+/* TOKEN */
+export const getToken = () => localStorage.getItem("token");
+
+export const getAuthHeader = () => {
+  const token = getToken();
+
+  if (!token) {
+    throw new Error("No token found");
+  }
+
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+};
+
+/* HANDLE RESPONSE */
+const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Request failed");
+  }
+
+  if (data.token && data.user) {
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+  }
+
+  return {
+    user: data.user,
+    token: data.token,
+  };
+};
+
+/* REGISTER */
 export const registerUser = async (
   email: string,
   password: string,
   username: string
-): Promise<UserCredential> => {
-  const res = await createUserWithEmailAndPassword(auth, email, password);
-
-  // Save user profile safely
-  await setDoc(
-    doc(db, "users", res.user.uid),
-    {
-      email,
-      username,
-      role: "user", // always user
-      createdAt: serverTimestamp(),
+): Promise<AuthResponse> => {
+  const res = await fetch(`${API}/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-    { merge: true }
-  );
+    body: JSON.stringify({
+      email,
+      password,
+      username,
+    }),
+  });
 
-  return res;
+  return handleAuthResponse(res);
 };
 
-/* ---------------- LOGIN ---------------- */
-export const loginUser = (
+/* LOGIN */
+export const loginUser = async (
   email: string,
   password: string
-): Promise<UserCredential> => {
-  return signInWithEmailAndPassword(auth, email, password);
+): Promise<AuthResponse> => {
+  const res = await fetch(`${API}/login`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      password,
+    }),
+  });
+
+  return handleAuthResponse(res);
 };
 
-/* ---------------- GOOGLE LOGIN ---------------- */
-export const loginWithGoogle = async (): Promise<UserCredential> => {
-  const res = await signInWithPopup(auth, googleProvider);
+/* CURRENT USER */
+export const getCurrentUser = (): User | null => {
+  const stored = localStorage.getItem("user");
+  if (!stored) return null;
 
-  await setDoc(
-    doc(db, "users", res.user.uid),
-    {
-      email: res.user.email,
-      username: res.user.displayName || "User",
-      role: "user",
-      createdAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return null;
+  }
+};
 
-  return res;
+/* LOGOUT */
+export const logoutUser = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
 };

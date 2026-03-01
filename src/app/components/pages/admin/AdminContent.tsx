@@ -1,19 +1,11 @@
-﻿import { useEffect, useState, useRef } from "react";
+﻿import { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardContent } from "../../ui/card";
 import { Button } from "../../ui/button";
-import {
-  Upload,
-  FolderOpen,
-  FileVideo,
-  FileText,
-  Image as ImageIcon,
-  X,
-} from "lucide-react";
+import { Upload, X } from "lucide-react";
 
-import { uploadToCloudinary } from "../../../services/cloudinaryUpload";
 import {
   createContent,
-  deleteContentViaApi,
+  deleteContent,
   getContents,
 } from "../../../services/contentService";
 
@@ -47,29 +39,30 @@ export function AdminContent() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   /* ================= LOAD ================= */
-  const load = async () => {
+  const loadContents = useCallback(async () => {
     try {
       setLoading(true);
+
       const data = await getContents();
 
       setContents(
-        data.map((i) => ({
-          id: i.id,
+        (data || []).map((i: any) => ({
+          id: i._id,
           title: i.title,
           type: i.type,
           url: i.url,
         }))
       );
     } catch (e) {
-      console.error(e);
+      console.error("Load content failed:", e);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    loadContents();
+  }, [loadContents]);
 
   /* ================= UPLOAD ================= */
   const handleUpload = async () => {
@@ -80,29 +73,26 @@ export function AdminContent() {
 
     try {
       setUploading(true);
+      setError("");
 
-      const { url, publicId, resourceType } = await uploadToCloudinary(
-        file,
-        type
-      );
+      const formData = new FormData();
+      formData.append("title", title.trim());
+      formData.append("type", type);
+      formData.append("file", file);
 
-      await createContent({
-        title,
-        type,
-        url,
-        publicId,
-        resourceType,
-      });
+      await createContent(formData);
 
+      // reset state
       setTitle("");
       setFile(null);
       setShowUpload(false);
       setActiveType(null);
+
       if (fileRef.current) fileRef.current.value = "";
 
-      await load();
+      await loadContents();
     } catch (err: any) {
-      setError(err.message || "Upload failed");
+      setError(err?.message || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -114,9 +104,11 @@ export function AdminContent() {
 
     try {
       setDeletingId(item.id);
-      await deleteContentViaApi(item.id);
-      await load();
-    } catch (e) {
+      await deleteContent(item.id);
+
+      // optimistic update
+      setContents((prev) => prev.filter((c) => c.id !== item.id));
+    } catch {
       alert("Delete failed");
     } finally {
       setDeletingId(null);
@@ -172,13 +164,6 @@ export function AdminContent() {
             <input
               ref={fileRef}
               type="file"
-              accept={
-                type === "video"
-                  ? "video/*"
-                  : type === "pdf"
-                  ? "application/pdf"
-                  : "image/*"
-              }
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
 
@@ -242,12 +227,7 @@ export function AdminContent() {
                   )}
 
                   {c.type === "pdf" && (
-                    <iframe
-                      src={`https://docs.google.com/gview?url=${encodeURIComponent(
-                        c.url
-                      )}&embedded=true`}
-                      className="w-full h-[500px]"
-                    />
+                    <iframe src={c.url} className="w-full h-[500px]" />
                   )}
                 </CardContent>
               </Card>

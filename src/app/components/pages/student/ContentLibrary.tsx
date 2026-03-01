@@ -36,9 +36,14 @@ export function ContentLibrary() {
       try {
         const data = await getContents();
 
-        const filtered = data.filter(
-          (c) => c.type === "pdf" || c.type === "image"
-        ) as ContentItem[];
+        const filtered = data
+          .filter((c) => c.type === "pdf" || c.type === "image")
+          .map((c, index) => ({
+            id: `${c.title}-${index}-${Math.random().toString(36).substring(2, 9)}`,
+            title: c.title,
+            type: c.type as ContentType,
+            url: c.url,
+          }));
 
         setItems(filtered);
       } catch (err) {

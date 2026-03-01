@@ -1,100 +1,72 @@
-﻿import {
-  collection,
-  getDocs,
-  doc,
-  updateDoc,
-  deleteDoc,
-  setDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "../../firebase";
+﻿// src/app/services/userService.ts
 
-export type UserStatus = "active" | "inactive" | "pending";
-export type UserRole = "user" | "admin";
+import { getAuthHeader } from "./authService";
+
+/* ✅ MATCH AUTH ROLES */
+export type UserRole = "student" | "admin" | "instructor";
 
 export type AdminUser = {
-  id: string;
-  username: string;
+  _id: string;
   email: string;
+  username: string;
   role: UserRole;
-  status: UserStatus;
-  createdAt?: unknown;
 };
 
-/* =========================
-   GET ALL USERS (SAFE)
-   ========================= */
+const API = "http://localhost:5000/api/users";
+
+/* ---------------- GET USERS ---------------- */
 export const getUsers = async (): Promise<AdminUser[]> => {
-  try {
-    const snap = await getDocs(collection(db, "users"));
+  const res = await fetch(API, {
+    headers: getAuthHeader(),
+  });
 
-    return snap.docs.map((d) => {
-      const data = d.data();
+  if (!res.ok) throw new Error("Fetch failed");
 
-      const email = String(data.email ?? "");
-      const username =
-        data.username ??
-        (email ? email.split("@")[0] : "User");
-
-      return {
-        id: d.id,
-        username,
-        email,
-        role: data.role === "admin" ? "admin" : "user",
-        status:
-          data.status === "inactive"
-            ? "inactive"
-            : data.status === "pending"
-            ? "pending"
-            : "active",
-        createdAt: data.createdAt,
-      };
-    });
-  } catch (err) {
-    console.error("Failed to load users:", err);
-    return [];
-  }
+  return res.json();
 };
 
-/* =========================
-   CREATE USER DOC (BOOTSTRAP SAFE)
-   ========================= */
-export const createUserDoc = async (
+/* ---------------- CREATE USER ---------------- */
+export const createUserDoc = async (data: {
+  email: string;
+  password: string;
+  username: string;
+  role?: UserRole;
+}) => {
+  const res = await fetch(API, {
+    method: "POST",
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) throw new Error("Create failed");
+
+  return res.json();
+};
+
+/* ---------------- UPDATE ROLE ---------------- */
+export const updateUserRole = async (
   id: string,
-  email: string,
-  role: UserRole = "user",
-  usernameOverride?: string
+  role: UserRole
 ) => {
-  const username =
-    (usernameOverride && usernameOverride.trim()) ||
-    (email ? email.split("@")[0] : "User");
+  const res = await fetch(`${API}/${id}`, {
+    method: "PATCH",
+    headers: getAuthHeader(),
+    body: JSON.stringify({ role }),
+  });
 
-  await setDoc(
-    doc(db, "users", id),
-    {
-      username,
-      email,
-      role,
-      status: "active",
-      createdAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  if (!res.ok) throw new Error("Update failed");
+
+  return res.json();
 };
 
-/* =========================
-   UPDATE USER STATUS
-   ========================= */
-export const updateUserStatus = async (
-  id: string,
-  status: UserStatus
-) => {
-  await updateDoc(doc(db, "users", id), { status });
-};
-
-/* =========================
-   DELETE USER
-   ========================= */
+/* ---------------- DELETE USER ---------------- */
 export const deleteUser = async (id: string) => {
-  await deleteDoc(doc(db, "users", id));
+  const res = await fetch(`${API}/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeader(),
+  });
+
+  if (!res.ok) throw new Error("Delete failed");
+
+  return true;
 };

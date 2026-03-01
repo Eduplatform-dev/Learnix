@@ -1,8 +1,6 @@
 import { Bell, Search, Menu } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { signOut } from "firebase/auth";
-import { auth } from "../../firebase";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
@@ -13,7 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../providers/AuthProvider";
 
 const TITLES: Record<string, string> = {
@@ -43,8 +41,8 @@ interface HeaderProps {
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { pathname } = useLocation();
-  const { user } = useAuth();
-  const firebaseUser = auth.currentUser;
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const cleanPath =
     pathname.endsWith("/") && pathname !== "/"
@@ -53,22 +51,17 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const title = TITLES[cleanPath] || "Dashboard";
 
-  /* ===== initials logic (same as sidebar) ===== */
   const initials =
-    user?.username
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() ||
-    firebaseUser?.email?.slice(0, 2).toUpperCase() ||
+    user?.username?.slice(0, 2).toUpperCase() ||
+    user?.email?.slice(0, 2).toUpperCase() ||
     "U";
 
-  const displayName =
-    user?.username ||
-    firebaseUser?.displayName ||
-    firebaseUser?.email ||
-    "User";
+  const displayName = user?.username || user?.email || "User";
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login"); // 🔥 fixed redirect
+  };
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
@@ -89,6 +82,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
+
           {/* Search */}
           <div className="relative hidden md:block">
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -119,22 +113,14 @@ export function Header({ onMenuClick }: HeaderProps) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* PROFILE */}
+          {/* Profile */}
           <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2">
                 <Avatar className="w-8 h-8">
-                  {firebaseUser?.photoURL ? (
-                    <img
-                      src={firebaseUser.photoURL}
-                      alt="avatar"
-                      className="w-full h-full object-cover rounded-full"
-                    />
-                  ) : (
-                    <AvatarFallback className="bg-indigo-600 text-white font-semibold">
-                      {initials}
-                    </AvatarFallback>
-                  )}
+                  <AvatarFallback className="bg-indigo-600 text-white font-semibold">
+                    {initials}
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -147,7 +133,7 @@ export function Header({ onMenuClick }: HeaderProps) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600"
-                onClick={async () => await signOut(auth)}
+                onClick={handleLogout}
               >
                 Logout
               </DropdownMenuItem>

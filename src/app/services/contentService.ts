@@ -1,117 +1,86 @@
-﻿import {
-  collection,
-  addDoc,
-  getDocs,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  query,
-  orderBy,
-  updateDoc,
-} from "firebase/firestore";
-import { auth, db } from "../../firebase";
-
-/* ================= TYPES ================= */
+﻿// src/app/services/contentService.ts
 
 export type ContentType = "video" | "pdf" | "image";
 
 export type Content = {
-  id: string;
+  _id: string;
   title: string;
   type: ContentType;
   url: string;
-  folder?: string;
-  publicId?: string;
-  resourceType?: string;
-  createdAt?: any;
+  course?: string; // ✅ link to course
 };
 
-const col = collection(db, "contents");
+const API = "http://localhost:5000/api/content";
 
-/* ================= CREATE ================= */
+/* ================= AUTH HEADER ================= */
+const getAuthHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
+});
 
-export const createContent = async (data: {
-  title: string;
-  type: ContentType;
-  url: string;
-  folder?: string;
-  publicId?: string;
-  resourceType?: string;
-}) => {
-  await addDoc(col, {
-    title: data.title,
-    type: data.type,
-    url: data.url,
-    folder: data.folder || "general",
-    publicId: data.publicId ?? null,
-    resourceType: data.resourceType ?? null,
-    createdAt: serverTimestamp(),
-  });
-};
-
-/* ================= GET ================= */
-
+/* ================= GET ALL CONTENT ================= */
 export const getContents = async (): Promise<Content[]> => {
-  try {
-    const q = query(col, orderBy("createdAt", "desc"));
-    const snap = await getDocs(q);
+  const res = await fetch(API, { headers: getAuthHeader() });
 
-    return snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Content, "id">),
-    }));
-  } catch (err) {
-    console.error("Failed to load contents:", err);
-    return [];
-  }
+  if (!res.ok) throw new Error("Fetch failed");
+
+  return res.json();
 };
 
-/* ================= UPDATE ================= */
-
-export const updateContent = async (
-  id: string,
-  data: Partial<Content>
-) => {
-  await updateDoc(doc(db, "contents", id), data);
-};
-
-/* ================= SIMPLE DELETE ================= */
-
-export const deleteContent = async (id: string) => {
-  await deleteDoc(doc(db, "contents", id));
-};
-
-/* ================= PROFESSIONAL DELETE VIA API ================= */
-
-export const deleteContentViaApi = async (contentId: string) => {
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as
-    | string
-    | undefined;
-
-  if (!API_BASE_URL) {
-    throw new Error("VITE_API_BASE_URL not set");
-  }
-
-  const user = auth.currentUser;
-  if (!user) {
-    throw new Error("User not authenticated");
-  }
-
-  const token = await user.getIdToken();
-
-  const res = await fetch(`${API_BASE_URL}/api/content/delete`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ contentId }),
+/* ================= ⭐ GET COURSE CONTENTS (FIX) ================= */
+export const getCourseContents = async (
+  courseId: string
+): Promise<Content[]> => {
+  const res = await fetch(`${API}/course/${courseId}`, {
+    headers: getAuthHeader(),
   });
 
   if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(msg || "Delete failed");
+    throw new Error("Failed to fetch course contents");
   }
 
   return res.json();
+};
+
+/* ================= CREATE CONTENT ================= */
+export const createContent = async (formData: FormData) => {
+  const res = await fetch(API, {
+    method: "POST",
+    headers: getAuthHeader(),
+    body: formData,
+  });
+
+  if (!res.ok) throw new Error("Upload failed");
+
+  return res.json();
+};
+
+/* ================= UPDATE CONTENT ================= */
+export const updateContent = async (
+  id: string,
+  data: { title?: string }
+) => {
+  const res = await fetch(`${API}/${id}`, {
+    method: "PUT",
+    headers: {
+      ...getAuthHeader(),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) throw new Error("Update failed");
+
+  return res.json();
+};
+
+/* ================= DELETE CONTENT ================= */
+export const deleteContent = async (id: string) => {
+  const res = await fetch(`${API}/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeader(),
+  });
+
+  if (!res.ok) throw new Error("Delete failed");
+
+  return true;
 };

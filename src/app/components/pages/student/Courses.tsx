@@ -73,7 +73,7 @@ export function Courses() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
           {filtered.map((course) => (
             <Card
-              key={course.id}
+              key={course._id}
               className="border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col"
             >
               <div className="relative h-48 bg-gray-100">

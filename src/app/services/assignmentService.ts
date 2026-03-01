@@ -1,67 +1,64 @@
-﻿import {
-  collection,
-  query,
-  where,
-  orderBy,
-  getDocs,
-  addDoc,
-  updateDoc,
-  doc,
-  serverTimestamp,
-} from "firebase/firestore";
-import { db } from "../../firebase";
+﻿// src/app/services/assignmentService.ts
 
 export type AssignmentStatus = "Not Started" | "In Progress" | "Submitted";
 export type AssignmentPriority = "high" | "medium" | "low";
 export type AssignmentType = "Project" | "Quiz" | "Lab";
 
 export type Assignment = {
-  id: string;
+  _id: string;
   title: string;
   course: string;
   dueDate: string;
   type: AssignmentType;
   status: AssignmentStatus;
   priority: AssignmentPriority;
-  userId: string;
-  createdAt?: unknown;
 };
 
-export const getAssignments = async (
-  userId: string
-): Promise<Assignment[]> => {
-  try {
-    const q = query(
-      collection(db, "assignments"),
-      where("userId", "==", userId),
-      orderBy("createdAt", "desc")
-    );
+const API = "http://localhost:5000/api/assignments";
 
-    const snap = await getDocs(q);
+const getAuthHeader = () => ({
+  Authorization: `Bearer ${localStorage.getItem("token")}`,
+  "Content-Type": "application/json",
+});
 
-    return snap.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        title: String(data.title ?? ""),
-        course: String(data.course ?? ""),
-        dueDate: String(data.dueDate ?? ""),
-        type: data.type ?? "Project",
-        status: data.status ?? "Not Started",
-        priority: data.priority ?? "medium",
-        userId: String(data.userId),
-        createdAt: data.createdAt,
-      };
-    });
-  } catch (err) {
-    console.error("Failed to load assignments:", err);
-    return [];
-  }
+/* GET */
+export const getAssignments = async (): Promise<Assignment[]> => {
+  const res = await fetch(API, { headers: getAuthHeader() });
+  if (!res.ok) throw new Error("Failed to fetch assignments");
+  return res.json();
 };
 
+/* CREATE */
+export const createAssignment = async (
+  data: Omit<Assignment, "_id">
+) => {
+  const res = await fetch(API, {
+    method: "POST",
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Failed to create assignment");
+  return res.json();
+};
+
+/* UPDATE */
 export const updateAssignmentStatus = async (
   id: string,
-  status: AssignmentStatus
+  data: Partial<Assignment>
 ) => {
-  await updateDoc(doc(db, "assignments", id), { status });
+  const res = await fetch(`${API}/${id}`, {
+    method: "PUT",
+    headers: getAuthHeader(),
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Update failed");
+};
+
+/* DELETE */
+export const deleteAssignment = async (id: string) => {
+  const res = await fetch(`${API}/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeader(),
+  });
+  if (!res.ok) throw new Error("Delete failed");
 };

@@ -3,270 +3,196 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
-import { z } from "zod";
-import { config } from "./config.js";
-import { admin, auth, db } from "./firebaseAdmin.js";
-import { cloudinary } from "./cloudinaryClient.js";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+
+dotenv.config();
 
 const app = express();
 
+/* ================= CONFIG ================= */
+const PORT = process.env.PORT || 5000;
+const MONGO = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET || "secret";
+
+/* ================= DATABASE ================= */
+mongoose
+  .connect(MONGO)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => {
+    console.error("Mongo error:", err);
+    process.exit(1);
+  });
+
+/* ================= MODELS ================= */
+import User from "./models/User.js";
+import Assignment from "./models/Assignment.js";
+import Course from "./models/Course.js";
+import Content from "./models/Content.js";
+import Folder from "./models/Folder.js";
+
+/* ================= MIDDLEWARE ================= */
 app.use(helmet());
-app.use(morgan("tiny"));
+app.use(morgan("dev"));
+
 app.use(
   cors({
-    origin: config.corsOrigins,
-    methods: ["GET", "POST"],
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
   })
 );
-app.use(express.json({ limit: "1mb" }));
+
+app.use(express.json());
+
 app.use(
   "/api/",
   rateLimit({
     windowMs: 60 * 1000,
-    max: 60,
-    standardHeaders: true,
-    legacyHeaders: false,
+    max: 100,
   })
 );
 
+/* ================= AUTH MIDDLEWARE ================= */
+
+const requireAuth = async (req, res, next) => {
+  const header = req.headers.authorization || "";
+
+  if (!header.startsWith("Bearer "))
+    return res.status(401).json({ error: "No token" });
+
+  try {
+    const token = header.slice(7);
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const user = await User.findById(decoded.id);
+    if (!user) throw new Error();
+
+    req.user = user;
+    next();
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
+  }
+};
+
+const requireAdmin = (req, res, next) => {
+  if (req.user.role !== "admin")
+    return res.status(403).json({ error: "Admin only" });
+
+  next();
+};
+
+/* ================= AUTH ROUTES ================= */
+
+// REGISTER
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { email, password, username } = req.body;
+
+    if (!email || !password || !username)
+      return res.status(400).json({ error: "All fields required" });
+
+    const exists = await User.findOne({ email });
+    if (exists)
+      return res.status(400).json({ error: "User exists" });
+
+    const hashed = await bcrypt.hash(password, 10);
+
+    const user = await User.create({
+      email,
+      username,
+      password: hashed,
+      role: "student",
+    });
+
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// LOGIN
+app.post("/api/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(400).json({ error: "Invalid email" });
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match)
+      return res.status(400).json({ error: "Wrong password" });
+
+    const token = jwt.sign({ id: user._id }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/* ================= ASSIGNMENTS ================= */
+
+// GET
+app.get("/api/assignments", requireAuth, async (req, res) => {
+  const items = await Assignment.find({
+    userId: req.user._id,
+  }).sort({ createdAt: -1 });
+
+  res.json(items);
+});
+
+// CREATE
+app.post("/api/assignments", requireAuth, async (req, res) => {
+  const item = await Assignment.create({
+    ...req.body,
+    userId: req.user._id,
+  });
+
+  res.json(item);
+});
+
+// UPDATE
+app.put("/api/assignments/:id", requireAuth, async (req, res) => {
+  await Assignment.findByIdAndUpdate(req.params.id, req.body);
+  res.json({ ok: true });
+});
+
+// DELETE
+app.delete("/api/assignments/:id", requireAuth, async (req, res) => {
+  await Assignment.findByIdAndDelete(req.params.id);
+  res.json({ ok: true });
+});
+
+/* ================= HEALTH ================= */
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-const deleteSchema = z.object({
-  contentId: z.string().min(1),
-});
-
-const folderCreateSchema = z.object({
-  name: z.string().trim().min(2).max(60),
-});
-
-const folderDeleteSchema = z.object({
-  folderId: z.string().min(1),
-});
-
-const getBearerToken = (req) => {
-  const header = req.headers.authorization || "";
-  if (!header.startsWith("Bearer ")) return null;
-  return header.slice("Bearer ".length).trim();
-};
-
-const requireAuth = async (req, res) => {
-  const token = getBearerToken(req);
-  if (!token) {
-    res.status(401).json({ error: "Missing auth token." });
-    return null;
-  }
-
-  try {
-    const decoded = await auth.verifyIdToken(token);
-    const userSnap = await db.collection("users").doc(decoded.uid).get();
-    const userData = userSnap.exists ? userSnap.data() : null;
-
-    return {
-      uid: decoded.uid,
-      email: decoded.email || userData?.email || null,
-      role: userData?.role === "admin" ? "admin" : "user",
-    };
-  } catch {
-    res.status(401).json({ error: "Invalid auth token." });
-    return null;
-  }
-};
-
-const requireAdmin = async (req, res) => {
-  const authCtx = await requireAuth(req, res);
-  if (!authCtx) return null;
-
-  if (authCtx.role !== "admin") {
-    res.status(403).json({ error: "Admin access required." });
-    return null;
-  }
-
-  return authCtx;
-};
-
-const normalizeResourceType = (resourceType, contentType) => {
-  const rt = String(resourceType || "").toLowerCase();
-  if (rt === "image" || rt === "video" || rt === "raw") return rt;
-
-  if (contentType === "video") return "video";
-  if (contentType === "pdf") return "raw";
-  return "image";
-};
-
-app.post("/api/content/delete", async (req, res) => {
-  try {
-    const authCtx = await requireAdmin(req, res);
-    if (!authCtx) return;
-
-    const { contentId } = deleteSchema.parse(req.body);
-    const contentRef = db.collection("contents").doc(contentId);
-    const contentSnap = await contentRef.get();
-
-    if (!contentSnap.exists) {
-      return res.status(404).json({ error: "Content not found." });
-    }
-
-    const content = contentSnap.data();
-    const publicId = content?.publicId;
-    const resourceType = normalizeResourceType(
-      content?.resourceType,
-      content?.type
-    );
-
-    let cloudinaryResult = null;
-    let cloudinaryError = null;
-
-    if (publicId) {
-      try {
-        cloudinaryResult = await cloudinary.uploader.destroy(publicId, {
-          resource_type: resourceType,
-        });
-      } catch (err) {
-        cloudinaryError =
-          err instanceof Error ? err.message : "Cloudinary delete failed.";
-      }
-    }
-
-    await contentRef.delete();
-
-    await db.collection("audit_logs").add({
-      action: "content_delete",
-      contentId,
-      contentTitle: content?.title ?? null,
-      contentType: content?.type ?? null,
-      folderId: content?.folderId ?? null,
-      publicId: publicId ?? null,
-      resourceType: resourceType ?? null,
-      cloudinaryResult,
-      cloudinaryError,
-      userId: authCtx.uid,
-      userEmail: authCtx.email,
-      ip: req.ip,
-      userAgent: req.get("user-agent") || null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return res.json({
-      ok: true,
-      cloudinary: cloudinaryResult,
-      cloudinaryError,
-      deletedId: contentId,
-    });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ error: err.message });
-    }
-    console.error("Delete failed:", err);
-    return res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.get("/api/folders", async (req, res) => {
-  try {
-    const authCtx = await requireAuth(req, res);
-    if (!authCtx) return;
-
-    const snap = await db
-      .collection("folders")
-      .orderBy("createdAt", "desc")
-      .get();
-
-    const items = snap.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    return res.json({ items });
-  } catch (err) {
-    console.error("Failed to load folders:", err);
-    return res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/folders", async (req, res) => {
-  try {
-    const authCtx = await requireAdmin(req, res);
-    if (!authCtx) return;
-
-    const { name } = folderCreateSchema.parse(req.body);
-
-    const existing = await db
-      .collection("folders")
-      .where("name", "==", name)
-      .limit(1)
-      .get();
-
-    if (!existing.empty) {
-      return res.status(409).json({ error: "Folder name already exists." });
-    }
-
-    const ref = await db.collection("folders").add({
-      name,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdBy: authCtx.uid,
-    });
-
-    return res.status(201).json({ id: ref.id, name });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ error: err.message });
-    }
-    console.error("Create folder failed:", err);
-    return res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/folders/delete", async (req, res) => {
-  try {
-    const authCtx = await requireAdmin(req, res);
-    if (!authCtx) return;
-
-    const { folderId } = folderDeleteSchema.parse(req.body);
-
-    const folderRef = db.collection("folders").doc(folderId);
-    const folderSnap = await folderRef.get();
-
-    if (!folderSnap.exists) {
-      return res.status(404).json({ error: "Folder not found." });
-    }
-
-    const inUse = await db
-      .collection("contents")
-      .where("folderId", "==", folderId)
-      .limit(1)
-      .get();
-
-    if (!inUse.empty) {
-      return res
-        .status(400)
-        .json({ error: "Folder not empty. Move or delete content first." });
-    }
-
-    await folderRef.delete();
-
-    await db.collection("audit_logs").add({
-      action: "folder_delete",
-      folderId,
-      folderName: folderSnap.data()?.name ?? null,
-      userId: authCtx.uid,
-      userEmail: authCtx.email,
-      ip: req.ip,
-      userAgent: req.get("user-agent") || null,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    return res.json({ ok: true, folderId });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ error: err.message });
-    }
-    console.error("Delete folder failed:", err);
-    return res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.listen(config.port, () => {
-  console.log(`API listening on port ${config.port}`);
+/* ================= START ================= */
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });

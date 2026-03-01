@@ -4,7 +4,7 @@ import { Card, CardContent } from "../../ui/card";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 
-import { useCurrentUser } from "../../../hook/useCurrentUser";
+import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import {
   getAssignments,
   updateAssignmentStatus,
@@ -22,7 +22,7 @@ export function Assignments() {
   useEffect(() => {
     if (!user) return;
 
-    getAssignments(user.uid)
+    getAssignments()
       .then(setItems)
       .catch((err) => {
         console.error("Failed to load assignments:", err);
@@ -34,9 +34,9 @@ export function Assignments() {
   const handleStatus = async (id: string, status: AssignmentStatus) => {
     try {
       setUpdatingId(id);
-      await updateAssignmentStatus(id, status);
+      await updateAssignmentStatus(id, { status });
       setItems((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status } : a))
+        prev.map((a) => (a._id === id ? { ...a, status } : a))
       );
     } catch (err) {
       console.error("Failed to update assignment:", err);
@@ -83,7 +83,10 @@ export function Assignments() {
         <CardContent className="p-0">
           <div className="divide-y">
             {items.map((a) => (
-              <div key={a.id} className="p-6 flex justify-between items-start">
+              <div
+                key={a._id}
+                className="p-6 flex justify-between items-start"
+              >
                 <div className="flex gap-4">
                   <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
                     <FileText className="w-6 h-6 text-indigo-600" />
@@ -113,8 +116,8 @@ export function Assignments() {
                   {a.status === "Not Started" && (
                     <Button
                       size="sm"
-                      onClick={() => handleStatus(a.id, "In Progress")}
-                      disabled={updatingId === a.id}
+                      onClick={() => handleStatus(a._id, "In Progress")}
+                      disabled={updatingId === a._id}
                     >
                       Start
                     </Button>
@@ -123,8 +126,8 @@ export function Assignments() {
                   {a.status === "In Progress" && (
                     <Button
                       size="sm"
-                      onClick={() => handleStatus(a.id, "Submitted")}
-                      disabled={updatingId === a.id}
+                      onClick={() => handleStatus(a._id, "Submitted")}
+                      disabled={updatingId === a._id}
                     >
                       Submit
                     </Button>

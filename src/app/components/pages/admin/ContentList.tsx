@@ -12,7 +12,7 @@ import {
 
 type Props = {
   activeType: ContentType | null;
-  activeFolder?: string | null; // 🔵 NEW
+  activeFolder?: string | null;
 };
 
 export function ContentList({ activeType, activeFolder }: Props) {
@@ -44,7 +44,7 @@ export function ContentList({ activeType, activeFolder }: Props) {
 
   /* filter by type + folder */
   const filtered = items.filter(
-    (i) =>
+    (i: any) =>
       i.type === activeType &&
       (!activeFolder || i.folder === activeFolder)
   );
@@ -55,11 +55,11 @@ export function ContentList({ activeType, activeFolder }: Props) {
 
   return (
     <div className="space-y-4">
-      {filtered.map((c) => (
-        <Card key={c.id} className="border border-gray-200 shadow-sm">
+      {filtered.map((c: any) => (
+        <Card key={c._id} className="border border-gray-200 shadow-sm">
           <CardContent className="p-4 space-y-4">
             {/* TITLE */}
-            {editId === c.id ? (
+            {editId === c._id ? (
               <div className="flex gap-2">
                 <input
                   value={newTitle}
@@ -69,7 +69,7 @@ export function ContentList({ activeType, activeFolder }: Props) {
                 <Button
                   size="sm"
                   onClick={async () => {
-                    await updateContent(c.id, { title: newTitle });
+                    await updateContent(c._id, { title: newTitle });
                     setEditId(null);
                     load();
                   }}
@@ -91,7 +91,7 @@ export function ContentList({ activeType, activeFolder }: Props) {
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      setEditId(c.id);
+                      setEditId(c._id);
                       setNewTitle(c.title);
                     }}
                   >
@@ -102,7 +102,7 @@ export function ContentList({ activeType, activeFolder }: Props) {
                     size="sm"
                     variant="destructive"
                     onClick={async () => {
-                      await deleteContent(c.id);
+                      await deleteContent(c._id);
                       load();
                     }}
                   >

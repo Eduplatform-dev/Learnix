@@ -6,7 +6,7 @@ import { Clock, BookOpen, Award, TrendingUp } from "lucide-react";
 import { ImageWithFallback } from "../ImageWithFallback";
 import headerImage from "../../../../assets/image.png";
 
-import { useCurrentUser } from "../../../hook/useCurrentUser";
+import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { getCourses, type Course } from "../../../services/courseService";
 import {
   getAssignments,
@@ -25,7 +25,7 @@ export function Dashboard() {
 
     Promise.all([
       getCourses(),
-      getAssignments(user.uid),
+      getAssignments(),
     ])
       .then(([c, a]) => {
         setCourses(c);

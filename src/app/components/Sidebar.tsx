@@ -18,51 +18,34 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useAuth } from "../providers/AuthProvider";
-import { UserRole } from "../services/authService";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
+type UserRole = "student" | "admin" | "instructor";
+
 type MenuItem = {
-  id: string;
+  path: string;
   label: string;
   icon: LucideIcon;
   badge?: number;
 };
 
 interface SidebarProps {
-  onPageChange: (page: string) => void;
   isOpen: boolean;
   onClose: () => void;
-  userRole: UserRole | null;
 }
 
-export function Sidebar({
-  onPageChange,
-  isOpen,
-  onClose,
-  userRole,
-}: SidebarProps) {
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const userRole = user?.role as UserRole | undefined;
 
   if (!userRole) return null;
 
-  const location = useLocation();
+  const activePath = location.pathname;
 
-  let activePage = location.pathname.replace(/^\/+/, "");
-
-  if (activePage.startsWith("dashboard/")) {
-    activePage = activePage.replace("dashboard/", "");
-  }
-
-  if (activePage.startsWith("admin/")) {
-    activePage = "admin-" + activePage.replace("admin/", "");
-  }
-
-  if (!activePage || activePage === "dashboard") {
-    activePage = userRole === "admin" ? "admin-dashboard" : "dashboard";
-  }
-
-  /* INITIALS */
   const initials = user?.username
     ? user.username
         .split(" ")
@@ -72,31 +55,31 @@ export function Sidebar({
         .toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() || "U";
 
-  /* MENUS */
-  const userMenuItems: MenuItem[] = [
-    { id: "dashboard", label: "Home", icon: Home },
-    { id: "courses", label: "My Courses", icon: BookOpen },
-    { id: "videos", label: "Video Library", icon: PlayCircle },
-    { id: "library", label: "Resources", icon: FolderOpen },
-    { id: "progress", label: "My Progress", icon: LineChart },
-    { id: "assignments", label: "Assignments", icon: FileText, badge: 3 },
-    { id: "submissions", label: "Submissions", icon: Upload },
-    { id: "fees", label: "Fee Payment", icon: DollarSign },
-    { id: "ai-chat", label: "AI Assistant", icon: MessageSquare },
+  const studentMenu: MenuItem[] = [
+    { path: "/dashboard", label: "Home", icon: Home },
+    { path: "/dashboard/courses", label: "My Courses", icon: BookOpen },
+    { path: "/dashboard/videos", label: "Video Library", icon: PlayCircle },
+    { path: "/dashboard/library", label: "Resources", icon: FolderOpen },
+    { path: "/dashboard/progress", label: "My Progress", icon: LineChart },
+    { path: "/dashboard/assignments", label: "Assignments", icon: FileText },
+    { path: "/dashboard/submissions", label: "Submissions", icon: Upload },
+    { path: "/dashboard/fees", label: "Fee Payment", icon: DollarSign },
+    { path: "/dashboard/ai-chat", label: "AI Assistant", icon: MessageSquare },
   ];
 
-  const adminMenuItems: MenuItem[] = [
-    { id: "admin-dashboard", label: "Dashboard", icon: BarChart3 },
-    { id: "admin-users", label: "Students", icon: Users },
-    { id: "admin-courses", label: "Courses", icon: BookOpen },
-    { id: "admin-analytics", label: "Analytics", icon: LineChart },
-    { id: "admin-content", label: "Content", icon: FolderOpen },
-    { id: "admin-fees", label: "Fees", icon: DollarSign },
-    { id: "admin-submissions", label: "Submissions", icon: Upload, badge: 12 },
-    { id: "admin-settings", label: "Settings", icon: Settings },
+  const adminMenu: MenuItem[] = [
+    { path: "/admin/dashboard", label: "Dashboard", icon: BarChart3 },
+    { path: "/admin/users", label: "Students", icon: Users },
+    { path: "/admin/courses", label: "Courses", icon: BookOpen },
+    { path: "/admin/analytics", label: "Analytics", icon: LineChart },
+    { path: "/admin/content", label: "Content", icon: FolderOpen },
+    { path: "/admin/fees", label: "Fees", icon: DollarSign },
+    { path: "/admin/submissions", label: "Submissions", icon: Upload },
+    { path: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
-  const menuItems = userRole === "admin" ? adminMenuItems : userMenuItems;
+  const menuItems =
+    userRole === "admin" ? adminMenu : studentMenu;
 
   return (
     <div
@@ -122,9 +105,11 @@ export function Sidebar({
           </div>
 
           <div>
-            <h1 className="font-bold text-slate-900">EduPlatform</h1>
+            <h1 className="font-bold text-slate-900">Learnix</h1>
             <p className="text-xs text-slate-500">
-              {userRole === "admin" ? "Admin Portal" : "Student Portal"}
+              {userRole === "admin"
+                ? "Admin Portal"
+                : "Student Portal"}
             </p>
           </div>
         </div>
@@ -135,21 +120,20 @@ export function Sidebar({
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activePage === item.id;
+            const isActive = activePath === item.path;
 
             return (
               <Button
-                key={item.id}
+                key={item.path}
                 variant={isActive ? "default" : "ghost"}
                 className="w-full justify-start rounded-xl"
                 onClick={() => {
-                  onPageChange(item.id);
+                  navigate(item.path);
                   onClose();
                 }}
               >
                 <Icon className="w-5 h-5 mr-3" />
                 {item.label}
-
                 {item.badge && (
                   <Badge className="ml-auto bg-red-500 text-white">
                     {item.badge}
@@ -161,7 +145,7 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* USER */}
+      {/* USER INFO */}
       <div className="p-4 border-t border-slate-200 bg-slate-50">
         <div className="flex items-center gap-3">
           <Avatar className="w-10 h-10">

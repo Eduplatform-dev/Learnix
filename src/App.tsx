@@ -4,7 +4,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useNavigate,
 } from "react-router-dom";
 
 import { useAuth } from "./app/providers/AuthProvider";
@@ -16,36 +15,36 @@ import { Header } from "./app/components/Header";
 import { Login } from "./app/components/Login";
 
 /* ===================== STUDENT PAGES ===================== */
-import { Dashboard } from "./app/components/pages/std/Dashboard";
-import { Courses } from "./app/components/pages/std/Courses";
-import { Videos } from "./app/components/pages/std/Videos";
-import { Progress } from "./app/components/pages/std/Progress";
-import { Assignments } from "./app/components/pages/std/Assignments";
-import { Submissions } from "./app/components/pages/std/Submissions";
-import { Fees } from "./app/components/pages/std/Fees";
-import { AIChat } from "./app/components/pages/std/AIChat";
-import { ContentLibrary } from "./app/components/pages/std/ContentLibrary";
+import { Dashboard } from "./app/components/pages/student/Dashboard";
+import { Courses } from "./app/components/pages/student/Courses";
+import { Videos } from "./app/components/pages/student/Videos";
+import { Progress } from "./app/components/pages/student/Progress";
+import { Assignments } from "./app/components/pages/student/Assignments";
+import { Submissions } from "./app/components/pages/student/Submissions";
+import { Fees } from "./app/components/pages/student/Fees";
+import { AIChat } from "./app/components/pages/student/AIChat";
+import { ContentLibrary } from "./app/components/pages/student/ContentLibrary";
 
 /* ===================== ADMIN PAGES ===================== */
 /* ⚠️ make sure folder name is correct: admin not adn */
-import { AdminDashboard } from "./app/components/pages/adn/AdminDashboard";
-import { AdminUsers } from "./app/components/pages/adn/AdminUsers";
-import { AdminCourses } from "./app/components/pages/adn/AdminCourses";
-import { AdminAnalytics } from "./app/components/pages/adn/AdminAnalytics";
-import { AdminContent } from "./app/components/pages/adn/AdminContent";
-import { AdminFees } from "./app/components/pages/adn/AdminFees";
-import { AdminSubmissions } from "./app/components/pages/adn/AdminSubmissions";
-import { AdminSettings } from "./app/components/pages/adn/AdminSettings";
+import { AdminDashboard } from "./app/components/pages/admin/AdminDashboard";
+import { AdminUsers } from "./app/components/pages/admin/AdminUsers";
+import { AdminCourses } from "./app/components/pages/admin/AdminCourses";
+import { AdminAnalytics } from "./app/components/pages/admin/AdminAnalytics";
+import { AdminContent } from "./app/components/pages/admin/AdminContent";
+import { AdminFees } from "./app/components/pages/admin/AdminFees";
+import { AdminSubmissions } from "./app/components/pages/admin/AdminSubmissions";
+import { AdminSettings } from "./app/components/pages/admin/AdminSettings";
 
 /* =========================================================
    🔐 PROTECTED ROUTE WRAPPER
 ========================================================= */
 function ProtectedLayout({
-  role,
+  roles,
   userRole,
   children,
 }: {
-  role: UserRole;
+  roles: UserRole[];
   userRole: UserRole | null;
   children: ReactNode;
 }) {
@@ -53,7 +52,7 @@ function ProtectedLayout({
     return <Navigate to="/login" replace />;
   }
 
-  if (userRole !== role) {
+  if (!roles.includes(userRole)) {
     return (
       <Navigate
         to={userRole === "admin" ? "/admin/dashboard" : "/dashboard"}
@@ -68,19 +67,14 @@ function ProtectedLayout({
 /* =========================================================
    🎓 USER SHELL
 ========================================================= */
-function UserShell({ userRole }: { userRole: UserRole }) {
-  const navigate = useNavigate();
+function UserShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar
-        userRole={userRole}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onPageChange={(id) => {
-          navigate(id === "dashboard" ? "/dashboard" : `/dashboard/${id}`);
-        }}
       />
 
       <div className="flex-1 lg:ml-64">
@@ -110,24 +104,14 @@ function UserShell({ userRole }: { userRole: UserRole }) {
 /* =========================================================
    🛠 ADMIN SHELL
 ========================================================= */
-function AdminShell({ userRole }: { userRole: UserRole }) {
-  const navigate = useNavigate();
+function AdminShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar
-        userRole={userRole}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onPageChange={(id) => {
-          const page = id.replace("admin-", "");
-          navigate(
-            page === "dashboard"
-              ? "/admin/dashboard"
-              : `/admin/${page}`
-          );
-        }}
       />
 
       <div className="flex-1 lg:ml-64">
@@ -191,8 +175,8 @@ export default function App() {
         <Route
           path="/dashboard/*"
           element={
-            <ProtectedLayout role="user" userRole={userRole}>
-              <UserShell userRole="user" />
+            <ProtectedLayout roles={["student", "instructor"]} userRole={userRole}>
+              <UserShell />
             </ProtectedLayout>
           }
         />
@@ -201,8 +185,8 @@ export default function App() {
         <Route
           path="/admin/*"
           element={
-            <ProtectedLayout role="admin" userRole={userRole}>
-              <AdminShell userRole="admin" />
+            <ProtectedLayout roles={["admin"]} userRole={userRole}>
+              <AdminShell />
             </ProtectedLayout>
           }
         />
