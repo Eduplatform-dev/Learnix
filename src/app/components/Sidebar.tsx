@@ -42,6 +42,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const userRole = user?.role as UserRole | undefined;
 
+  /* ✅ do not render until auth restored */
   if (!userRole) return null;
 
   const activePath = location.pathname;
@@ -54,6 +55,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         .slice(0, 2)
         .toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() || "U";
+
+  /* ================= MENUS ================= */
 
   const studentMenu: MenuItem[] = [
     { path: "/dashboard", label: "Home", icon: Home },
@@ -78,6 +81,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
+  /* ✅ instructor uses student menu (same logic preserved) */
   const menuItems =
     userRole === "admin" ? adminMenu : studentMenu;
 
@@ -120,7 +124,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activePath === item.path;
+
+            /* ✅ FIX: supports nested routes */
+            const isActive = activePath.startsWith(item.path);
 
             return (
               <Button
@@ -134,6 +140,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               >
                 <Icon className="w-5 h-5 mr-3" />
                 {item.label}
+
                 {item.badge && (
                   <Badge className="ml-auto bg-red-500 text-white">
                     {item.badge}

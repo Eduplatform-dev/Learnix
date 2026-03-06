@@ -22,10 +22,12 @@ export function Login() {
     password: "",
   });
 
+  /* ✅ default role added (NO UI CHANGE) */
   const [signUpData, setSignUpData] = useState({
     username: "",
     email: "",
     password: "",
+    role: "student" as "student" | "instructor" | "admin",
   });
 
   /* AUTO REDIRECT */
@@ -76,10 +78,12 @@ export function Login() {
     setError(null);
 
     try {
+      /* ✅ role sent automatically */
       const { user, token } = await registerUser(
         signUpData.email,
         signUpData.password,
-        signUpData.username
+        signUpData.username,
+        signUpData.role
       );
 
       setAuthUser(user, token);

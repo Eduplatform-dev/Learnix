@@ -16,7 +16,8 @@ export type AuthResponse = {
 
 const API = "http://localhost:5000/api/auth";
 
-/* TOKEN */
+/* ================= TOKEN ================= */
+
 export const getToken = () => localStorage.getItem("token");
 
 export const getAuthHeader = () => {
@@ -32,8 +33,11 @@ export const getAuthHeader = () => {
   };
 };
 
-/* HANDLE RESPONSE */
-const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
+/* ================= HANDLE RESPONSE ================= */
+
+const handleAuthResponse = async (
+  res: Response
+): Promise<AuthResponse> => {
   const data = await res.json();
 
   if (!res.ok) {
@@ -51,11 +55,14 @@ const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
   };
 };
 
-/* REGISTER */
+/* ================= REGISTER ================= */
+/* ✅ role added (default = student) */
+
 export const registerUser = async (
   email: string,
   password: string,
-  username: string
+  username: string,
+  role: UserRole = "student"
 ): Promise<AuthResponse> => {
   const res = await fetch(`${API}/register`, {
     method: "POST",
@@ -66,13 +73,15 @@ export const registerUser = async (
       email,
       password,
       username,
+      role, // ✅ send role to backend
     }),
   });
 
   return handleAuthResponse(res);
 };
 
-/* LOGIN */
+/* ================= LOGIN ================= */
+
 export const loginUser = async (
   email: string,
   password: string
@@ -91,7 +100,8 @@ export const loginUser = async (
   return handleAuthResponse(res);
 };
 
-/* CURRENT USER */
+/* ================= CURRENT USER ================= */
+
 export const getCurrentUser = (): User | null => {
   const stored = localStorage.getItem("user");
   if (!stored) return null;
@@ -103,7 +113,8 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
-/* LOGOUT */
+/* ================= LOGOUT ================= */
+
 export const logoutUser = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");

@@ -1,6 +1,6 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "../providers/AuthProvider";
 import React from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../providers/AuthProvider";
 
 type UserRole = "student" | "admin" | "instructor";
 
@@ -9,10 +9,14 @@ type ProtectedRouteProps = {
   allowedRoles?: UserRole[];
 };
 
-const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+const ProtectedRoute = ({
+  children,
+  allowedRoles,
+}: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
-  // wait until auth restored
+  /* ✅ Wait until session restore completes */
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -21,12 +25,18 @@ const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
     );
   }
 
-  // not logged in
+  /* ✅ Not logged in */
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate
+        to="/login"
+        state={{ from: location }} // remembers previous page
+        replace
+      />
+    );
   }
 
-  // RBAC check
+  /* ✅ Role-based access control */
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;
   }

@@ -12,7 +12,7 @@ import {
   createUserDoc,
   type AdminUser,
   type UserRole,
-} from "../../../services/userService";
+} from "../../../services/userService"; // ✅ fixed path
 
 export function AdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -25,13 +25,15 @@ export function AdminUsers() {
   const [addError, setAddError] = useState("");
   const [adding, setAdding] = useState(false);
 
-  /* LOAD USERS */
+  /* ================= LOAD USERS ================= */
+
   const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getUsers();
-      setUsers(data || []);
-    } catch {
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
       alert("Failed to load users");
     } finally {
       setLoading(false);
@@ -42,7 +44,8 @@ export function AdminUsers() {
     loadUsers();
   }, [loadUsers]);
 
-  /* TOGGLE ROLE */
+  /* ================= ROLE TOGGLE ================= */
+
   const handleRoleToggle = async (id: string, role: UserRole) => {
     const newRole: UserRole =
       role === "admin" ? "student" : "admin";
@@ -55,24 +58,28 @@ export function AdminUsers() {
           u._id === id ? { ...u, role: newRole } : u
         )
       );
-    } catch {
-      alert("Update failed");
+    } catch (err) {
+      console.error(err);
+      alert("Role update failed");
     }
   };
 
-  /* DELETE USER */
+  /* ================= DELETE USER ================= */
+
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this user?")) return;
 
     try {
       await deleteUser(id);
       setUsers((prev) => prev.filter((u) => u._id !== id));
-    } catch {
+    } catch (err) {
+      console.error(err);
       alert("Delete failed");
     }
   };
 
-  /* ADD USER */
+  /* ================= ADD USER ================= */
+
   const handleAddUser = async () => {
     const username = newUsername.trim();
     const email = newEmail.trim();
@@ -95,7 +102,7 @@ export function AdminUsers() {
       const newUser = await createUserDoc({
         email,
         username,
-        password: "123456",
+        password: "123456", // default temp password
         role: "student",
       });
 
@@ -104,18 +111,20 @@ export function AdminUsers() {
       setNewUsername("");
       setNewEmail("");
       setOpen(false);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setAddError("Add user failed");
     } finally {
       setAdding(false);
     }
   };
 
-  /* FILTER USERS */
-  const filteredUsers = users.filter(
-    (u) =>
-      u.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  /* ================= FILTER ================= */
+
+  const filteredUsers = users.filter((u) =>
+    `${u.username} ${u.email}`
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
   );
 
   if (loading) {
@@ -128,7 +137,9 @@ export function AdminUsers() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">User Management</h1>
-          <p className="text-gray-600 mt-1">Manage platform users</p>
+          <p className="text-gray-600 mt-1">
+            Manage platform users
+          </p>
         </div>
 
         <Button onClick={() => setOpen(true)}>
@@ -149,7 +160,7 @@ export function AdminUsers() {
         </CardContent>
       </Card>
 
-      {/* LIST */}
+      {/* USERS LIST */}
       <Card>
         <CardContent>
           {filteredUsers.map((u) => (
@@ -170,12 +181,14 @@ export function AdminUsers() {
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <Badge>{u.role}</Badge>
 
                 <Button
                   size="sm"
-                  onClick={() => handleRoleToggle(u._id, u.role)}
+                  onClick={() =>
+                    handleRoleToggle(u._id, u.role)
+                  }
                 >
                   Toggle
                 </Button>
@@ -193,7 +206,7 @@ export function AdminUsers() {
         </CardContent>
       </Card>
 
-      {/* MODAL */}
+      {/* ADD USER MODAL */}
       {open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
           <div className="bg-white p-6 rounded w-80">
@@ -203,22 +216,31 @@ export function AdminUsers() {
               className="w-full border p-2 rounded mb-2"
               placeholder="Username"
               value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value)}
+              onChange={(e) =>
+                setNewUsername(e.target.value)
+              }
             />
 
             <input
               className="w-full border p-2 rounded mb-2"
               placeholder="Email"
               value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
+              onChange={(e) =>
+                setNewEmail(e.target.value)
+              }
             />
 
             {addError && (
-              <p className="text-red-600 text-sm mb-2">{addError}</p>
+              <p className="text-red-600 text-sm mb-2">
+                {addError}
+              </p>
             )}
 
             <div className="flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setOpen(false)}>
+              <Button
+                variant="ghost"
+                onClick={() => setOpen(false)}
+              >
                 Cancel
               </Button>
 
