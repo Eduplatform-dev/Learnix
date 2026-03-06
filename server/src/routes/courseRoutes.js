@@ -1,36 +1,120 @@
 import express from "express";
 import { authenticateToken, authorize } from "../middleware/auth.js";
+import Course from "../models/Course.js";
 
 const router = express.Router();
 
-// GET /api/courses
-router.get("/", (req, res) => {
-  // Get all courses
-  res.json({ message: "Get all courses route" });
+/* ============================
+   GET ALL COURSES
+   GET /api/courses
+============================ */
+router.get("/", authenticateToken, async (_req, res) => {
+  try {
+    const courses = await Course.find().sort({ createdAt: -1 });
+    res.json(courses);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// GET /api/courses/:id
-router.get("/:id", (req, res) => {
-  // Get course by ID
-  res.json({ message: "Get course by ID route" });
+/* ============================
+   GET COURSE BY ID
+   GET /api/courses/:id
+============================ */
+router.get("/:id", authenticateToken, async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+
+    if (!course) {
+      return res.status(404).json({ error: "Course not found" });
+    }
+
+    res.json(course);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// POST /api/courses
-router.post("/", authenticateToken, authorize(["admin"]), (req, res) => {
-  // Create new course
-  res.json({ message: "Create course route" });
-});
+/* ============================
+   CREATE COURSE (ADMIN)
+   POST /api/courses
+============================ */
+router.post(
+  "/",
+  authenticateToken,
+  authorize(["admin"]),
+  async (req, res) => {
+    try {
+      const { title, instructor, duration, image } = req.body || {};
 
-// PUT /api/courses/:id
-router.put("/:id", authenticateToken, authorize(["admin"]), (req, res) => {
-  // Update course
-  res.json({ message: "Update course route" });
-});
+      if (!title || !instructor || !duration) {
+        return res.status(400).json({ error: "All fields required" });
+      }
 
-// DELETE /api/courses/:id
-router.delete("/:id", authenticateToken, authorize(["admin"]), (req, res) => {
-  // Delete course
-  res.json({ message: "Delete course route" });
-});
+      const course = await Course.create({
+        title: String(title).trim(),
+        instructor: String(instructor).trim(),
+        duration: String(duration).trim(),
+        image: image ? String(image) : "",
+        students: 0,
+        rating: 4.5,
+        progress: 0,
+        status: "Not Started",
+      });
+
+      res.status(201).json(course);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+/* ============================
+   UPDATE COURSE (ADMIN)
+   PUT /api/courses/:id
+============================ */
+router.put(
+  "/:id",
+  authenticateToken,
+  authorize(["admin"]),
+  async (req, res) => {
+    try {
+      const updated = await Course.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+      });
+
+      if (!updated) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+/* ============================
+   DELETE COURSE (ADMIN)
+   DELETE /api/courses/:id
+============================ */
+router.delete(
+  "/:id",
+  authenticateToken,
+  authorize(["admin"]),
+  async (req, res) => {
+    try {
+      const deleted = await Course.findByIdAndDelete(req.params.id);
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 export default router;

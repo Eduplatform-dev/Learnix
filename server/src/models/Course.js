@@ -3,13 +3,17 @@ import mongoose from "mongoose";
 const courseSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
-    description: String,
-    instructor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    students: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    duration: String,
-    level: String,
-    image: String,
-    status: { type: String, default: "active" },
+    instructor: { type: String, required: true, trim: true },
+    duration: { type: String, required: true, trim: true },
+    students: { type: Number, default: 0 },
+    rating: { type: Number, default: 4.5 },
+    progress: { type: Number, default: 0 },
+    status: {
+      type: String,
+      enum: ["In Progress", "Completed", "Not Started"],
+      default: "Not Started",
+    },
+    image: { type: String, default: "" },
   },
   { timestamps: true }
 );

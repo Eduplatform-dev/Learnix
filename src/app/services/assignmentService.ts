@@ -14,7 +14,10 @@ export type Assignment = {
   priority: AssignmentPriority;
 };
 
-const API = "http://localhost:5000/api/assignments";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+const API = `${API_BASE_URL}/api/assignments`;
 
 const getAuthHeader = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,

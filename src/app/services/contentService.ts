@@ -10,7 +10,10 @@ export type Content = {
   course?: string; // ✅ link to course
 };
 
-const API = "http://localhost:5000/api/content";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+const API = `${API_BASE_URL}/api/content`;
 
 /* ================= AUTH HEADER ================= */
 const getAuthHeader = () => ({

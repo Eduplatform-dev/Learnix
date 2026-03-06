@@ -1,8 +1,54 @@
 import express from "express";
 import User from "../models/User.js";
 import { authenticateToken, authorize } from "../middleware/auth.js";
+import bcrypt from "bcrypt";
 
 const router = express.Router();
+
+/* =====================================================
+   CREATE USER (ADMIN ONLY)
+   POST /api/users
+===================================================== */
+router.post(
+  "/",
+  authenticateToken,
+  authorize(["admin"]),
+  async (req, res) => {
+    try {
+      const { email, password, username, role } = req.body || {};
+
+      if (!email || !password || !username) {
+        return res.status(400).json({ error: "All fields required" });
+      }
+
+      const exists = await User.findOne({ email: String(email).toLowerCase() });
+      if (exists) {
+        return res.status(400).json({ error: "User already exists" });
+      }
+
+      const hashedPassword = await bcrypt.hash(String(password), 10);
+
+      const allowedRoles = ["student", "instructor", "admin"];
+      const safeRole = allowedRoles.includes(role) ? role : "student";
+
+      const user = await User.create({
+        email: String(email).toLowerCase(),
+        username: String(username).trim(),
+        password: hashedPassword,
+        role: safeRole,
+      });
+
+      res.status(201).json({
+        _id: user._id,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 /* =====================================================
    GET USER BY ID
@@ -35,17 +81,67 @@ router.put("/:id", authenticateToken, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    ).select("-password");
+    const updates = {};
+
+    if (req.body?.username !== undefined) {
+      updates.username = String(req.body.username).trim();
+    }
+
+    if (req.body?.email !== undefined) {
+      updates.email = String(req.body.email).toLowerCase().trim();
+    }
+
+    if (req.body?.password !== undefined) {
+      updates.password = await bcrypt.hash(String(req.body.password), 10);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updates, {
+      new: true,
+    }).select("-password");
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     res.json(updatedUser);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+/* =====================================================
+   UPDATE ROLE (ADMIN ONLY)
+   PATCH /api/users/:id
+===================================================== */
+router.patch(
+  "/:id",
+  authenticateToken,
+  authorize(["admin"]),
+  async (req, res) => {
+    try {
+      const { role } = req.body || {};
+      const allowedRoles = ["student", "instructor", "admin"];
+
+      if (!allowedRoles.includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+
+      const updatedUser = await User.findByIdAndUpdate(
+        req.params.id,
+        { role },
+        { new: true }
+      ).select("-password");
+
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json(updatedUser);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 /* =====================================================
    GET ALL USERS (ADMIN ONLY)

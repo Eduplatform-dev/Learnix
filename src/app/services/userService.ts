@@ -12,7 +12,10 @@ export type AdminUser = {
   role: UserRole;
 };
 
-const API = "http://localhost:5000/api/users";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+const API = `${API_BASE_URL}/api/users`;
 
 /* ---------------- GET USERS ---------------- */
 export const getUsers = async (): Promise<AdminUser[]> => {

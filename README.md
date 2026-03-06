@@ -31,32 +31,77 @@ A modern, comprehensive Learning Management System (LMS) built with React, TypeS
 
 ## Setup
 
-1. Create a local `.env` file based on `.env.example` and fill in the Cloudinary values.
-2. Configure Firebase Firestore rules.
+This repo includes:
+- Frontend (Vite + React) in the project root
+- Backend API (Express + MongoDB) in `server/`
 
-Dev-only rules (open access):
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
-    }
-  }
-}
+### 1) Environment variables
+
+Frontend:
+- Copy `.env.example` → `.env`
+- Set `VITE_API_BASE_URL` (default: `http://localhost:5000`)
+
+Backend:
+- Copy `server/.env.example` → `server/.env`
+- Set `MONGO_URI` and `JWT_SECRET`
+
+### 2) Install dependencies
+
+```bash
+npm install
+npm --prefix server install
 ```
 
-Production rules (authenticated users only):
+### 3) (Optional) Seed sample data
+
+```bash
+npm --prefix server run seed
 ```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-  }
-}
+
+Seeded demo accounts:
+- Admin: `admin@learnix.com` / `admin123`
+- Student: `student@learnix.com` / `student123`
+
+### 4) Run the app
+
+In two terminals:
+```bash
+npm --prefix server run dev
+npm run dev
 ```
+
+Or run both together:
+```bash
+npm run dev:full
+```
+
+## Production Checklist
+
+1. Set secure backend env values in `server/.env`:
+- `NODE_ENV=production`
+- `JWT_SECRET` to a long random value (16+ chars)
+- `MONGO_URI` to your production DB
+- `CORS_ORIGIN` to your deployed frontend origin(s), comma-separated if multiple
+- `PUBLIC_BASE_URL` to your backend public URL (used for uploaded file links)
+
+2. Build frontend:
+```bash
+npm run build
+```
+
+3. Run backend in production mode:
+```bash
+npm --prefix server run start
+```
+
+4. Configure your reverse proxy (Nginx/Cloudflare/Vercel) to:
+- Serve frontend static build
+- Forward `/api/*` and `/uploads/*` to backend
+
+5. Security notes:
+- Public registration now creates only `student` users.
+- Admin/instructor role assignment is backend-protected.
+- Rate limiting and strict CORS checks are enabled.
 
 ## Pages Overview
 

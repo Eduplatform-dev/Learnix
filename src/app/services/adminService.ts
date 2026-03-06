@@ -6,7 +6,10 @@ import { getAuthHeader } from "./authService";
    API BASE
 ===================================================== */
 
-const API = "http://localhost:5000/api/admin";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+const API = `${API_BASE_URL}/api/admin`;
 
 /* =====================================================
    HELPER

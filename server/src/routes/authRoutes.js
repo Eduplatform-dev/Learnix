@@ -1,97 +1,93 @@
-// routes/authRoutes.js
-
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { z } from "zod";
+
 import User from "../models/User.js";
+import { env } from "../config/env.js";
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "secret";
+const registerSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  username: z.string().min(2).max(60),
+  role: z.enum(["student", "instructor", "admin"]).optional(),
+});
 
-/* =====================================================
-   REGISTER
-   POST /api/auth/register
-===================================================== */
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+const createAuthPayload = (user) => ({
+  _id: user._id,
+  email: user.email,
+  username: user.username,
+  role: user.role,
+});
+
 router.post("/register", async (req, res) => {
   try {
-    const { email, password, username, role } = req.body;
-
-    if (!email || !password || !username) {
-      return res.status(400).json({ error: "All fields required" });
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid registration payload" });
     }
 
-    const exists = await User.findOne({ email });
+    const { email, password, username } = parsed.data;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const exists = await User.findOne({ email: normalizedEmail });
     if (exists) {
-      return res.status(400).json({ error: "User exists" });
+      return res.status(409).json({ error: "User already exists" });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // allowed roles
-    const allowedRoles = ["student", "instructor", "admin"];
-
+    // Public registration always creates student accounts.
     const user = await User.create({
-      email,
-      username,
-      password: hashed,
-      role: allowedRoles.includes(role) ? role : "student",
+      email: normalizedEmail,
+      username: username.trim(),
+      password: hashedPassword,
+      role: "student",
     });
 
-    const token = jwt.sign(
-      { id: user._id },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ id: user._id }, env.JWT_SECRET, { expiresIn: "7d" });
 
-    res.json({
+    res.status(201).json({
       token,
-      user: {
-        _id: user._id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-      },
+      user: createAuthPayload(user),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/* =====================================================
-   LOGIN
-   POST /api/auth/login
-===================================================== */
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const parsed = loginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid login payload" });
+    }
 
-    const user = await User.findOne({ email });
+    const { email, password } = parsed.data;
+    const normalizedEmail = email.toLowerCase().trim();
 
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) {
-      return res.status(400).json({ error: "Invalid email" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
     const match = await bcrypt.compare(password, user.password);
-
     if (!match) {
-      return res.status(400).json({ error: "Wrong password" });
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      { id: user._id },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = jwt.sign({ id: user._id }, env.JWT_SECRET, { expiresIn: "7d" });
 
     res.json({
       token,
-      user: {
-        _id: user._id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-      },
+      user: createAuthPayload(user),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -99,3 +95,4 @@ router.post("/login", async (req, res) => {
 });
 
 export default router;
+
