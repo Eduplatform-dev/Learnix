@@ -1,9 +1,10 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-/* ROLES */
-type UserRole = "student" | "admin" | "instructor";
+/* ================= ROLES ================= */
 
-type User = {
+export type UserRole = "student" | "admin" | "instructor";
+
+export type User = {
   _id: string;
   email: string;
   username: string;
@@ -18,56 +19,77 @@ type AuthContextType = {
   logout: () => void;
 };
 
-const AuthContext = createContext<AuthContextType | null>(null);
+/* ================= CONTEXT ================= */
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/* ================= PROVIDER ================= */
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ✅ RESTORE SESSION */
+  /* ================= RESTORE SESSION ================= */
+
   useEffect(() => {
-    const restoreSession = () => {
-      try {
-        const storedUser = localStorage.getItem("user");
-        const storedToken = localStorage.getItem("token");
 
-        if (storedUser && storedToken) {
-          const parsedUser: User = JSON.parse(storedUser);
+    const storedUser = localStorage.getItem("user");
+    const storedToken = localStorage.getItem("token");
 
-          setUser(parsedUser);
-          setToken(storedToken);
-        }
-      } catch {
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-      } finally {
-        setLoading(false);
+    try {
+
+      if (storedUser && storedToken) {
+
+        const parsedUser: User = JSON.parse(storedUser);
+
+        setUser(parsedUser);
+        setToken(storedToken);
+
       }
-    };
 
-    restoreSession();
+    } catch {
+
+      console.warn("Invalid auth data found in localStorage");
+
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
   }, []);
 
-  /* ✅ LOGIN */
+  /* ================= LOGIN ================= */
+
   const setAuthUser = (user: User, token: string) => {
+
     localStorage.setItem("user", JSON.stringify(user));
     localStorage.setItem("token", token);
 
     setUser(user);
     setToken(token);
+
   };
 
-  /* ✅ LOGOUT */
+  /* ================= LOGOUT ================= */
+
   const logout = () => {
+
     localStorage.removeItem("user");
     localStorage.removeItem("token");
 
     setUser(null);
     setToken(null);
+
   };
 
   return (
+
     <AuthContext.Provider
       value={{
         user,
@@ -79,14 +101,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     >
       {children}
     </AuthContext.Provider>
+
   );
 }
 
-/* ✅ HOOK */
+/* ================= HOOK ================= */
+
 export function useAuth() {
+
   const ctx = useContext(AuthContext);
+
   if (!ctx) {
     throw new Error("useAuth must be used inside AuthProvider");
   }
+
   return ctx;
+
 }

@@ -15,17 +15,27 @@ type Props = {
   activeFolder?: string | null;
 };
 
+/* Extend Content type to include optional folder */
+type ContentItem = Content & {
+  folder?: string;
+};
+
 export function ContentList({ activeType, activeFolder }: Props) {
-  const [items, setItems] = useState<Content[]>([]);
+  const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
 
   const load = async () => {
-    setLoading(true);
-    const data = await getContents();
-    setItems(data);
-    setLoading(false);
+    try {
+      setLoading(true);
+      const data = await getContents();
+      setItems((data ?? []) as ContentItem[]);
+    } catch (err) {
+      console.error("Content load failed:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -40,11 +50,13 @@ export function ContentList({ activeType, activeFolder }: Props) {
     );
   }
 
-  if (loading) return <p>Loading content...</p>;
+  if (loading) {
+    return <p className="text-center">Loading content...</p>;
+  }
 
   /* filter by type + folder */
   const filtered = items.filter(
-    (i: any) =>
+    (i) =>
       i.type === activeType &&
       (!activeFolder || i.folder === activeFolder)
   );
@@ -55,23 +67,29 @@ export function ContentList({ activeType, activeFolder }: Props) {
 
   return (
     <div className="space-y-4">
-      {filtered.map((c: any) => (
+      {filtered.map((c) => (
         <Card key={c._id} className="border border-gray-200 shadow-sm">
           <CardContent className="p-4 space-y-4">
+
             {/* TITLE */}
             {editId === c._id ? (
               <div className="flex gap-2">
                 <input
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="border px-2 py-1"
+                  className="border px-2 py-1 rounded"
                 />
+
                 <Button
                   size="sm"
                   onClick={async () => {
-                    await updateContent(c._id, { title: newTitle });
-                    setEditId(null);
-                    load();
+                    try {
+                      await updateContent(c._id, { title: newTitle });
+                      setEditId(null);
+                      load();
+                    } catch (err) {
+                      console.error("Update failed:", err);
+                    }
                   }}
                 >
                   Save
@@ -79,14 +97,19 @@ export function ContentList({ activeType, activeFolder }: Props) {
               </div>
             ) : (
               <div className="flex justify-between items-center">
+
                 <div>
-                  <h3 className="font-semibold text-gray-900">{c.title}</h3>
+                  <h3 className="font-semibold text-gray-900">
+                    {c.title}
+                  </h3>
+
                   <p className="text-xs text-gray-500">
                     {c.type} • {c.folder || "general"}
                   </p>
                 </div>
 
                 <div className="flex gap-2">
+
                   <Button
                     size="sm"
                     variant="ghost"
@@ -102,12 +125,17 @@ export function ContentList({ activeType, activeFolder }: Props) {
                     size="sm"
                     variant="destructive"
                     onClick={async () => {
-                      await deleteContent(c._id);
-                      load();
+                      try {
+                        await deleteContent(c._id);
+                        load();
+                      } catch (err) {
+                        console.error("Delete failed:", err);
+                      }
                     }}
                   >
                     Delete
                   </Button>
+
                 </div>
               </div>
             )}
@@ -115,13 +143,19 @@ export function ContentList({ activeType, activeFolder }: Props) {
             {/* ACTIONS */}
             <div className="flex gap-2">
               <Button asChild size="sm">
-                <a href={c.url} target="_blank">Open</a>
+                <a href={c.url} target="_blank" rel="noopener noreferrer">
+                  Open
+                </a>
               </Button>
             </div>
 
             {/* VIDEO */}
             {c.type === "video" && (
-              <video src={c.url} controls className="w-full rounded" />
+              <video
+                src={c.url}
+                controls
+                className="w-full rounded"
+              />
             )}
 
             {/* IMAGE */}
@@ -142,6 +176,7 @@ export function ContentList({ activeType, activeFolder }: Props) {
                 className="w-full h-[500px]"
               />
             )}
+
           </CardContent>
         </Card>
       ))}

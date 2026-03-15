@@ -1,10 +1,5 @@
 import { type ReactNode, useState } from "react";
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import { useAuth } from "./app/providers/AuthProvider";
 import type { UserRole } from "./app/services/authService";
@@ -13,7 +8,8 @@ import { Sidebar } from "./app/components/Sidebar";
 import { Header } from "./app/components/Header";
 import { Login } from "./app/components/Login";
 
-/* ===================== STUDENT PAGES ===================== */
+/* ================= STUDENT PAGES ================= */
+
 import { Dashboard } from "./app/components/pages/student/Dashboard";
 import { Courses } from "./app/components/pages/student/Courses";
 import { Videos } from "./app/components/pages/student/Videos";
@@ -24,7 +20,8 @@ import { Fees } from "./app/components/pages/student/Fees";
 import { AIChat } from "./app/components/pages/student/AIChat";
 import { ContentLibrary } from "./app/components/pages/student/ContentLibrary";
 
-/* ===================== ADMIN PAGES ===================== */
+/* ================= ADMIN PAGES ================= */
+
 import { AdminDashboard } from "./app/components/pages/admin/AdminDashboard";
 import { AdminUsers } from "./app/components/pages/admin/AdminUsers";
 import { AdminCourses } from "./app/components/pages/admin/AdminCourses";
@@ -37,6 +34,7 @@ import { AdminSettings } from "./app/components/pages/admin/AdminSettings";
 /* =========================================================
    🔐 PROTECTED ROUTE WRAPPER
 ========================================================= */
+
 function ProtectedLayout({
   roles,
   userRole,
@@ -46,7 +44,9 @@ function ProtectedLayout({
   userRole: UserRole | null;
   children: ReactNode;
 }) {
-  if (!userRole) return <Navigate to="/login" replace />;
+  if (!userRole) {
+    return <Navigate to="/login" replace />;
+  }
 
   if (!roles.includes(userRole)) {
     return (
@@ -63,31 +63,38 @@ function ProtectedLayout({
 /* =========================================================
    🧩 SHARED LAYOUT
 ========================================================= */
+
 function AppShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
+
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
       <div className="flex-1 lg:ml-64">
+
         <Header onMenuClick={() => setSidebarOpen(true)} />
 
         <main className="p-4 md:p-8">{children}</main>
+
       </div>
+
     </div>
   );
 }
 
 /* =========================================================
-   🎓 USER ROUTES
+   🎓 STUDENT ROUTES
 ========================================================= */
+
 function UserRoutes() {
   return (
     <Routes>
+
       <Route index element={<Dashboard />} />
       <Route path="courses" element={<Courses />} />
       <Route path="videos" element={<Videos />} />
@@ -97,7 +104,9 @@ function UserRoutes() {
       <Route path="submissions" element={<Submissions />} />
       <Route path="fees" element={<Fees />} />
       <Route path="ai-chat" element={<AIChat />} />
+
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
     </Routes>
   );
 }
@@ -105,9 +114,11 @@ function UserRoutes() {
 /* =========================================================
    🛠 ADMIN ROUTES
 ========================================================= */
+
 function AdminRoutes() {
   return (
     <Routes>
+
       <Route path="dashboard" element={<AdminDashboard />} />
       <Route path="users" element={<AdminUsers />} />
       <Route path="courses" element={<AdminCourses />} />
@@ -116,7 +127,9 @@ function AdminRoutes() {
       <Route path="fees" element={<AdminFees />} />
       <Route path="submissions" element={<AdminSubmissions />} />
       <Route path="settings" element={<AdminSettings />} />
+
       <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+
     </Routes>
   );
 }
@@ -124,7 +137,9 @@ function AdminRoutes() {
 /* =========================================================
    🚀 APP ROOT
 ========================================================= */
+
 export default function App() {
+
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -137,70 +152,68 @@ export default function App() {
 
   const userRole = user?.role ?? null;
 
+  const redirectPath =
+    !userRole
+      ? "/login"
+      : userRole === "admin"
+      ? "/admin/dashboard"
+      : "/dashboard";
+
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* LOGIN */}
-        <Route
-          path="/login"
-          element={
-            userRole ? (
-              <Navigate
-                to={userRole === "admin"
-                  ? "/admin/dashboard"
-                  : "/dashboard"}
-                replace
-              />
-            ) : (
-              <Login />
-            )
-          }
-        />
 
-        {/* USER */}
-        <Route
-          path="/dashboard/*"
-          element={
-            <ProtectedLayout
-              roles={["student", "instructor"]}
-              userRole={userRole}
-            >
-              <AppShell>
-                <UserRoutes />
-              </AppShell>
-            </ProtectedLayout>
-          }
-        />
+    <Routes>
 
-        {/* ADMIN */}
-        <Route
-          path="/admin/*"
-          element={
-            <ProtectedLayout roles={["admin"]} userRole={userRole}>
-              <AppShell>
-                <AdminRoutes />
-              </AppShell>
-            </ProtectedLayout>
-          }
-        />
+      {/* LOGIN */}
 
-        {/* GLOBAL FALLBACK */}
-        <Route
-          path="*"
-          element={
-            <Navigate
-              to={
-                userRole
-                  ? userRole === "admin"
-                    ? "/admin/dashboard"
-                    : "/dashboard"
-                  : "/login"
-              }
-              replace
-            />
-          }
-        />
-      </Routes>
-    </BrowserRouter>
+      <Route
+        path="/login"
+        element={
+          userRole
+            ? <Navigate to={redirectPath} replace />
+            : <Login />
+        }
+      />
+
+      {/* STUDENT */}
+
+      <Route
+        path="/dashboard/*"
+        element={
+          <ProtectedLayout
+            roles={["student", "instructor"]}
+            userRole={userRole}
+          >
+            <AppShell>
+              <UserRoutes />
+            </AppShell>
+          </ProtectedLayout>
+        }
+      />
+
+      {/* ADMIN */}
+
+      <Route
+        path="/admin/*"
+        element={
+          <ProtectedLayout
+            roles={["admin"]}
+            userRole={userRole}
+          >
+            <AppShell>
+              <AdminRoutes />
+            </AppShell>
+          </ProtectedLayout>
+        }
+      />
+
+      {/* GLOBAL FALLBACK */}
+
+      <Route
+        path="*"
+        element={<Navigate to={redirectPath} replace />}
+      />
+
+    </Routes>
+
   );
 }

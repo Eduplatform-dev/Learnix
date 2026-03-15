@@ -12,9 +12,10 @@ import {
   createUserDoc,
   type AdminUser,
   type UserRole,
-} from "../../../services/userService"; // ✅ fixed path
+} from "../../../services/userService";
 
 export function AdminUsers() {
+
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -47,6 +48,7 @@ export function AdminUsers() {
   /* ================= ROLE TOGGLE ================= */
 
   const handleRoleToggle = async (id: string, role: UserRole) => {
+
     const newRole: UserRole =
       role === "admin" ? "student" : "admin";
 
@@ -58,6 +60,7 @@ export function AdminUsers() {
           u._id === id ? { ...u, role: newRole } : u
         )
       );
+
     } catch (err) {
       console.error(err);
       alert("Role update failed");
@@ -67,11 +70,16 @@ export function AdminUsers() {
   /* ================= DELETE USER ================= */
 
   const handleDelete = async (id: string) => {
+
     if (!confirm("Delete this user?")) return;
 
     try {
       await deleteUser(id);
-      setUsers((prev) => prev.filter((u) => u._id !== id));
+
+      setUsers((prev) =>
+        prev.filter((u) => u._id !== id)
+      );
+
     } catch (err) {
       console.error(err);
       alert("Delete failed");
@@ -81,6 +89,7 @@ export function AdminUsers() {
   /* ================= ADD USER ================= */
 
   const handleAddUser = async () => {
+
     const username = newUsername.trim();
     const email = newEmail.trim();
 
@@ -97,12 +106,13 @@ export function AdminUsers() {
     }
 
     try {
+
       setAdding(true);
 
       const newUser = await createUserDoc({
         email,
         username,
-        password: "123456", // default temp password
+        password: "123456",
         role: "student",
       });
 
@@ -111,6 +121,7 @@ export function AdminUsers() {
       setNewUsername("");
       setNewEmail("");
       setOpen(false);
+
     } catch (err) {
       console.error(err);
       setAddError("Add user failed");
@@ -119,24 +130,36 @@ export function AdminUsers() {
     }
   };
 
-  /* ================= FILTER ================= */
+  /* ================= FILTER USERS ================= */
 
   const filteredUsers = users.filter((u) =>
-    `${u.username} ${u.email}`
+    `${u.username || ""} ${u.email || ""}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
 
+  /* ================= LOADING ================= */
+
   if (loading) {
-    return <div className="p-6 text-center">Loading users...</div>;
+    return (
+      <div className="p-6 text-center text-gray-500">
+        Loading users...
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
+
       {/* HEADER */}
+
       <div className="flex items-center justify-between">
+
         <div>
-          <h1 className="text-2xl font-semibold">User Management</h1>
+          <h1 className="text-2xl font-semibold">
+            User Management
+          </h1>
+
           <p className="text-gray-600 mt-1">
             Manage platform users
           </p>
@@ -146,29 +169,48 @@ export function AdminUsers() {
           <UserPlus className="w-4 h-4 mr-2" />
           Add User
         </Button>
+
       </div>
 
+
       {/* SEARCH */}
+
       <Card>
         <CardContent className="p-6">
+
           <input
             className="w-full border p-2 rounded"
-            placeholder="Search..."
+            placeholder="Search users..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) =>
+              setSearchQuery(e.target.value)
+            }
           />
+
         </CardContent>
       </Card>
 
+
       {/* USERS LIST */}
+
       <Card>
-        <CardContent>
+        <CardContent className="p-4">
+
+          {filteredUsers.length === 0 && (
+            <p className="text-center text-gray-500 py-6">
+              No users found
+            </p>
+          )}
+
           {filteredUsers.map((u) => (
+
             <div
               key={u._id}
               className="flex items-center justify-between border-b py-3"
             >
+
               <div className="flex items-center gap-3">
+
                 <Avatar>
                   <AvatarFallback>
                     {u.username?.[0]?.toUpperCase() || "U"}
@@ -176,12 +218,20 @@ export function AdminUsers() {
                 </Avatar>
 
                 <div>
-                  <p className="font-medium">{u.username}</p>
-                  <p className="text-sm text-gray-500">{u.email}</p>
+                  <p className="font-medium">
+                    {u.username}
+                  </p>
+
+                  <p className="text-sm text-gray-500">
+                    {u.email}
+                  </p>
                 </div>
+
               </div>
 
+
               <div className="flex gap-2 items-center">
+
                 <Badge>{u.role}</Badge>
 
                 <Button
@@ -196,21 +246,34 @@ export function AdminUsers() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => handleDelete(u._id)}
+                  onClick={() =>
+                    handleDelete(u._id)
+                  }
                 >
                   <Trash2 className="w-4 h-4 text-red-600" />
                 </Button>
+
               </div>
+
             </div>
+
           ))}
+
         </CardContent>
       </Card>
 
+
       {/* ADD USER MODAL */}
+
       {open && (
+
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+
           <div className="bg-white p-6 rounded w-80">
-            <h2 className="font-semibold mb-3">Add User</h2>
+
+            <h2 className="font-semibold mb-3">
+              Add User
+            </h2>
 
             <input
               className="w-full border p-2 rounded mb-2"
@@ -237,6 +300,7 @@ export function AdminUsers() {
             )}
 
             <div className="flex justify-end gap-2">
+
               <Button
                 variant="ghost"
                 onClick={() => setOpen(false)}
@@ -244,13 +308,21 @@ export function AdminUsers() {
                 Cancel
               </Button>
 
-              <Button onClick={handleAddUser}>
+              <Button
+                onClick={handleAddUser}
+                disabled={adding}
+              >
                 {adding ? "Adding..." : "Add"}
               </Button>
+
             </div>
+
           </div>
+
         </div>
+
       )}
+
     </div>
   );
 }

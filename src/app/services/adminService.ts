@@ -1,117 +1,142 @@
-// src/app/services/adminService.ts
-
 import { getAuthHeader } from "./authService";
 
 /* =====================================================
-   API BASE
+API BASE
 ===================================================== */
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
-const API = `${API_BASE_URL}/api/admin`;
+const ADMIN_API = `${API_BASE_URL}/api/admin`;
+const SUBMISSION_API = `${API_BASE_URL}/api/submissions`;
 
 /* =====================================================
-   HELPER
+HELPER
 ===================================================== */
 
 const handleResponse = async (res: Response) => {
-  const data = await res.json();
 
-  if (!res.ok) {
-    throw new Error(data.error || "Request failed");
-  }
+const data = await res.json();
 
-  return data;
+if (!res.ok) {
+throw new Error(data.error || "Request failed");
+}
+
+return data;
+
 };
 
 /* =====================================================
-   ADMIN DASHBOARD
-   GET /api/admin/dashboard
+ADMIN DASHBOARD
 ===================================================== */
 
 export const getDashboardData = async () => {
-  const res = await fetch(`${API}/dashboard`, {
-    method: "GET",
-    headers: getAuthHeader(),
-  });
 
-  return handleResponse(res);
+const res = await fetch(`${ADMIN_API}/dashboard`, {
+method: "GET",
+headers: getAuthHeader(),
+});
+
+return handleResponse(res);
+
 };
 
 /* =====================================================
-   ADMIN ANALYTICS
-   GET /api/admin/analytics
+ADMIN ANALYTICS
 ===================================================== */
 
 export const getAnalyticsData = async () => {
-  const res = await fetch(`${API}/analytics`, {
-    method: "GET",
-    headers: getAuthHeader(),
-  });
 
-  return handleResponse(res);
+const res = await fetch(`${ADMIN_API}/analytics`, {
+method: "GET",
+headers: getAuthHeader(),
+});
+
+return handleResponse(res);
+
 };
 
 /* =====================================================
-   ADMIN STATS
-   GET /api/admin/stats
+ADMIN STATS
 ===================================================== */
 
 export const getAdminStats = async () => {
-  const res = await fetch(`${API}/stats`, {
-    method: "GET",
-    headers: getAuthHeader(),
-  });
 
-  return handleResponse(res);
+const res = await fetch(`${ADMIN_API}/stats`, {
+method: "GET",
+headers: getAuthHeader(),
+});
+
+return handleResponse(res);
+
 };
 
 /* =====================================================
-   FEES STATS
-   GET /api/admin/fees
+FEES STATS
 ===================================================== */
 
 export const getFeesStats = async () => {
-  const res = await fetch(`${API}/fees`, {
-    method: "GET",
-    headers: getAuthHeader(),
-  });
 
-  return handleResponse(res);
+const res = await fetch(`${ADMIN_API}/fees`, {
+method: "GET",
+headers: getAuthHeader(),
+});
+
+return handleResponse(res);
+
 };
 
 /* =====================================================
-   GET ADMIN SETTINGS
-   GET /api/admin/settings
+ADMIN SUBMISSIONS
+===================================================== */
+
+export const getSubmissions = async () => {
+
+const res = await fetch(`${SUBMISSION_API}`, {
+method: "GET",
+headers: getAuthHeader(),
+});
+
+return handleResponse(res);
+
+};
+
+/* =====================================================
+GET ADMIN SETTINGS
 ===================================================== */
 
 export const getSettings = async () => {
-  const res = await fetch(`${API}/settings`, {
-    method: "GET",
-    headers: getAuthHeader(),
-  });
 
-  return handleResponse(res);
+const res = await fetch(`${ADMIN_API}/settings`, {
+method: "GET",
+headers: getAuthHeader(),
+});
+
+return handleResponse(res);
+
 };
 
 /* =====================================================
-   SAVE ADMIN SETTINGS
-   POST /api/admin/settings
+SAVE ADMIN SETTINGS
 ===================================================== */
 
-export const saveSettings = async (settings: any) => {
-  const res = await fetch(`${API}/settings`, {
-    method: "POST",
-    headers: getAuthHeader(),
-    body: JSON.stringify(settings),
-  });
+export type AdminSettings = {
+general: any;
+notifications: any;
+security: any;
+localization: any;
+emailConfig: any;
+backup: any;
+};
 
-  const data = await res.json();
+export const saveSettings = async (settings: AdminSettings) => {
 
-  if (!res.ok) {
-    throw new Error(data.error || "Failed to save settings");
-  }
+const res = await fetch(`${ADMIN_API}/settings`, {
+method: "POST",
+headers: getAuthHeader(),
+body: JSON.stringify(settings),
+});
 
-  return data;
+return handleResponse(res);
+
 };

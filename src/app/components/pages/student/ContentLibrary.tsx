@@ -2,13 +2,12 @@
 import { Card, CardContent } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { FileText, Image as ImageIcon, FolderOpen } from "lucide-react";
-import { getContents } from "../../../services/contentService";
+import { getContents, type Content, type ContentType } from "../../../services/contentService";
 import { ImageWithFallback } from "../ImageWithFallback";
 
 /* =========================
    TYPES
 ========================= */
-type ContentType = "pdf" | "image";
 
 type ContentItem = {
   id: string;
@@ -22,33 +21,31 @@ type Category = "pdf" | "image" | null;
 /* =========================
    COMPONENT
 ========================= */
+
 export function ContentLibrary() {
   const [items, setItems] = useState<ContentItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<Category>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
-  /* =========================
-     LOAD CONTENT (NO VIDEOS)
-  ========================= */
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await getContents();
+        const data: Content[] = await getContents();
 
-        const filtered = data
+        const filtered: ContentItem[] = data
           .filter((c) => c.type === "pdf" || c.type === "image")
-          .map((c, index) => ({
-            id: `${c.title}-${index}-${Math.random().toString(36).substring(2, 9)}`,
+          .map((c) => ({
+            id: c._id,
             title: c.title,
-            type: c.type as ContentType,
+            type: c.type,
             url: c.url,
           }));
 
         setItems(filtered);
       } catch (err) {
         console.error("Failed to load content:", err);
-        setLoadError("Unable to load content. Please check permissions.");
+        setLoadError("Unable to load content.");
       } finally {
         setLoading(false);
       }
@@ -66,67 +63,50 @@ export function ContentLibrary() {
 
   return (
     <div className="space-y-6">
-      {/* HEADER */}
+
       <div>
         <h1 className="text-2xl font-semibold">Learning Resources</h1>
         <p className="text-gray-600">
-          Documents, images and other study materials
+          Documents and study materials
         </p>
       </div>
 
-      {/* TOP CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
         <Card
           onClick={() => setActiveCategory("pdf")}
-          className={`cursor-pointer border border-gray-200 transition-all hover:shadow-md ${
-            activeCategory === "pdf" ? "ring-2 ring-indigo-500" : ""
-          }`}
+          className="cursor-pointer border border-gray-200"
         >
           <CardContent className="p-6 text-center">
-            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-indigo-50">
-              <FileText className="w-5 h-5 text-indigo-600" />
-            </div>
-            <p className="text-xl font-bold text-gray-900">{pdfs.length}</p>
+            <FileText className="mx-auto mb-3 text-indigo-600" />
+            <p className="text-xl font-bold">{pdfs.length}</p>
             <p className="text-sm text-gray-600">Documents</p>
           </CardContent>
         </Card>
 
         <Card
           onClick={() => setActiveCategory("image")}
-          className={`cursor-pointer border border-gray-200 transition-all hover:shadow-md ${
-            activeCategory === "image" ? "ring-2 ring-indigo-500" : ""
-          }`}
+          className="cursor-pointer border border-gray-200"
         >
           <CardContent className="p-6 text-center">
-            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-amber-50">
-              <ImageIcon className="w-5 h-5 text-amber-600" />
-            </div>
-            <p className="text-xl font-bold text-gray-900">{images.length}</p>
+            <ImageIcon className="mx-auto mb-3 text-amber-600" />
+            <p className="text-xl font-bold">{images.length}</p>
             <p className="text-sm text-gray-600">Images</p>
           </CardContent>
         </Card>
 
-        <Card className="cursor-not-allowed border border-gray-200 opacity-60">
+        <Card className="border border-gray-200 opacity-60">
           <CardContent className="p-6 text-center">
-            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-gray-100">
-              <FolderOpen className="w-5 h-5 text-gray-600" />
-            </div>
-            <p className="text-xl font-bold text-gray-900">Auto</p>
-            <p className="text-sm text-gray-600">Folders</p>
-            <p className="mt-1 text-xs text-gray-400">Coming soon</p>
+            <FolderOpen className="mx-auto mb-3 text-gray-500" />
+            <p className="text-sm text-gray-600">Folders (Soon)</p>
           </CardContent>
         </Card>
+
       </div>
 
-      {items.length === 0 && (
-        <div className="text-center text-gray-500 py-10">
-          {loadError || "No content available yet."}
-        </div>
-      )}
-
-      {/* CONTENT LIST */}
-      {activeCategory && items.length > 0 && (
+      {activeCategory && (
         <div className="space-y-4">
+
           <h2 className="text-xl font-semibold capitalize">
             {activeCategory === "pdf" ? "Documents" : "Images"}
           </h2>
@@ -134,53 +114,43 @@ export function ContentLibrary() {
           {items
             .filter((i) => i.type === activeCategory)
             .map((item) => (
-              <Card key={item.id} className="border border-gray-200 shadow-sm">
+              <Card key={item.id}>
                 <CardContent className="p-4 space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">{item.title}</p>
-                      <p className="text-xs uppercase tracking-wide text-gray-500">
-                        {item.type}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button asChild variant="outline" size="sm">
-                        <a href={item.url} target="_blank" rel="noreferrer">
-                          Open
-                        </a>
-                      </Button>
-                      <Button asChild variant="ghost" size="sm">
-                        <a href={item.url} download>
-                          Download
-                        </a>
-                      </Button>
-                    </div>
+
+                  <div className="flex justify-between">
+                    <p className="font-medium">{item.title}</p>
+
+                    <Button asChild size="sm">
+                      <a href={item.url} target="_blank">
+                        Open
+                      </a>
+                    </Button>
                   </div>
 
-                  {/* PDF PREVIEW */}
                   {item.type === "pdf" && (
                     <iframe
                       src={`https://docs.google.com/gview?url=${encodeURIComponent(
                         item.url
                       )}&embedded=true`}
-                      className="w-full min-h-[420px] h-[70vh] max-h-[800px] border rounded-lg bg-white"
-                      title={item.title}
+                      className="w-full h-[500px]"
                     />
                   )}
 
-                  {/* IMAGE PREVIEW */}
                   {item.type === "image" && (
                     <ImageWithFallback
                       src={item.url}
                       alt={item.title}
-                      className="w-full max-w-md rounded-lg border object-contain"
+                      className="w-full max-w-md rounded"
                     />
                   )}
+
                 </CardContent>
               </Card>
             ))}
+
         </div>
       )}
+
     </div>
   );
 }

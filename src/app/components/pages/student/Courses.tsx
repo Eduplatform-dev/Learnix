@@ -34,7 +34,7 @@ export function Courses() {
   };
 
   const filtered = courses.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase())
+  (c.title || "").toLowerCase().includes(search.toLowerCase())
   );
 
   if (loading) {

@@ -9,14 +9,13 @@ type ProtectedRouteProps = {
   allowedRoles?: UserRole[];
 };
 
-const ProtectedRoute = ({
-  children,
-  allowedRoles,
-}: ProtectedRouteProps) => {
+const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  /* ✅ Wait until session restore completes */
+  /* WAIT FOR AUTH RESTORE */
+
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -25,20 +24,28 @@ const ProtectedRoute = ({
     );
   }
 
-  /* ✅ Not logged in */
+  /* NOT LOGGED IN */
+
   if (!user) {
     return (
       <Navigate
         to="/login"
-        state={{ from: location }} // remembers previous page
+        state={{ from: location.pathname }}
         replace
       />
     );
   }
 
-  /* ✅ Role-based access control */
+  /* ROLE CHECK */
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/unauthorized" replace />;
+
+    const redirectPath =
+      user.role === "admin"
+        ? "/admin/dashboard"
+        : "/dashboard";
+
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;

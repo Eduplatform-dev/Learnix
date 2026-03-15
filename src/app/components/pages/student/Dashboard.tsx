@@ -23,15 +23,12 @@ export function Dashboard() {
   useEffect(() => {
     if (!user) return;
 
-    Promise.all([
-      getCourses(),
-      getAssignments(),
-    ])
-      .then(([c, a]) => {
-        setCourses(c);
-        setAssignments(a);
-      })
-      .finally(() => setLoading(false));
+    Promise.all([getCourses(), getAssignments()])
+  .then(([c, a]) => {
+    setCourses(c || []);
+    setAssignments(a || []);
+  })
+  .finally(() => setLoading(false));
   }, [user]);
 
   if (loading) {

@@ -1,81 +1,138 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import Activity from "../models/Activity.js";
 import { env } from "../config/env.js";
 
-const JWT_SECRET = env.JWT_SECRET;
+/* ================= REGISTER ================= */
 
-/* ===========================
-   REGISTER USER
-=========================== */
 export const register = async (req, res) => {
-  try {
-    const { email, username, password, role } = req.body;
+try {
 
-    // check existing user
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: "User already exists" });
-    }
+```
+const { email, username, password } = req.body;
 
-    // hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+if (!email || !username || !password) {
+  return res.status(400).json({ error: "Email, username and password are required" });
+}
 
-    // create user
-    const user = await User.create({
-      email,
-      username,
-      password: hashedPassword,
-      role: role || "student",
-    });
+if (password.length < 6) {
+  return res.status(400).json({ error: "Password must be at least 6 characters" });
+}
 
-    res.status(201).json({
-      message: "User registered successfully",
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Server error" });
-  }
+const normalizedEmail = email.toLowerCase().trim();
+
+const emailExists = await User.findOne({ email: normalizedEmail });
+
+if (emailExists) {
+  return res.status(409).json({ error: "Email already registered" });
+}
+
+const usernameExists = await User.findOne({ username });
+
+if (usernameExists) {
+  return res.status(409).json({ error: "Username already taken" });
+}
+
+const hashedPassword = await bcrypt.hash(password, 10);
+
+const user = await User.create({
+  email: normalizedEmail,
+  username,
+  password: hashedPassword,
+  role: "student",
+});
+
+const token = jwt.sign(
+  {
+    id: user._id,
+    role: user.role,
+  },
+  env.JWT_SECRET,
+  { expiresIn: "7d" }
+);
+
+/* ===== Activity Log ===== */
+
+await Activity.create({
+  user: user._id,
+  action: "register",
+  resource: "auth",
+  details: "User account created",
+});
+
+res.status(201).json({
+  token,
+  user: {
+    id: user._id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+  },
+});
+```
+
+} catch (err) {
+res.status(500).json({ error: "Server error" });
+}
 };
 
-/* ===========================
-   LOGIN USER
-=========================== */
+/* ================= LOGIN ================= */
+
 export const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+try {
 
-    // find user
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ error: "Invalid credentials" });
-    }
+```
+const { email, password } = req.body;
 
-    // compare password
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ error: "Invalid credentials" });
-    }
+if (!email || !password) {
+  return res.status(400).json({ error: "Email and password required" });
+}
 
-    // ✅ IMPORTANT: include role in token
-    const token = jwt.sign(
-      {
-        id: user._id,
-        role: user.role,
-      },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+const normalizedEmail = email.toLowerCase().trim();
 
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        username: user.username,
-        role: user.role,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Server error" });
-  }
+const user = await User.findOne({ email: normalizedEmail }).select("+password");
+
+if (!user) {
+  return res.status(401).json({ error: "Invalid credentials" });
+}
+
+const match = await bcrypt.compare(password, user.password);
+
+if (!match) {
+  return res.status(401).json({ error: "Invalid credentials" });
+}
+
+const token = jwt.sign(
+  {
+    id: user._id,
+    role: user.role,
+  },
+  env.JWT_SECRET,
+  { expiresIn: "7d" }
+);
+
+/* ===== Activity Log ===== */
+
+await Activity.create({
+  user: user._id,
+  action: "login",
+  resource: "auth",
+  details: "User logged in",
+});
+
+res.json({
+  token,
+  user: {
+    id: user._id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+  },
+});
+```
+
+} catch (err) {
+res.status(500).json({ error: "Server error" });
+}
 };

@@ -1,111 +1,115 @@
-import { Card, CardContent } from '../../ui/card';
-import { Button } from '../../ui/button';
-import { Textarea } from '../../ui/textarea';
-import { Input } from '../../ui/input';
-import { Label } from '../../ui/label';
-import { Upload, File, X, Save, Send } from 'lucide-react';
-import { useState } from 'react';
+import { Card, CardContent } from "../../ui/card";
+import { Button } from "../../ui/button";
+import { Textarea } from "../../ui/textarea";
+import { Input } from "../../ui/input";
+import { Label } from "../../ui/label";
+import { Upload, File, X, Save, Send } from "lucide-react";
+import { useState } from "react";
 
 export function Submissions() {
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+
+  /* ================= FILE UPLOAD ================= */
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
-      const fileNames = Array.from(files).map((file) => file.name);
-      setUploadedFiles([...uploadedFiles, ...fileNames]);
-    }
+    if (!files) return;
+
+    setUploadedFiles((prev) => [...prev, ...Array.from(files)]);
   };
 
+  /* ================= REMOVE FILE ================= */
+
   const removeFile = (index: number) => {
-    setUploadedFiles(uploadedFiles.filter((_, i) => i !== index));
+    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  /* ================= FORMAT SIZE ================= */
+
+  const formatSize = (bytes: number) => {
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+
       {/* Assignment Info */}
-      <Card className="border border-gray-200">
+
+      <Card>
         <CardContent className="p-6">
-          <div className="flex items-start justify-between mb-4">
+
+          <div className="flex justify-between mb-4">
+
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <h2 className="text-xl font-semibold mb-2">
                 Build a Todo App with React
               </h2>
-              <p className="text-gray-600">Advanced React Development</p>
+
+              <p className="text-gray-600">
+                Advanced React Development
+              </p>
             </div>
+
             <div className="text-right">
               <p className="text-sm text-gray-500">Due Date</p>
-              <p className="font-semibold text-gray-900">Dec 14, 2025</p>
+              <p className="font-semibold">Dec 14, 2025</p>
             </div>
+
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg">
             <p className="text-sm text-amber-800">
-              <strong>Important:</strong> Please submit your assignment before the deadline. Late
-              submissions will incur a 10% penalty per day.
+              <strong>Important:</strong> Please submit before deadline.
             </p>
           </div>
+
         </CardContent>
       </Card>
 
       {/* Submission Form */}
-      <Card className="border border-gray-200">
+
+      <Card>
         <CardContent className="p-6">
-          <h3 className="font-semibold text-gray-900 mb-6">Submit Your Work</h3>
+
+          <h3 className="font-semibold mb-6">Submit Your Work</h3>
 
           <div className="space-y-6">
-            {/* Document Title */}
+
+            {/* Title */}
+
             <div className="space-y-2">
+
               <Label htmlFor="title">Document Title</Label>
+
               <Input
                 id="title"
-                placeholder="e.g., React Todo App - Final Version"
-                className="bg-white border-gray-200"
+                placeholder="React Todo App - Final Version"
               />
+
             </div>
 
             {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Provide a brief description of your submission..."
-                rows={4}
-                className="bg-white border-gray-200 resize-none"
-              />
-            </div>
 
-            {/* Text Editor Toolbar */}
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="bg-gray-50 border-b border-gray-200 p-2 flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <span className="font-bold">B</span>
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <span className="italic">I</span>
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  <span className="underline">U</span>
-                </Button>
-                <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                  Link
-                </Button>
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs">
-                  Code
-                </Button>
-              </div>
+            <div className="space-y-2">
+
+              <Label>Description</Label>
+
               <Textarea
-                placeholder="Type your submission content here..."
-                rows={8}
-                className="border-0 rounded-none resize-none focus-visible:ring-0"
+                placeholder="Describe your submission..."
+                rows={4}
               />
+
             </div>
 
             {/* File Upload */}
+
             <div className="space-y-3">
+
               <Label>Upload Files</Label>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-400 transition-colors">
+
+              <div className="border-2 border-dashed border-gray-300 p-8 rounded-lg text-center">
+
                 <input
                   type="file"
                   multiple
@@ -113,98 +117,141 @@ export function Submissions() {
                   className="hidden"
                   id="file-upload"
                 />
+
                 <label htmlFor="file-upload" className="cursor-pointer">
+
                   <div className="flex flex-col items-center gap-3">
+
                     <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
-                      <Upload className="w-8 h-8 text-indigo-600" />
+                      <Upload className="text-indigo-600" />
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900 mb-1">
-                        Drop files here or click to upload
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Supports: PDF, DOC, DOCX, ZIP (Max 50MB)
-                      </p>
-                    </div>
-                    <Button type="button" variant="outline" size="sm">
-                      Browse Files
-                    </Button>
+
+                    <p className="font-medium">
+                      Click to upload files
+                    </p>
+
                   </div>
+
                 </label>
+
               </div>
 
               {/* Uploaded Files */}
+
               {uploadedFiles.length > 0 && (
+
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Uploaded Files:</p>
+
+                  <p className="text-sm font-medium">
+                    Uploaded Files
+                  </p>
+
                   {uploadedFiles.map((file, index) => (
+
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200"
+                      className="flex justify-between items-center p-3 border rounded-lg"
                     >
+
                       <div className="flex items-center gap-3">
+
                         <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
-                          <File className="w-5 h-5 text-indigo-600" />
+                          <File className="text-indigo-600" />
                         </div>
+
                         <div>
-                          <p className="text-sm font-medium text-gray-900">{file}</p>
-                          <p className="text-xs text-gray-500">2.4 MB</p>
+
+                          <p className="text-sm font-medium">
+                            {file.name}
+                          </p>
+
+                          <p className="text-xs text-gray-500">
+                            {formatSize(file.size)}
+                          </p>
+
                         </div>
+
                       </div>
+
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => removeFile(index)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
                       >
-                        <X className="w-4 h-4" />
+                        <X />
                       </Button>
+
                     </div>
+
                   ))}
+
                 </div>
+
               )}
+
             </div>
 
             {/* Actions */}
-            <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
+
+            <div className="flex gap-3 pt-4 border-t">
+
               <Button className="flex-1 gap-2">
-                <Send className="w-4 h-4" />
+                <Send size={16} />
                 Submit Assignment
               </Button>
+
               <Button variant="outline" className="gap-2">
-                <Save className="w-4 h-4" />
+                <Save size={16} />
                 Save Draft
               </Button>
+
             </div>
+
           </div>
+
         </CardContent>
       </Card>
 
       {/* Previous Submissions */}
-      <Card className="border border-gray-200">
+
+      <Card>
+
         <CardContent className="p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Previous Submissions</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <File className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">React Todo App - Draft 1</p>
-                  <p className="text-xs text-gray-500">Submitted on Dec 10, 2025</p>
-                </div>
+
+          <h3 className="font-semibold mb-4">
+            Previous Submissions
+          </h3>
+
+          <div className="p-4 bg-green-50 border border-green-200 rounded-lg flex justify-between">
+
+            <div className="flex gap-3">
+
+              <File className="text-green-600" />
+
+              <div>
+
+                <p className="text-sm font-medium">
+                  React Todo App - Draft 1
+                </p>
+
+                <p className="text-xs text-gray-500">
+                  Submitted on Dec 10, 2025
+                </p>
+
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-green-600">Graded: 85/100</span>
-                <Button variant="outline" size="sm">
-                  View
-                </Button>
-              </div>
+
             </div>
+
+            <span className="text-green-600 font-medium">
+              85 / 100
+            </span>
+
           </div>
+
         </CardContent>
+
       </Card>
+
     </div>
   );
 }

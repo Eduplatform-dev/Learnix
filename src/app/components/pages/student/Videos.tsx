@@ -15,18 +15,24 @@ export function Videos() {
   /* =========================
      LOAD VIDEOS FROM FIRESTORE
   ========================= */
-  useEffect(() => {
-    const load = async () => {
-      const data = await getContents();
-      const onlyVideos = data.filter((c) => c.type === "video");
+  useEffect(()=>{
+  const load=async()=>{
+    try{
+      const data=await getContents()
+      const onlyVideos=data.filter(c=>c.type==="video")
 
-      setVideos(onlyVideos);
-      setCurrent(onlyVideos[0] ?? null);
-      setLoading(false);
-    };
+      setVideos(onlyVideos)
+      setCurrent(onlyVideos[0] ?? null)
 
-    load();
-  }, []);
+    }catch(err){
+      console.error("Video load failed",err)
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  load()
+  },[])
 
   if (loading) {
     return <div className="p-6">Loading videos...</div>;

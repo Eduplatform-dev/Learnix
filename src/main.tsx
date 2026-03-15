@@ -1,24 +1,24 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "./app/providers/AuthProvider";
 import "./styles/index.css";
 
-// Get root element safely
 const rootElement = document.getElementById("root");
 
 if (!rootElement) {
-  throw new Error("❌ Root element with id 'root' was not found in index.html");
+  throw new Error("Root element with id 'root' was not found");
 }
 
-// Create React root
 const root = createRoot(rootElement);
 
-// Render application
 root.render(
   <React.StrictMode>
     <AuthProvider>
-      <App />
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </AuthProvider>
   </React.StrictMode>
 );

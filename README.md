@@ -49,6 +49,54 @@ Backend:
 
 ```bash
 npm install
+cd server && npm install
+```
+
+### 3) Development
+
+```bash
+# Full stack
+npm run dev:full
+
+# Frontend only
+npm run dev
+
+# Backend only
+npm run dev:server
+```
+
+### 4) Linting and Formatting
+
+```bash
+# Lint frontend
+npm run lint
+
+# Fix linting issues
+npm run lint:fix
+
+# Format code
+npm run format
+
+# Lint backend
+cd server && npm run lint
+```
+
+### 5) Testing
+
+```bash
+# Run tests
+npm test
+
+# Run tests with UI
+npm run test:ui
+```
+
+### 6) Build
+
+```bash
+npm run build
+```
+npm install
 npm --prefix server install
 ```
 
