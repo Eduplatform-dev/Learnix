@@ -1,5 +1,7 @@
 ﻿// src/app/services/assignmentService.ts
 
+import { getAuthHeader } from "./authService";
+
 export type AssignmentStatus = "Not Started" | "In Progress" | "Submitted";
 export type AssignmentPriority = "high" | "medium" | "low";
 export type AssignmentType = "Project" | "Quiz" | "Lab";
@@ -19,11 +21,6 @@ const API_BASE_URL =
 
 const API = `${API_BASE_URL}/api/assignments`;
 
-const getAuthHeader = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
-  "Content-Type": "application/json",
-});
-
 /* GET */
 export const getAssignments = async (): Promise<Assignment[]> => {
   const res = await fetch(API, { headers: getAuthHeader() });
@@ -34,7 +31,7 @@ export const getAssignments = async (): Promise<Assignment[]> => {
 /* CREATE */
 export const createAssignment = async (
   data: Omit<Assignment, "_id">
-) => {
+): Promise<Assignment> => {
   const res = await fetch(API, {
     method: "POST",
     headers: getAuthHeader(),
@@ -48,7 +45,7 @@ export const createAssignment = async (
 export const updateAssignmentStatus = async (
   id: string,
   data: Partial<Assignment>
-) => {
+): Promise<void> => {
   const res = await fetch(`${API}/${id}`, {
     method: "PUT",
     headers: getAuthHeader(),
@@ -58,7 +55,7 @@ export const updateAssignmentStatus = async (
 };
 
 /* DELETE */
-export const deleteAssignment = async (id: string) => {
+export const deleteAssignment = async (id: string): Promise<void> => {
   const res = await fetch(`${API}/${id}`, {
     method: "DELETE",
     headers: getAuthHeader(),

@@ -1,3 +1,5 @@
+// src/app/components/pages/student/Dashboard.tsx
+
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "../../ui/card";
 import { Badge } from "../../ui/badge";
@@ -8,10 +10,7 @@ import headerImage from "../../../../assets/image.png";
 
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
 import { getCourses, type Course } from "../../../services/courseService";
-import {
-  getAssignments,
-  type Assignment,
-} from "../../../services/assignmentService";
+import { getAssignments, type Assignment } from "../../../services/assignmentService";
 
 export function Dashboard() {
   const { user } = useCurrentUser();
@@ -19,31 +18,64 @@ export function Dashboard() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
 
-    Promise.all([getCourses(), getAssignments()])
-  .then(([c, a]) => {
-    setCourses(c || []);
-    setAssignments(a || []);
-  })
-  .finally(() => setLoading(false));
+    const load = async () => {
+      try {
+        // Fetch independently so one failure doesn't block the other
+        const [courseResult, assignmentResult] = await Promise.allSettled([
+          getCourses(),
+          getAssignments(),
+        ]);
+
+        if (courseResult.status === "fulfilled") {
+          setCourses(courseResult.value);
+        } else {
+          console.error("Courses fetch failed:", courseResult.reason);
+        }
+
+        if (assignmentResult.status === "fulfilled") {
+          setAssignments(assignmentResult.value);
+        } else {
+          console.error("Assignments fetch failed:", assignmentResult.reason);
+        }
+
+        // Show error only if BOTH fail
+        if (
+          courseResult.status === "rejected" &&
+          assignmentResult.status === "rejected"
+        ) {
+          setError("Unable to load dashboard data. Please refresh.");
+        }
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+        setError("Unable to load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, [user]);
 
   if (loading) {
     return <div className="p-6 text-center">Loading dashboard...</div>;
   }
 
-  const totalCourses = courses.length;
-  const activeCourses = courses.filter(
-    (c) => c.status !== "Completed"
-  ).length;
+  if (error) {
+    return (
+      <div className="p-6 text-center text-red-500">{error}</div>
+    );
+  }
 
+  const totalCourses = courses.length;
+  const activeCourses = courses.filter((c) => c.status !== "Completed").length;
   const completedAssignments = assignments.filter(
     (a) => a.status === "Submitted"
   ).length;
-
   const assignmentProgress =
     assignments.length === 0
       ? 0
@@ -87,7 +119,7 @@ export function Dashboard() {
                 Welcome Back!
               </Badge>
               <h1 className="text-3xl font-bold text-white mb-2">
-                Student Learning
+                {user?.username ? `Hi, ${user.username}!` : "Student Learning"}
               </h1>
               <p className="text-white/90 mb-6">
                 Continue your learning journey and achieve your goals
@@ -119,9 +151,7 @@ export function Dashboard() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-slate-600 mb-1">
-                      {stat.label}
-                    </p>
+                    <p className="text-sm text-slate-600 mb-1">{stat.label}</p>
                     <p className="text-3xl font-bold text-slate-900">
                       {stat.value}
                     </p>

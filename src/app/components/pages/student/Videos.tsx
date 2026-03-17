@@ -1,58 +1,67 @@
-﻿import { useEffect, useState } from "react";
+﻿// src/app/components/pages/student/Videos.tsx
+
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "../../ui/card";
 import { Button } from "../../ui/button";
-import { Play } from "lucide-react";
-import { getContents, Content } from "../../../services/contentService";
+import { Play, VideoOff } from "lucide-react";
+import { getContents, type Content } from "../../../services/contentService";
 
-/* =========================
-   COMPONENT
-========================= */
 export function Videos() {
   const [videos, setVideos] = useState<Content[]>([]);
   const [current, setCurrent] = useState<Content | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  /* =========================
-     LOAD VIDEOS FROM FIRESTORE
-  ========================= */
-  useEffect(()=>{
-  const load=async()=>{
-    try{
-      const data=await getContents()
-      const onlyVideos=data.filter(c=>c.type==="video")
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getContents();
+        const onlyVideos = data.filter((c) => c.type === "video");
+        setVideos(onlyVideos);
+        setCurrent(onlyVideos[0] ?? null);
+      } catch (err) {
+        console.error("Failed to load videos:", err);
+        setError("Unable to load videos. Please check your connection.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      setVideos(onlyVideos)
-      setCurrent(onlyVideos[0] ?? null)
-
-    }catch(err){
-      console.error("Video load failed",err)
-    }finally{
-      setLoading(false)
-    }
-  }
-
-  load()
-  },[])
+    load();
+  }, []);
 
   if (loading) {
-    return <div className="p-6">Loading videos...</div>;
+    return <div className="p-6 text-center text-gray-500">Loading videos...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center">
+        <VideoOff className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
   }
 
   if (!current) {
     return (
-      <div className="p-6 text-gray-500">
-        No videos available. If you expected videos, check permissions or upload content.
+      <div className="p-6 text-center">
+        <VideoOff className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+        <p className="text-gray-500">
+          No videos available yet. Check back later or ask your instructor to upload content.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* ================= VIDEO PLAYER ================= */}
+      {/* VIDEO PLAYER */}
       <div className="lg:col-span-2 space-y-4">
         <Card className="overflow-hidden border border-gray-200 shadow-sm">
           <div className="aspect-video bg-black/95">
             <video
+              key={current._id}
               src={current.url}
               controls
               className="w-full h-full object-contain"
@@ -86,19 +95,18 @@ export function Videos() {
         </Card>
       </div>
 
-      {/* ================= PLAYLIST ================= */}
+      {/* PLAYLIST */}
       <div>
         <Card className="h-full border border-gray-200 shadow-sm">
           <CardContent className="p-0">
             <div className="p-4 border-b bg-gray-50">
               <h3 className="font-semibold">Video Library</h3>
-              <p className="text-sm text-gray-500">{videos.length} videos</p>
+              <p className="text-sm text-gray-500">{videos.length} video{videos.length !== 1 ? "s" : ""}</p>
             </div>
 
             <div className="max-h-[600px] overflow-y-auto">
               {videos.map((v, index) => {
                 const isActive = v._id === current._id;
-
                 return (
                   <div
                     key={v._id}
@@ -121,7 +129,6 @@ export function Videos() {
                           }`}
                         />
                       </div>
-
                       <div className="flex-1">
                         <p
                           className={`text-sm font-medium ${
@@ -130,9 +137,7 @@ export function Videos() {
                         >
                           {v.title}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          Lesson {index + 1}
-                        </p>
+                        <p className="text-xs text-gray-500">Lesson {index + 1}</p>
                       </div>
                     </div>
                   </div>

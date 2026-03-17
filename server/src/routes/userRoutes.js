@@ -1,9 +1,31 @@
+// server/src/routes/userRoutes.js
 import express from "express";
 import User from "../models/User.js";
 import { authenticateToken, authorize } from "../middleware/auth.js";
 import bcrypt from "bcrypt";
 
 const router = express.Router();
+
+/* =====================================================
+   GET ALL USERS (ADMIN ONLY)
+   GET /api/users
+   ⚠️ MUST be defined BEFORE GET /:id — Express matches
+      routes in order. If /:id comes first it consumes
+      the empty-string segment and the list route is unreachable.
+===================================================== */
+router.get(
+  "/",
+  authenticateToken,
+  authorize(["admin"]),
+  async (_req, res) => {
+    try {
+      const users = await User.find().select("-password");
+      res.json(users);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 /* =====================================================
    CREATE USER (ADMIN ONLY)
@@ -23,7 +45,7 @@ router.post(
 
       const exists = await User.findOne({ email: String(email).toLowerCase() });
       if (exists) {
-        return res.status(400).json({ error: "User already exists" });
+        return res.status(409).json({ error: "User already exists" });
       }
 
       const hashedPassword = await bcrypt.hash(String(password), 10);
@@ -57,10 +79,7 @@ router.post(
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
-
-    if (!user)
-      return res.status(404).json({ error: "User not found" });
-
+    if (!user) return res.status(404).json({ error: "User not found" });
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -73,7 +92,6 @@ router.get("/:id", authenticateToken, async (req, res) => {
 ===================================================== */
 router.put("/:id", authenticateToken, async (req, res) => {
   try {
-    // user can update only self unless admin
     if (
       req.user._id.toString() !== req.params.id &&
       req.user.role !== "admin"
@@ -86,11 +104,9 @@ router.put("/:id", authenticateToken, async (req, res) => {
     if (req.body?.username !== undefined) {
       updates.username = String(req.body.username).trim();
     }
-
     if (req.body?.email !== undefined) {
       updates.email = String(req.body.email).toLowerCase().trim();
     }
-
     if (req.body?.password !== undefined) {
       updates.password = await bcrypt.hash(String(req.body.password), 10);
     }
@@ -137,24 +153,6 @@ router.patch(
       }
 
       res.json(updatedUser);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
-
-/* =====================================================
-   GET ALL USERS (ADMIN ONLY)
-   GET /api/users
-===================================================== */
-router.get(
-  "/",
-  authenticateToken,
-  authorize(["admin"]),
-  async (_req, res) => {
-    try {
-      const users = await User.find().select("-password");
-      res.json(users);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

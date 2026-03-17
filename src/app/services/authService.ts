@@ -21,26 +21,37 @@ const API = `${API_BASE_URL}/api/auth`;
 
 /* ================= TOKEN ================= */
 
-export const getToken = () => localStorage.getItem("token");
+export const getToken = (): string | null =>
+  localStorage.getItem("token");
 
-export const getAuthHeader = () => {
+/**
+ * Returns auth headers WITHOUT throwing.
+ * If no token exists the Authorization value is an empty string,
+ * which the server will reject with 401 — that is handled per-call.
+ * This prevents unhandled exceptions from crashing components on mount.
+ */
+export const getAuthHeader = (): Record<string, string> => {
   const token = getToken();
-
-  if (!token) {
-    throw new Error("No token found");
-  }
-
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
+    Authorization: token ? `Bearer ${token}` : "",
+  };
+};
+
+/**
+ * Same as getAuthHeader but WITHOUT Content-Type.
+ * Use this when sending FormData (browser sets multipart boundary automatically).
+ */
+export const getAuthHeaderNoContentType = (): Record<string, string> => {
+  const token = getToken();
+  return {
+    Authorization: token ? `Bearer ${token}` : "",
   };
 };
 
 /* ================= HANDLE RESPONSE ================= */
 
-const handleAuthResponse = async (
-  res: Response
-): Promise<AuthResponse> => {
+const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
   const data = await res.json();
 
   if (!res.ok) {
@@ -52,14 +63,10 @@ const handleAuthResponse = async (
     localStorage.setItem("user", JSON.stringify(data.user));
   }
 
-  return {
-    user: data.user,
-    token: data.token,
-  };
+  return { user: data.user, token: data.token };
 };
 
 /* ================= REGISTER ================= */
-/* ✅ role added (default = student) */
 
 export const registerUser = async (
   email: string,
@@ -69,17 +76,9 @@ export const registerUser = async (
 ): Promise<AuthResponse> => {
   const res = await fetch(`${API}/register`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email,
-      password,
-      username,
-      role, // ✅ send role to backend
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, username, role }),
   });
-
   return handleAuthResponse(res);
 };
 
@@ -91,15 +90,9 @@ export const loginUser = async (
 ): Promise<AuthResponse> => {
   const res = await fetch(`${API}/login`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      email,
-      password,
-    }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
   });
-
   return handleAuthResponse(res);
 };
 
@@ -108,7 +101,6 @@ export const loginUser = async (
 export const getCurrentUser = (): User | null => {
   const stored = localStorage.getItem("user");
   if (!stored) return null;
-
   try {
     return JSON.parse(stored);
   } catch {

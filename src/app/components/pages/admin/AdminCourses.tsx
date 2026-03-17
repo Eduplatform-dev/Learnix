@@ -1,28 +1,15 @@
-﻿import { useEffect, useState, useCallback } from "react";
-import {
-  Plus,
-  Search,
-  BookOpen,
-  Users,
-  Clock,
-  Edit,
-  Trash2,
-  X,
-  Layers,
-} from "lucide-react";
+﻿// src/app/components/pages/admin/AdminCourses.tsx
 
+import { useEffect, useState, useCallback } from "react";
+import {
+  Plus, Search, BookOpen, Users, Clock, Edit, Trash2, X, Layers,
+} from "lucide-react";
 import { Card, CardContent } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
-
 import {
-  getCourses,
-  createCourse,
-  deleteCourse,
-  updateCourse,
-  type Course,
+  getCourses, createCourse, deleteCourse, updateCourse, type Course,
 } from "../../../services/courseService";
-
 import { getCourseContents } from "../../../services/contentService";
 
 export function AdminCourses() {
@@ -30,24 +17,19 @@ export function AdminCourses() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
+  /* Modal state */
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Course | null>(null);
-
-  const [selectedCourse, setSelectedCourse] =
-    useState<Course | null>(null);
-  const [lessons, setLessons] = useState<any[]>([]);
-  const [lessonLoading, setLessonLoading] = useState(false);
-
-  const [form, setForm] = useState({
-    title: "",
-    instructor: "",
-    duration: "",
-  });
-
+  const [form, setForm] = useState({ title: "", instructor: "", duration: "" });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
-  /* LOAD COURSES */
+  /* Lessons panel */
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [lessonLoading, setLessonLoading] = useState(false);
+
+  /* ================= LOAD ================= */
   const loadCourses = useCallback(async () => {
     try {
       setLoading(true);
@@ -60,78 +42,76 @@ export function AdminCourses() {
     }
   }, []);
 
-  useEffect(() => {
-    loadCourses();
-  }, [loadCourses]);
+  useEffect(() => { loadCourses(); }, [loadCourses]);
 
-  /* LOAD LESSONS */
+  /* ================= LESSONS ================= */
   const openLessons = async (course: Course) => {
     setSelectedCourse(course);
     try {
       setLessonLoading(true);
       const data = await getCourseContents(course._id);
       setLessons(data || []);
+    } catch {
+      setLessons([]);
     } finally {
       setLessonLoading(false);
     }
   };
 
-  /* FILTER */
+  /* ================= FILTER ================= */
   const filtered = courses.filter(
     (c) =>
       c.title?.toLowerCase().includes(query.toLowerCase()) ||
       c.instructor?.toLowerCase().includes(query.toLowerCase())
   );
 
-  /* CREATE */
+  /* ================= OPEN MODAL ================= */
   const openCreate = () => {
     setEditing(null);
     setForm({ title: "", instructor: "", duration: "" });
+    setFormError("");
     setModalOpen(true);
   };
 
-  /* EDIT */
   const openEdit = (course: Course) => {
     setEditing(course);
-    setForm({
-      title: course.title,
-      instructor: course.instructor,
-      duration: course.duration,
-    });
+    setForm({ title: course.title, instructor: course.instructor, duration: course.duration });
+    setFormError("");
     setModalOpen(true);
   };
 
-  /* SAVE */
+  const closeModal = () => {
+    setModalOpen(false);
+    setEditing(null);
+    setFormError("");
+  };
+
+  /* ================= SAVE ================= */
   const handleSave = async () => {
-    if (!form.title || !form.instructor || !form.duration) {
-      setFormError("All fields required");
+    if (!form.title.trim() || !form.instructor.trim() || !form.duration.trim()) {
+      setFormError("All fields are required");
       return;
     }
-
     try {
       setSaving(true);
-
       if (editing) {
         await updateCourse(editing._id, form);
       } else {
         await createCourse(form);
       }
-
-      setModalOpen(false);
+      closeModal();
       await loadCourses();
     } catch {
-      alert("Save failed");
+      setFormError("Save failed. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  /* DELETE */
+  /* ================= DELETE ================= */
   const handleDelete = async (id: string) => {
-    if (!confirm("Delete course?")) return;
-
+    if (!confirm("Delete this course?")) return;
     setCourses((prev) => prev.filter((c) => c._id !== id));
-
     try {
       await deleteCourse(id);
     } catch {
@@ -148,11 +128,8 @@ export function AdminCourses() {
       <div className="flex justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Course Management</h1>
-          <p className="text-gray-500">
-            Manage courses & lessons
-          </p>
+          <p className="text-gray-500">Manage courses &amp; lessons</p>
         </div>
-
         <Button className="bg-purple-600" onClick={openCreate}>
           <Plus className="w-4 h-4 mr-2" />
           New Course
@@ -174,7 +151,7 @@ export function AdminCourses() {
         </CardContent>
       </Card>
 
-      {/* LIST */}
+      {/* COURSE CARDS */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filtered.map((course) => (
           <Card key={course._id}>
@@ -184,48 +161,33 @@ export function AdminCourses() {
                   <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
                     <BookOpen className="w-6 h-6 text-purple-600" />
                   </div>
-
                   <div>
                     <h3 className="font-semibold">{course.title}</h3>
-                    <p className="text-sm text-gray-600">
-                      {course.instructor}
-                    </p>
+                    <p className="text-sm text-gray-600">{course.instructor}</p>
                   </div>
                 </div>
-
                 <Badge>{course.status || "active"}</Badge>
               </div>
 
               <div className="grid grid-cols-3 gap-4 mb-3">
                 <div className="flex gap-2 text-sm text-gray-600">
-                  <Users className="w-4 h-4" />
-                  {course.students || 0}
+                  <Users className="w-4 h-4" /> {course.students || 0}
                 </div>
-
                 <div className="flex gap-2 text-sm text-gray-600">
-                  <Clock className="w-4 h-4" />
-                  {course.duration}
+                  <Clock className="w-4 h-4" /> {course.duration}
                 </div>
-
                 <div className="text-sm text-purple-600">
-                  Rating {course.rating || 4.5}
+                  ★ {course.rating || 4.5}
                 </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => openLessons(course)}
-                >
-                  <Layers className="w-4 h-4 mr-1" />
-                  Lessons
+                <Button size="sm" variant="ghost" onClick={() => openLessons(course)}>
+                  <Layers className="w-4 h-4 mr-1" /> Lessons
                 </Button>
-
                 <Button size="sm" variant="ghost" onClick={() => openEdit(course)}>
                   <Edit className="w-4 h-4" />
                 </Button>
-
                 <Button
                   size="sm"
                   variant="ghost"
@@ -240,25 +202,92 @@ export function AdminCourses() {
         ))}
       </div>
 
-      {/* LESSON PANEL */}
+      {/* ================= CREATE / EDIT MODAL ================= */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white w-full max-w-md p-6 rounded-xl shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold text-lg">
+                {editing ? "Edit Course" : "New Course"}
+              </h3>
+              <Button variant="ghost" size="icon" onClick={closeModal}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Course Title
+                </label>
+                <input
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., React Fundamentals"
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Instructor
+                </label>
+                <input
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., Dr. Smith"
+                  value={form.instructor}
+                  onChange={(e) => setForm((f) => ({ ...f, instructor: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">
+                  Duration
+                </label>
+                <input
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="e.g., 6 weeks"
+                  value={form.duration}
+                  onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {formError && (
+              <p className="text-red-500 text-sm mt-2">{formError}</p>
+            )}
+
+            <div className="flex justify-end gap-2 mt-5">
+              <Button variant="ghost" onClick={closeModal}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-purple-600 hover:bg-purple-700"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : editing ? "Update" : "Create"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= LESSONS PANEL ================= */}
       {selectedCourse && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
-          <div className="bg-white w-[650px] p-6 rounded-xl">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white w-[650px] max-h-[80vh] overflow-y-auto p-6 rounded-xl shadow-xl">
             <div className="flex justify-between mb-4">
               <h3 className="font-semibold">
                 {selectedCourse.title} — Lessons
               </h3>
-
-              <Button
-                variant="ghost"
-                onClick={() => setSelectedCourse(null)}
-              >
+              <Button variant="ghost" onClick={() => setSelectedCourse(null)}>
                 <X />
               </Button>
             </div>
 
             {lessonLoading ? (
-              <p>Loading lessons...</p>
+              <p className="text-gray-500">Loading lessons...</p>
             ) : lessons.length === 0 ? (
               <p className="text-gray-500">No lessons yet.</p>
             ) : (

@@ -1,5 +1,7 @@
 ﻿// src/app/services/courseService.ts
 
+import { getAuthHeader } from "./authService";
+
 export type CourseStatus = "In Progress" | "Completed" | "Not Started";
 
 export type Course = {
@@ -19,11 +21,6 @@ const API_BASE_URL =
 
 const API = `${API_BASE_URL}/api/courses`;
 
-const getAuthHeader = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token")}`,
-  "Content-Type": "application/json",
-});
-
 export const getCourses = async (): Promise<Course[]> => {
   const res = await fetch(API, { headers: getAuthHeader() });
   if (!res.ok) throw new Error("Fetch failed");
@@ -34,31 +31,30 @@ export const createCourse = async (data: {
   title: string;
   instructor: string;
   duration: string;
-}) => {
+}): Promise<Course> => {
   const res = await fetch(API, {
     method: "POST",
     headers: getAuthHeader(),
     body: JSON.stringify(data),
   });
-
   if (!res.ok) throw new Error("Create failed");
-
   return res.json();
 };
 
 export const updateCourse = async (
   id: string,
   data: Partial<Course>
-) => {
+): Promise<Course> => {
   const res = await fetch(`${API}/${id}`, {
     method: "PUT",
     headers: getAuthHeader(),
     body: JSON.stringify(data),
   });
   if (!res.ok) throw new Error("Update failed");
+  return res.json();
 };
 
-export const deleteCourse = async (id: string) => {
+export const deleteCourse = async (id: string): Promise<void> => {
   const res = await fetch(`${API}/${id}`, {
     method: "DELETE",
     headers: getAuthHeader(),

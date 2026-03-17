@@ -1,4 +1,6 @@
-﻿import {
+﻿// src/app/components/Sidebar.tsx
+
+import {
   Home,
   BookOpen,
   PlayCircle,
@@ -28,6 +30,8 @@ type MenuItem = {
   label: string;
   icon: LucideIcon;
   badge?: number;
+  /** exact=true means only highlight when path matches exactly */
+  exact?: boolean;
 };
 
 interface SidebarProps {
@@ -42,7 +46,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const userRole = user?.role as UserRole | undefined;
 
-  /* ✅ do not render until auth restored */
   if (!userRole) return null;
 
   const activePath = location.pathname;
@@ -59,7 +62,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   /* ================= MENUS ================= */
 
   const studentMenu: MenuItem[] = [
-    { path: "/dashboard", label: "Home", icon: Home },
+    { path: "/dashboard", label: "Home", icon: Home, exact: true },
     { path: "/dashboard/courses", label: "My Courses", icon: BookOpen },
     { path: "/dashboard/videos", label: "Video Library", icon: PlayCircle },
     { path: "/dashboard/library", label: "Resources", icon: FolderOpen },
@@ -71,7 +74,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   ];
 
   const adminMenu: MenuItem[] = [
-    { path: "/admin/dashboard", label: "Dashboard", icon: BarChart3 },
+    { path: "/admin/dashboard", label: "Dashboard", icon: BarChart3, exact: true },
     { path: "/admin/users", label: "Students", icon: Users },
     { path: "/admin/courses", label: "Courses", icon: BookOpen },
     { path: "/admin/analytics", label: "Analytics", icon: LineChart },
@@ -81,9 +84,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
-  /* ✅ instructor uses student menu (same logic preserved) */
-  const menuItems =
-    userRole === "admin" ? adminMenu : studentMenu;
+  const menuItems = userRole === "admin" ? adminMenu : studentMenu;
 
   return (
     <div
@@ -107,13 +108,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <BookOpen className="w-6 h-6 text-white" />
             )}
           </div>
-
           <div>
             <h1 className="font-bold text-slate-900">Learnix</h1>
             <p className="text-xs text-slate-500">
-              {userRole === "admin"
-                ? "Admin Portal"
-                : "Student Portal"}
+              {userRole === "admin" ? "Admin Portal" : "Student Portal"}
             </p>
           </div>
         </div>
@@ -125,8 +123,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           {menuItems.map((item) => {
             const Icon = item.icon;
 
-            /* ✅ FIX: supports nested routes */
-            const isActive = activePath.startsWith(item.path);
+            // FIX: exact items only highlight on exact match
+            // Non-exact items highlight when activePath starts with item.path
+            const isActive = item.exact
+              ? activePath === item.path
+              : activePath === item.path || activePath.startsWith(item.path + "/");
 
             return (
               <Button
@@ -140,7 +141,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               >
                 <Icon className="w-5 h-5 mr-3" />
                 {item.label}
-
                 {item.badge && (
                   <Badge className="ml-auto bg-red-500 text-white">
                     {item.badge}
@@ -158,7 +158,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           <Avatar className="w-10 h-10">
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
-
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">
               {user?.username || "User"}
