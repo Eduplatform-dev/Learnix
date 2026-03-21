@@ -1,4 +1,3 @@
-// server/src/index.js
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -15,7 +14,9 @@ import adminRoutes from "./routes/adminRoutes.js";
 import courseRoutes from "./routes/courseRoutes.js";
 import assignmentRoutes from "./routes/assignmentRoutes.js";
 import contentRoutes from "./routes/contentRoutes.js";
-import submissionRoutes from "./routes/submissionRoutes.js";   // ← NEW
+import submissionRoutes from "./routes/submissionRoutes.js";
+import feeRoutes from "./routes/feeRoutes.js";
+import aiRoutes from "./routes/aiRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
@@ -77,11 +78,13 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/courses", courseRoutes);
 app.use("/api/assignments", assignmentRoutes);
 app.use("/api/content", contentRoutes);
-app.use("/api/submissions", submissionRoutes);   // ← NEW
+app.use("/api/submissions", submissionRoutes);
+app.use("/api/fees",        feeRoutes);
+app.use("/api/ai",          aiRoutes);
 
 /* ─── HEALTH ─────────────────────────────────────────── */
 app.get("/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, env: env.NODE_ENV });
 });
 
 /* ─── ERRORS ─────────────────────────────────────────── */

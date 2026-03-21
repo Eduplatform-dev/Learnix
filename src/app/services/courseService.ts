@@ -1,8 +1,6 @@
-﻿// src/app/services/courseService.ts
+﻿import { getAuthHeader } from "./authService";
 
-import { getAuthHeader } from "./authService";
-
-export type CourseStatus = "In Progress" | "Completed" | "Not Started";
+export type CourseStatus = "In Progress" | "Completed" | "Not Started" | "active" | "archived";
 
 export type Course = {
   _id: string;
@@ -14,6 +12,7 @@ export type Course = {
   progress: number;
   status: CourseStatus;
   image: string;
+  enrolledStudents?: string[];
 };
 
 const API_BASE_URL =
@@ -22,9 +21,22 @@ const API_BASE_URL =
 const API = `${API_BASE_URL}/api/courses`;
 
 export const getCourses = async (): Promise<Course[]> => {
-  const res = await fetch(API, { headers: getAuthHeader() });
+  const res = await fetch(`${API}?limit=100`, { headers: getAuthHeader() });
   if (!res.ok) throw new Error("Fetch failed");
-  return res.json();
+  const data = await res.json();
+  // Handle both paginated { courses: [...] } and plain array responses
+  const raw: any[] = Array.isArray(data) ? data : (data.courses ?? []);
+  return raw.map((c: any) => ({
+    _id: c._id,
+    title: c.title || "",
+    instructor: c.instructor?.username || c.instructor || "",
+    duration: c.duration || "",
+    students: c.enrolledStudents?.length ?? c.students ?? 0,
+    rating: c.rating ?? 4.5,
+    progress: c.progress ?? 0,
+    status: c.status || "active",
+    image: c.image || "",
+  }));
 };
 
 export const createCourse = async (data: {

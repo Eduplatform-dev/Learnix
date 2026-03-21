@@ -1,13 +1,19 @@
 {
   "name": "learnix",
   "version": "1.0.0",
-  "description": "A modern, comprehensive Learning Management System (LMS) built with React, TypeScript, and Tailwind CSS. Features a clean, professional design with full responsiveness and accessibility.",
+  "description": "A modern, comprehensive Learning Management System (LMS) built with React, TypeScript, and Tailwind CSS.",
   "main": "index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "dev:server": "npm --prefix server run dev",
+    "dev:full": "concurrently \"npm run dev\" \"npm run dev:server\""
   },
   "repository": {
     "type": "git",
@@ -17,10 +23,6 @@
   "author": "",
   "license": "ISC",
   "type": "module",
-  "bugs": {
-    "url": "https://github.com/Eduplatform-dev/Learnix/issues"
-  },
-  "homepage": "https://github.com/Eduplatform-dev/Learnix#readme",
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -68,12 +70,19 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "globals": "^17.4.0",
+    "jsdom": "^26.1.0",
     "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "vitest": "^2.1.0"
+  },
+  "overrides": {
     "vite": "^8.0.0"
   }
 }
