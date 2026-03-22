@@ -1,9 +1,9 @@
-// server/src/routes/submissionRoutes.js
 import express from "express";
 import multer from "multer";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 
 import { authenticateToken, authorize } from "../middleware/auth.js";
 import Submission from "../models/Submission.js";
@@ -12,88 +12,90 @@ import { env } from "../config/env.js";
 
 const router = express.Router();
 
-/* ─── FILE UPLOAD SETUP ────────────────────────────── */
+/* ─── FILE UPLOAD SETUP ─────────────────────────────── */
 const uploadDir = path.resolve(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
+  filename:    (_req, file, cb) => {
     const ext = path.extname(file.originalname || "");
     cb(null, `${Date.now()}-${randomUUID()}${ext}`);
   },
 });
 
+const ALLOWED = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/zip",
+  "text/plain",
+  "image/png",
+  "image/jpeg",
+]);
+
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
-  fileFilter: (_req, file, cb) => {
-    const allowed = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "application/zip",
-      "text/plain",
-      "image/png",
-      "image/jpeg",
-    ];
-    if (allowed.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("File type not allowed"));
-    }
-  },
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) =>
+    ALLOWED.has(file.mimetype) ? cb(null, true) : cb(new Error("File type not allowed")),
+});
+
+const gradeSchema = z.object({
+  grade:    z.string().min(1).max(50).trim(),
+  feedback: z.string().max(2000).optional().default(""),
 });
 
 const baseUrl = (req) =>
   env.PUBLIC_BASE_URL || `${req.protocol}://${req.get("host")}`;
 
-/* ─── GET MY SUBMISSIONS (student) ─────────────────── */
-/* GET /api/submissions */
+const isStaff = (user) => ["admin", "instructor"].includes(user.role);
+
+/* ─── GET ALL SUBMISSIONS ─────────────────────────────── */
 router.get("/", authenticateToken, async (req, res) => {
   try {
-    const query =
-      req.user.role === "admin" || req.user.role === "instructor"
-        ? {}
-        : { studentId: req.user._id };
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+    const skip  = (page - 1) * limit;
 
-    const submissions = await Submission.find(query)
-      .sort({ createdAt: -1 })
-      .lean();
+    const filter = isStaff(req.user) ? {} : { studentId: req.user._id };
+    if (req.query.status)       filter.status       = req.query.status;
+    if (req.query.assignmentId) filter.assignmentId = req.query.assignmentId;
+
+    const [submissions, total] = await Promise.all([
+      Submission.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      Submission.countDocuments(filter),
+    ]);
 
     res.json(submissions);
   } catch (err) {
+    console.error("getSubmissions error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-/* ─── GET SUBMISSIONS FOR AN ASSIGNMENT ─────────────── */
-/* GET /api/submissions/assignment/:assignmentId */
+/* ─── GET BY ASSIGNMENT ───────────────────────────────── */
 router.get("/assignment/:assignmentId", authenticateToken, async (req, res) => {
   try {
-    const query =
-      req.user.role === "admin" || req.user.role === "instructor"
-        ? { assignmentId: req.params.assignmentId }
-        : { assignmentId: req.params.assignmentId, studentId: req.user._id };
+    const filter = isStaff(req.user)
+      ? { assignmentId: req.params.assignmentId }
+      : { assignmentId: req.params.assignmentId, studentId: req.user._id };
 
-    const submissions = await Submission.find(query).sort({ createdAt: -1 }).lean();
+    const submissions = await Submission.find(filter).sort({ createdAt: -1 }).lean();
     res.json(submissions);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/* ─── GET SINGLE SUBMISSION ─────────────────────────── */
-/* GET /api/submissions/:id */
+/* ─── GET SINGLE ──────────────────────────────────────── */
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const sub = await Submission.findById(req.params.id).lean();
     if (!sub) return res.status(404).json({ error: "Submission not found" });
 
     const isOwner = String(sub.studentId) === String(req.user._id);
-    const isStaff = ["admin", "instructor"].includes(req.user.role);
-
-    if (!isOwner && !isStaff) {
+    if (!isOwner && !isStaff(req.user)) {
       return res.status(403).json({ error: "Forbidden" });
     }
 
@@ -103,10 +105,7 @@ router.get("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-/* ─── CREATE / SAVE DRAFT ───────────────────────────── */
-/* POST /api/submissions
-   multipart/form-data: assignmentId, title, description, text, status, files[]
-*/
+/* ─── CREATE / SAVE DRAFT ─────────────────────────────── */
 router.post(
   "/",
   authenticateToken,
@@ -119,24 +118,20 @@ router.post(
         return res.status(400).json({ error: "assignmentId is required" });
       }
 
-      // Verify the assignment exists and belongs to this student (or admin)
+      if (!mongoose.Types.ObjectId.isValid?.(assignmentId)) {
+        // Basic check — mongoose will also validate on save
+      }
+
       const assignment = await Assignment.findById(assignmentId);
       if (!assignment) {
         return res.status(404).json({ error: "Assignment not found" });
       }
 
-      const isOwner = assignment.userId === String(req.user._id);
-      const isStaff = ["admin", "instructor"].includes(req.user.role);
-      if (!isOwner && !isStaff) {
-        return res.status(403).json({ error: "Forbidden" });
-      }
-
-      // Build file list
       const files = (req.files || []).map((f) => ({
         originalName: f.originalname,
-        filename: f.filename,
-        url: `${baseUrl(req)}/uploads/${f.filename}`,
-        size: f.size,
+        filename:     f.filename,
+        url:          `${baseUrl(req)}/uploads/${f.filename}`,
+        size:         f.size,
       }));
 
       const submissionStatus = status === "submitted" ? "submitted" : "draft";
@@ -144,30 +139,29 @@ router.post(
       const sub = await Submission.create({
         assignmentId,
         assignmentTitle: assignment.title,
-        course: assignment.course,
-        studentId: req.user._id,
+        course:      String(assignment.course || ""),
+        studentId:   req.user._id,
         studentName: req.user.username || req.user.email,
-        title: String(title || "").trim(),
+        title:       String(title || "").trim(),
         description: String(description || "").trim(),
-        text: String(text || "").trim(),
+        text:        String(text || "").trim(),
         files,
         status: submissionStatus,
       });
 
-      // If submitting (not draft), update the assignment status too
       if (submissionStatus === "submitted") {
         await Assignment.findByIdAndUpdate(assignmentId, { status: "Submitted" });
       }
 
       res.status(201).json(sub);
     } catch (err) {
+      console.error("createSubmission error:", err);
       res.status(500).json({ error: err.message });
     }
   }
 );
 
-/* ─── UPDATE SUBMISSION (student can edit draft) ─────── */
-/* PUT /api/submissions/:id */
+/* ─── UPDATE SUBMISSION ───────────────────────────────── */
 router.put(
   "/:id",
   authenticateToken,
@@ -178,27 +172,23 @@ router.put(
       if (!sub) return res.status(404).json({ error: "Submission not found" });
 
       const isOwner = String(sub.studentId) === String(req.user._id);
-      const isStaff = ["admin", "instructor"].includes(req.user.role);
-
-      if (!isOwner && !isStaff) {
+      if (!isOwner && !isStaff(req.user)) {
         return res.status(403).json({ error: "Forbidden" });
       }
 
-      // Students can only edit drafts
-      if (isOwner && !isStaff && sub.status !== "draft") {
+      if (isOwner && !isStaff(req.user) && sub.status !== "draft") {
         return res.status(400).json({ error: "Cannot edit a submitted submission" });
       }
 
-      if (req.body?.title !== undefined) sub.title = String(req.body.title).trim();
+      if (req.body?.title       !== undefined) sub.title       = String(req.body.title).trim();
       if (req.body?.description !== undefined) sub.description = String(req.body.description).trim();
-      if (req.body?.text !== undefined) sub.text = String(req.body.text).trim();
+      if (req.body?.text        !== undefined) sub.text        = String(req.body.text).trim();
 
-      // Append new files
       const newFiles = (req.files || []).map((f) => ({
         originalName: f.originalname,
-        filename: f.filename,
-        url: `${baseUrl(req)}/uploads/${f.filename}`,
-        size: f.size,
+        filename:     f.filename,
+        url:          `${baseUrl(req)}/uploads/${f.filename}`,
+        size:         f.size,
       }));
       sub.files.push(...newFiles);
 
@@ -210,31 +200,30 @@ router.put(
       await sub.save();
       res.json(sub);
     } catch (err) {
+      console.error("updateSubmission error:", err);
       res.status(500).json({ error: err.message });
     }
   }
 );
 
-/* ─── GRADE SUBMISSION (admin/instructor only) ───────── */
-/* PATCH /api/submissions/:id/grade */
+/* ─── GRADE ───────────────────────────────────────────── */
 router.patch(
   "/:id/grade",
   authenticateToken,
   authorize(["admin", "instructor"]),
   async (req, res) => {
     try {
-      const { grade, feedback } = req.body || {};
-
-      if (!grade) {
-        return res.status(400).json({ error: "grade is required" });
+      const parsed = gradeSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0].message });
       }
 
       const sub = await Submission.findByIdAndUpdate(
         req.params.id,
         {
-          grade: String(grade).trim(),
-          feedback: String(feedback || "").trim(),
-          status: "graded",
+          grade:    parsed.data.grade,
+          feedback: parsed.data.feedback,
+          status:   "graded",
           gradedAt: new Date(),
           gradedBy: req.user._id,
         },
@@ -245,13 +234,13 @@ router.patch(
 
       res.json(sub);
     } catch (err) {
+      console.error("gradeSubmission error:", err);
       res.status(500).json({ error: err.message });
     }
   }
 );
 
-/* ─── DELETE SUBMISSION (admin only) ────────────────── */
-/* DELETE /api/submissions/:id */
+/* ─── DELETE ──────────────────────────────────────────── */
 router.delete(
   "/:id",
   authenticateToken,
@@ -261,19 +250,17 @@ router.delete(
       const sub = await Submission.findById(req.params.id);
       if (!sub) return res.status(404).json({ error: "Submission not found" });
 
-      // Delete uploaded files from disk
       for (const file of sub.files) {
-        const filePath = path.join(uploadDir, file.filename);
+        const fp = path.join(uploadDir, file.filename);
         try {
-          if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-        } catch {
-          // ignore missing file
-        }
+          if (fs.existsSync(fp)) fs.unlinkSync(fp);
+        } catch { /* ignore */ }
       }
 
       await sub.deleteOne();
       res.json({ ok: true });
     } catch (err) {
+      console.error("deleteSubmission error:", err);
       res.status(500).json({ error: err.message });
     }
   }

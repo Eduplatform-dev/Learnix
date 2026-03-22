@@ -1,81 +1,93 @@
-// server/src/routes/userRoutes.js
 import express from "express";
+import { z } from "zod";
 import User from "../models/User.js";
 import { authenticateToken, authorize } from "../middleware/auth.js";
 import bcrypt from "bcrypt";
 
 const router = express.Router();
 
-/* =====================================================
-   GET ALL USERS (ADMIN ONLY)
-   GET /api/users
-   ⚠️ MUST be defined BEFORE GET /:id — Express matches
-      routes in order. If /:id comes first it consumes
-      the empty-string segment and the list route is unreachable.
-===================================================== */
+const createUserSchema = z.object({
+  email:    z.string().email("Invalid email address").toLowerCase().trim(),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  username: z.string().min(3, "Username must be at least 3 characters").max(30).trim(),
+  role:     z.enum(["student", "instructor", "admin"]).optional().default("student"),
+});
+
+const updateUserSchema = z.object({
+  username: z.string().min(3).max(30).trim().optional(),
+  email:    z.string().email().toLowerCase().trim().optional(),
+  password: z.string().min(6).optional(),
+});
+
+/* ─── GET ALL USERS (admin) ───────────────────────────── */
 router.get(
   "/",
   authenticateToken,
   authorize(["admin"]),
-  async (_req, res) => {
+  async (req, res) => {
     try {
-      const users = await User.find().select("-password");
+      const page  = Math.max(1, parseInt(req.query.page)  || 1);
+      const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 100));
+      const skip  = (page - 1) * limit;
+
+      const filter = {};
+      if (req.query.role)   filter.role = req.query.role;
+      if (req.query.search) {
+        const re = new RegExp(req.query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+        filter.$or = [{ username: re }, { email: re }];
+      }
+
+      const [users, total] = await Promise.all([
+        User.find(filter).select("-password").sort({ createdAt: -1 }).skip(skip).limit(limit),
+        User.countDocuments(filter),
+      ]);
+
       res.json(users);
     } catch (err) {
+      console.error("getUsers error:", err);
       res.status(500).json({ error: err.message });
     }
   }
 );
 
-/* =====================================================
-   CREATE USER (ADMIN ONLY)
-   POST /api/users
-===================================================== */
+/* ─── CREATE USER (admin) ─────────────────────────────── */
 router.post(
   "/",
   authenticateToken,
   authorize(["admin"]),
   async (req, res) => {
     try {
-      const { email, password, username, role } = req.body || {};
-
-      if (!email || !password || !username) {
-        return res.status(400).json({ error: "All fields required" });
+      const parsed = createUserSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: parsed.error.errors[0].message });
       }
 
-      const exists = await User.findOne({ email: String(email).toLowerCase() });
+      const { email, password, username, role } = parsed.data;
+
+      const exists = await User.findOne({ $or: [{ email }, { username }] });
       if (exists) {
-        return res.status(409).json({ error: "User already exists" });
+        return res.status(409).json({
+          error: exists.email === email ? "Email already in use" : "Username already taken",
+        });
       }
 
-      const hashedPassword = await bcrypt.hash(String(password), 10);
-
-      const allowedRoles = ["student", "instructor", "admin"];
-      const safeRole = allowedRoles.includes(role) ? role : "student";
-
-      const user = await User.create({
-        email: String(email).toLowerCase(),
-        username: String(username).trim(),
-        password: hashedPassword,
-        role: safeRole,
-      });
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const user = await User.create({ email, username, password: hashedPassword, role });
 
       res.status(201).json({
-        _id: user._id,
-        email: user.email,
+        _id:      user._id,
+        email:    user.email,
         username: user.username,
-        role: user.role,
+        role:     user.role,
       });
     } catch (err) {
+      console.error("createUser error:", err);
       res.status(500).json({ error: err.message });
     }
   }
 );
 
-/* =====================================================
-   GET USER BY ID
-   GET /api/users/:id
-===================================================== */
+/* ─── GET USER BY ID ──────────────────────────────────── */
 router.get("/:id", authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select("-password");
@@ -86,38 +98,31 @@ router.get("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-/* =====================================================
-   UPDATE USER
-   PUT /api/users/:id
-===================================================== */
+/* ─── UPDATE USER ─────────────────────────────────────── */
 router.put("/:id", authenticateToken, async (req, res) => {
   try {
-    if (
-      req.user._id.toString() !== req.params.id &&
-      req.user.role !== "admin"
-    ) {
+    const isSelf  = req.user._id.toString() === req.params.id;
+    const isAdmin = req.user.role === "admin";
+
+    if (!isSelf && !isAdmin) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-    const updates = {};
+    const parsed = updateUserSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.errors[0].message });
+    }
 
-    if (req.body?.username !== undefined) {
-      updates.username = String(req.body.username).trim();
-    }
-    if (req.body?.email !== undefined) {
-      updates.email = String(req.body.email).toLowerCase().trim();
-    }
-    if (req.body?.password !== undefined) {
-      updates.password = await bcrypt.hash(String(req.body.password), 10);
+    const updates = { ...parsed.data };
+    if (updates.password) {
+      updates.password = await bcrypt.hash(updates.password, 10);
     }
 
     const updatedUser = await User.findByIdAndUpdate(req.params.id, updates, {
       new: true,
     }).select("-password");
 
-    if (!updatedUser) {
-      return res.status(404).json({ error: "User not found" });
-    }
+    if (!updatedUser) return res.status(404).json({ error: "User not found" });
 
     res.json(updatedUser);
   } catch (err) {
@@ -125,32 +130,28 @@ router.put("/:id", authenticateToken, async (req, res) => {
   }
 });
 
-/* =====================================================
-   UPDATE ROLE (ADMIN ONLY)
-   PATCH /api/users/:id
-===================================================== */
+/* ─── UPDATE ROLE (admin) ─────────────────────────────── */
 router.patch(
   "/:id",
   authenticateToken,
   authorize(["admin"]),
   async (req, res) => {
     try {
-      const { role } = req.body || {};
-      const allowedRoles = ["student", "instructor", "admin"];
+      const parsed = z.object({
+        role: z.enum(["student", "instructor", "admin"]),
+      }).safeParse(req.body);
 
-      if (!allowedRoles.includes(role)) {
+      if (!parsed.success) {
         return res.status(400).json({ error: "Invalid role" });
       }
 
       const updatedUser = await User.findByIdAndUpdate(
         req.params.id,
-        { role },
+        { role: parsed.data.role },
         { new: true }
       ).select("-password");
 
-      if (!updatedUser) {
-        return res.status(404).json({ error: "User not found" });
-      }
+      if (!updatedUser) return res.status(404).json({ error: "User not found" });
 
       res.json(updatedUser);
     } catch (err) {
@@ -159,18 +160,16 @@ router.patch(
   }
 );
 
-/* =====================================================
-   DELETE USER (ADMIN ONLY)
-   DELETE /api/users/:id
-===================================================== */
+/* ─── DELETE USER (admin) ─────────────────────────────── */
 router.delete(
   "/:id",
   authenticateToken,
   authorize(["admin"]),
   async (req, res) => {
     try {
-      await User.findByIdAndDelete(req.params.id);
-      res.json({ message: "User deleted" });
+      const deleted = await User.findByIdAndDelete(req.params.id);
+      if (!deleted) return res.status(404).json({ error: "User not found" });
+      res.json({ message: "User deleted successfully" });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

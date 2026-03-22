@@ -1,5 +1,3 @@
-// src/app/services/authService.ts
-
 export type UserRole = "student" | "admin" | "instructor";
 
 export type User = {
@@ -19,55 +17,50 @@ const API_BASE_URL =
 
 const API = `${API_BASE_URL}/api/auth`;
 
-/* ================= TOKEN ================= */
+/* ─── TOKEN HELPERS ───────────────────────────────────── */
+export const getToken = (): string | null => localStorage.getItem("token");
 
-export const getToken = (): string | null =>
-  localStorage.getItem("token");
-
-/**
- * Returns auth headers WITHOUT throwing.
- * If no token exists the Authorization value is an empty string,
- * which the server will reject with 401 — that is handled per-call.
- * This prevents unhandled exceptions from crashing components on mount.
- */
+/** Returns auth + JSON content-type headers */
 export const getAuthHeader = (): Record<string, string> => {
   const token = getToken();
   return {
     "Content-Type": "application/json",
-    Authorization: token ? `Bearer ${token}` : "",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 };
 
 /**
- * Same as getAuthHeader but WITHOUT Content-Type.
- * Use this when sending FormData (browser sets multipart boundary automatically).
+ * Auth header WITHOUT Content-Type.
+ * Use when sending FormData — browser sets the multipart boundary automatically.
  */
 export const getAuthHeaderNoContentType = (): Record<string, string> => {
   const token = getToken();
-  return {
-    Authorization: token ? `Bearer ${token}` : "",
-  };
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-/* ================= HANDLE RESPONSE ================= */
-
+/* ─── RESPONSE HANDLER ────────────────────────────────── */
 const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
-  const data = await res.json();
+  let data: Record<string, unknown>;
+
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Server error (${res.status})`);
+  }
 
   if (!res.ok) {
-    throw new Error(data.error || "Request failed");
+    throw new Error((data.error as string) || `Request failed (${res.status})`);
   }
 
   if (data.token && data.user) {
-    localStorage.setItem("token", data.token);
+    localStorage.setItem("token", data.token as string);
     localStorage.setItem("user", JSON.stringify(data.user));
   }
 
-  return { user: data.user, token: data.token };
+  return { user: data.user as User, token: data.token as string };
 };
 
-/* ================= REGISTER ================= */
-
+/* ─── REGISTER ────────────────────────────────────────── */
 export const registerUser = async (
   email: string,
   password: string,
@@ -75,41 +68,38 @@ export const registerUser = async (
   role: UserRole = "student"
 ): Promise<AuthResponse> => {
   const res = await fetch(`${API}/register`, {
-    method: "POST",
+    method:  "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, username, role }),
+    body:    JSON.stringify({ email, password, username, role }),
   });
   return handleAuthResponse(res);
 };
 
-/* ================= LOGIN ================= */
-
+/* ─── LOGIN ───────────────────────────────────────────── */
 export const loginUser = async (
   email: string,
   password: string
 ): Promise<AuthResponse> => {
   const res = await fetch(`${API}/login`, {
-    method: "POST",
+    method:  "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body:    JSON.stringify({ email, password }),
   });
   return handleAuthResponse(res);
 };
 
-/* ================= CURRENT USER ================= */
-
+/* ─── CURRENT USER ────────────────────────────────────── */
 export const getCurrentUser = (): User | null => {
   const stored = localStorage.getItem("user");
   if (!stored) return null;
   try {
-    return JSON.parse(stored);
+    return JSON.parse(stored) as User;
   } catch {
     return null;
   }
 };
 
-/* ================= LOGOUT ================= */
-
+/* ─── LOGOUT ──────────────────────────────────────────── */
 export const logoutUser = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");

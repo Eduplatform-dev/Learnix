@@ -1,8 +1,6 @@
 import dotenv from "dotenv";
 import { z } from "zod";
 
-/* ================= LOAD ENV ================= */
-
 dotenv.config();
 
 /* ================= ENV SCHEMA ================= */
@@ -14,25 +12,34 @@ const envSchema = z.object({
 
   PORT: z.coerce.number().int().positive().default(5000),
 
-  MONGO_URI: z.string().min(1, "MONGO_URI is required"),
+  MONGO_URI: z
+    .string()
+    .min(1, "MONGO_URI is required — set it in server/.env"),
 
-  JWT_SECRET: z.string().min(16, "JWT_SECRET must be at least 16 characters"),
+  JWT_SECRET: z
+    .string()
+    .min(16, "JWT_SECRET must be at least 16 characters — set it in server/.env"),
 
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
 
   PUBLIC_BASE_URL: z.string().optional(),
+
+  // Optional — AI features disabled if not set
+  ANTHROPIC_API_KEY: z.string().optional(),
 });
 
-/* ================= VALIDATE ENV ================= */
+/* ================= VALIDATE ================= */
 
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error(
-    "Invalid environment variables:",
-    parsed.error.flatten().fieldErrors
-  );
-  throw new Error("Invalid environment variables");
+  const errors = parsed.error.flatten().fieldErrors;
+  console.error("\n❌  Invalid environment variables:");
+  for (const [key, msgs] of Object.entries(errors)) {
+    console.error(`   ${key}: ${msgs.join(", ")}`);
+  }
+  console.error("\n   Copy server/.env.example → server/.env and fill in the required values.\n");
+  process.exit(1);
 }
 
 /* ================= EXPORT ================= */

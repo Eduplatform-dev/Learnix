@@ -19,20 +19,22 @@ const storage = multer.diskStorage({
   },
 });
 
+const ALLOWED_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/zip",
+  "text/plain",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "video/mp4",
+  "video/webm",
+  "video/ogg",
+]);
+
 const fileFilter = (_req, file, cb) => {
-  const allowed = [
-    "application/pdf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/zip",
-    "text/plain",
-    "image/png",
-    "image/jpeg",
-    "video/mp4",
-    "video/webm",
-    "video/ogg",
-  ];
-  if (allowed.includes(file.mimetype)) {
+  if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error(`File type not allowed: ${file.mimetype}`));
@@ -41,6 +43,6 @@ const fileFilter = (_req, file, cb) => {
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
   fileFilter,
 });

@@ -19,22 +19,9 @@ type Message = {
 
 /* ================= HELPERS ================= */
 const now = () =>
-  new Date().toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
-const SYSTEM_PROMPT = `You are an intelligent AI Study Assistant for Learnix, a Learning Management System. 
-Your role is to help students with:
-- Study plans and learning strategies
-- Explaining concepts from their courses (React, Data Structures, Algorithms, Databases, etc.)
-- Assignment help and guidance (without doing the work for them)
-- Time management and productivity tips
-- Exam preparation strategies
-- Motivation and overcoming learning challenges
-
-Keep responses concise, friendly, and educational. Use bullet points and structure when helpful.
-If asked something unrelated to studying/learning, gently redirect to academic topics.`;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 /* ================= COMPONENT ================= */
 export function AIChat() {
@@ -47,18 +34,16 @@ export function AIChat() {
     },
   ]);
 
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [inputValue, setInputValue]   = useState('');
+  const [isLoading, setIsLoading]     = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+  const abortControllerRef            = useRef<AbortController | null>(null);
+  const messagesEndRef                = useRef<HTMLDivElement>(null);
 
-  /* ================= AUTO SCROLL ================= */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  /* ================= SUGGESTED PROMPTS ================= */
   const suggestedPrompts = [
     'Study tips',
     'Course plan',
@@ -67,53 +52,22 @@ export function AIChat() {
   ];
 
   const studySuggestions = [
-    {
-      id: 1,
-      title: 'React Hooks Best Practices',
-      description: 'Based on your current course',
-      type: 'Article',
-      icon: BookOpen,
-      color: 'bg-blue-100 text-blue-600',
-    },
-    {
-      id: 2,
-      title: 'Focus on Data Structures',
-      description: 'Recommended for upcoming exam',
-      type: 'Course',
-      icon: Target,
-      color: 'bg-purple-100 text-purple-600',
-    },
-    {
-      id: 3,
-      title: 'Practice Algorithms Daily',
-      description: 'Improve problem-solving skills',
-      type: 'Practice',
-      icon: TrendingUp,
-      color: 'bg-green-100 text-green-600',
-    },
-    {
-      id: 4,
-      title: 'Time Management Tips',
-      description: 'Optimize your study schedule',
-      type: 'Guide',
-      icon: Clock,
-      color: 'bg-orange-100 text-orange-600',
-    },
+    { id: 1, title: 'React Hooks Best Practices', description: 'Based on your current course',   type: 'Article',   icon: BookOpen,   color: 'bg-blue-100 text-blue-600' },
+    { id: 2, title: 'Focus on Data Structures',   description: 'Recommended for upcoming exam',  type: 'Course',    icon: Target,     color: 'bg-purple-100 text-purple-600' },
+    { id: 3, title: 'Practice Algorithms Daily',  description: 'Improve problem-solving skills', type: 'Practice',  icon: TrendingUp, color: 'bg-green-100 text-green-600' },
+    { id: 4, title: 'Time Management Tips',        description: 'Optimize your study schedule',  type: 'Guide',     icon: Clock,      color: 'bg-orange-100 text-orange-600' },
   ];
 
-  /* ================= STOP STREAMING ================= */
+  /* ─── STOP STREAMING ─────────────────────────────────── */
   const handleStop = () => {
     abortControllerRef.current?.abort();
     setIsLoading(false);
-    // Finalize the streaming message
     setMessages((prev) =>
-      prev.map((m) =>
-        m.isStreaming ? { ...m, isStreaming: false } : m
-      )
+      prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m))
     );
   };
 
-  /* ================= SEND MESSAGE ================= */
+  /* ─── SEND MESSAGE ───────────────────────────────────── */
   const handleSendMessage = async (overrideText?: string) => {
     const text = (overrideText ?? inputValue).trim();
     if (!text || isLoading) return;
@@ -121,67 +75,50 @@ export function AIChat() {
     setError(null);
     setInputValue('');
 
-    const userMsg: Message = {
-      id: Date.now(),
-      sender: 'user',
-      text,
-      time: now(),
-    };
-
+    const userMsg: Message = { id: Date.now(), sender: 'user', text, time: now() };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
 
-    // Placeholder streaming message
     const aiMsgId = Date.now() + 1;
     setMessages((prev) => [
       ...prev,
-      {
-        id: aiMsgId,
-        sender: 'ai',
-        text: '',
-        time: now(),
-        isStreaming: true,
-      },
+      { id: aiMsgId, sender: 'ai', text: '', time: now(), isStreaming: true },
     ]);
 
-    // Build conversation history for the API
-    const conversationHistory = [
-      ...messages,
-      userMsg,
-    ]
-      .filter((m) => !m.isStreaming)
+    // Build conversation history (exclude the placeholder streaming message)
+    const conversationHistory = [...messages, userMsg]
+      .filter((m) => !m.isStreaming && m.text)
       .map((m) => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
+        role:    m.sender === 'user' ? 'user' : ('assistant' as const),
         content: m.text,
       }));
 
     try {
       abortControllerRef.current = new AbortController();
 
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const token = localStorage.getItem('token');
+
+      // ✅ Calls our own backend — API key never exposed to browser
+      const response = await fetch(`${API_BASE_URL}/api/ai/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
         },
+        body: JSON.stringify({ messages: conversationHistory }),
         signal: abortControllerRef.current.signal,
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1024,
-          system: SYSTEM_PROMPT,
-          stream: true,
-          messages: conversationHistory,
-        }),
       });
 
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errData = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+        throw new Error(errData.error || `Request failed with status ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
+      const reader  = response.body?.getReader();
       if (!reader) throw new Error('No response body');
 
-      const decoder = new TextDecoder();
-      let accumulated = '';
+      const decoder     = new TextDecoder();
+      let accumulated   = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -191,59 +128,43 @@ export function AIChat() {
         const lines = chunk.split('\n');
 
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6).trim();
-            if (data === '[DONE]') continue;
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
 
-            try {
-              const parsed = JSON.parse(data);
-
-              if (
-                parsed.type === 'content_block_delta' &&
-                parsed.delta?.type === 'text_delta'
-              ) {
-                accumulated += parsed.delta.text;
-
-                // Update the streaming message
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aiMsgId
-                      ? { ...m, text: accumulated }
-                      : m
-                  )
-                );
-              }
-            } catch {
-              // Ignore JSON parse errors for partial chunks
+          try {
+            const parsed = JSON.parse(data);
+            if (
+              parsed.type === 'content_block_delta' &&
+              parsed.delta?.type === 'text_delta'
+            ) {
+              accumulated += parsed.delta.text;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiMsgId ? { ...m, text: accumulated } : m
+                )
+              );
             }
+          } catch {
+            // Partial JSON chunk — ignore
           }
         }
       }
 
-      // Finalize message
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === aiMsgId ? { ...m, isStreaming: false } : m
-        )
+        prev.map((m) => (m.id === aiMsgId ? { ...m, isStreaming: false } : m))
       );
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
-        // User stopped — already handled
-        return;
-      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
 
-      console.error('AI Chat error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('AI Chat error:', msg);
       setError('Failed to get a response. Please try again.');
 
-      // Replace the empty streaming message with an error
       setMessages((prev) =>
         prev.map((m) =>
           m.id === aiMsgId
-            ? {
-                ...m,
-                text: "Sorry, I couldn't process your message. Please try again.",
-                isStreaming: false,
-              }
+            ? { ...m, text: "Sorry, I couldn't process your message. Please try again.", isStreaming: false }
             : m
         )
       );
@@ -252,12 +173,12 @@ export function AIChat() {
     }
   };
 
-  /* ================= RENDER ================= */
+  /* ─── RENDER ─────────────────────────────────────────── */
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ================= CHAT PANEL ================= */}
+        {/* CHAT PANEL */}
         <div className="lg:col-span-2">
           <Card className="border border-gray-200 h-[700px] flex flex-col">
 
@@ -282,11 +203,7 @@ export function AIChat() {
                   key={message.id}
                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div
-                    className={`flex gap-3 max-w-[80%] ${
-                      message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'
-                    }`}
-                  >
+                  <div className={`flex gap-3 max-w-[80%] ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                     <Avatar className="w-8 h-8 flex-shrink-0">
                       <AvatarFallback
                         className={
@@ -295,14 +212,9 @@ export function AIChat() {
                             : 'bg-indigo-100 text-indigo-600'
                         }
                       >
-                        {message.sender === 'ai' ? (
-                          <Sparkles className="w-4 h-4" />
-                        ) : (
-                          'Me'
-                        )}
+                        {message.sender === 'ai' ? <Sparkles className="w-4 h-4" /> : 'Me'}
                       </AvatarFallback>
                     </Avatar>
-
                     <div>
                       <div
                         className={`rounded-2xl px-4 py-3 ${
@@ -311,19 +223,15 @@ export function AIChat() {
                             : 'bg-gray-100 text-gray-900'
                         }`}
                       >
-                        {/* Render text with line breaks */}
                         {message.text ? (
                           <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                         ) : (
-                          /* Typing indicator while streaming but no text yet */
                           <div className="flex gap-1 items-center h-5">
                             <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0ms]" />
                             <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:150ms]" />
                             <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:300ms]" />
                           </div>
                         )}
-
-                        {/* Streaming cursor */}
                         {message.isStreaming && message.text && (
                           <span className="inline-block w-0.5 h-4 bg-gray-500 ml-0.5 animate-pulse" />
                         )}
@@ -334,13 +242,11 @@ export function AIChat() {
                 </div>
               ))}
 
-              {/* Error banner */}
               {error && (
                 <div className="text-center text-sm text-red-500 bg-red-50 rounded-lg p-2">
                   {error}
                 </div>
               )}
-
               <div ref={messagesEndRef} />
             </div>
 
@@ -379,13 +285,8 @@ export function AIChat() {
                     }
                   }}
                 />
-
                 {isLoading ? (
-                  <Button
-                    variant="destructive"
-                    className="gap-2"
-                    onClick={handleStop}
-                  >
+                  <Button variant="destructive" className="gap-2" onClick={handleStop}>
                     <StopCircle className="w-4 h-4" />
                     Stop
                   </Button>
@@ -404,7 +305,7 @@ export function AIChat() {
           </Card>
         </div>
 
-        {/* ================= SIDEBAR ================= */}
+        {/* SIDEBAR */}
         <div className="lg:col-span-1 space-y-6">
 
           {/* Chat History */}
@@ -413,9 +314,9 @@ export function AIChat() {
               <h3 className="font-semibold text-gray-900 mb-4">Chat History</h3>
               <div className="space-y-2">
                 {[
-                  { title: 'Study plan for React', date: 'Today' },
-                  { title: 'Assignment help', date: 'Yesterday' },
-                  { title: 'Exam preparation', date: '2 days ago' },
+                  { title: 'Study plan for React',  date: 'Today' },
+                  { title: 'Assignment help',        date: 'Yesterday' },
+                  { title: 'Exam preparation',       date: '2 days ago' },
                 ].map((item, index) => (
                   <div
                     key={index}
@@ -443,28 +344,16 @@ export function AIChat() {
                     <div
                       key={suggestion.id}
                       className="p-3 border border-gray-200 rounded-lg hover:border-indigo-300 hover:bg-indigo-50/50 cursor-pointer transition-all"
-                      onClick={() =>
-                        handleSendMessage(
-                          `Tell me about: ${suggestion.title}`
-                        )
-                      }
+                      onClick={() => handleSendMessage(`Tell me about: ${suggestion.title}`)}
                     >
                       <div className="flex items-start gap-3">
-                        <div
-                          className={`w-10 h-10 ${suggestion.color} rounded-lg flex items-center justify-center flex-shrink-0`}
-                        >
+                        <div className={`w-10 h-10 ${suggestion.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
                           <Icon className="w-5 h-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 mb-1">
-                            {suggestion.title}
-                          </p>
-                          <p className="text-xs text-gray-600 mb-2">
-                            {suggestion.description}
-                          </p>
-                          <Badge variant="outline" className="text-xs">
-                            {suggestion.type}
-                          </Badge>
+                          <p className="text-sm font-medium text-gray-900 mb-1">{suggestion.title}</p>
+                          <p className="text-xs text-gray-600 mb-2">{suggestion.description}</p>
+                          <Badge variant="outline" className="text-xs">{suggestion.type}</Badge>
                         </div>
                       </div>
                     </div>
@@ -479,48 +368,25 @@ export function AIChat() {
             <CardContent className="p-4">
               <h3 className="font-semibold text-gray-900 mb-4">Quick Actions</h3>
               <div className="space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  disabled={isLoading}
-                  onClick={() =>
-                    handleSendMessage(
-                      'Create a personalized weekly study plan for me based on typical CS courses'
-                    )
-                  }
-                >
+                <Button variant="outline" className="w-full justify-start" disabled={isLoading}
+                  onClick={() => handleSendMessage('Create a personalized weekly study plan for me based on typical CS courses')}>
                   <BookOpen className="w-4 h-4 mr-2" />
                   Generate Study Plan
                 </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  disabled={isLoading}
-                  onClick={() =>
-                    handleSendMessage(
-                      'Help me set SMART learning goals for this semester'
-                    )
-                  }
-                >
+                <Button variant="outline" className="w-full justify-start" disabled={isLoading}
+                  onClick={() => handleSendMessage('Help me set SMART learning goals for this semester')}>
                   <Target className="w-4 h-4 mr-2" />
                   Set Learning Goals
                 </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start"
-                  disabled={isLoading}
-                  onClick={() =>
-                    handleSendMessage(
-                      'Give me tips on how to track and improve my academic progress'
-                    )
-                  }
-                >
+                <Button variant="outline" className="w-full justify-start" disabled={isLoading}
+                  onClick={() => handleSendMessage('Give me tips on how to track and improve my academic progress')}>
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Track Progress
                 </Button>
               </div>
             </CardContent>
           </Card>
+
         </div>
       </div>
     </div>

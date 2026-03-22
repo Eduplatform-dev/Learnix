@@ -4,82 +4,108 @@ import Assignment from "../models/Assignment.js";
 import Content from "../models/Content.js";
 import Setting from "../models/Setting.js";
 import Submission from "../models/Submission.js";
+import Fee from "../models/Fee.js";
 
+/* ─── HELPERS ─────────────────────────────────────────── */
 const defaultSettings = {
-  general: { platformName: "Learnix", supportEmail: "", logoUrl: "" },
-  notifications: { emailUpdates: true, productUpdates: false, billingAlerts: true },
-  security: { enforceTwoFactor: false, allowGoogleLogin: true, sessionTimeout: "30" },
+  general:      { platformName: "Learnix", supportEmail: "", logoUrl: "" },
+  notifications:{ emailUpdates: true, productUpdates: false, billingAlerts: true },
+  security:     { enforceTwoFactor: false, allowGoogleLogin: true, sessionTimeout: "30" },
   localization: { language: "en", timezone: "UTC", dateFormat: "MM/DD/YYYY" },
-  emailConfig: { smtpHost: "", smtpPort: "587", smtpUser: "", fromName: "", fromEmail: "", footer: "" },
-  backup: { autoBackup: true, retentionDays: "30", backupWindow: "02:00-04:00" },
+  emailConfig:  { smtpHost: "", smtpPort: "587", smtpUser: "", fromName: "", fromEmail: "", footer: "" },
+  backup:       { autoBackup: true, retentionDays: "30", backupWindow: "02:00-04:00" },
 };
 
 const lastNMonths = (n) => {
-  const now = new Date();
+  const now    = new Date();
   const months = [];
   for (let i = n - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ label: d.toLocaleString("en-US", { month: "short" }), date: d });
+    months.push({
+      label: d.toLocaleString("en-US", { month: "short" }),
+      date:  d,
+      next:  new Date(d.getFullYear(), d.getMonth() + 1, 1),
+    });
   }
   return months;
 };
 
-/* ================= ADMIN STATS ================= */
-
+/* ─── ADMIN STATS ─────────────────────────────────────── */
 export const getAdminStats = async (req, res) => {
   try {
-    const [totalStudents, totalCourses, totalAssignments, totalSubmissions] = await Promise.all([
-      User.countDocuments({ role: "student" }),
-      Course.countDocuments(),
-      Assignment.countDocuments(),
-      Submission.countDocuments(),
-    ]);
+    const [totalStudents, totalCourses, totalAssignments, totalSubmissions, paidFees] =
+      await Promise.all([
+        User.countDocuments({ role: "student" }),
+        Course.countDocuments(),
+        Assignment.countDocuments(),
+        Submission.countDocuments(),
+        Fee.aggregate([
+          { $match: { status: "paid" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+      ]);
 
-    res.json({ totalStudents, totalCourses, totalAssignments, totalSubmissions, revenue: 0 });
+    const revenue = paidFees[0]?.total ?? 0;
+
+    res.json({ totalStudents, totalCourses, totalAssignments, totalSubmissions, revenue });
   } catch (err) {
+    console.error("getAdminStats error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-/* ================= DASHBOARD ================= */
-
+/* ─── DASHBOARD ───────────────────────────────────────── */
 export const getDashboard = async (req, res) => {
   try {
-    const [students, courses, totalAssignments, submittedAssignments] = await Promise.all([
-      User.countDocuments({ role: "student" }),
-      Course.countDocuments(),
-      Assignment.countDocuments(),
-      Submission.countDocuments({ status: { $in: ["submitted", "graded"] } }),
-    ]);
+    const [students, courses, totalAssignments, submittedAssignments, revenueResult] =
+      await Promise.all([
+        User.countDocuments({ role: "student" }),
+        Course.countDocuments(),
+        Submission.countDocuments(),
+        Submission.countDocuments({ status: { $in: ["submitted", "graded"] } }),
+        Fee.aggregate([
+          { $match: { status: "paid" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } },
+        ]),
+      ]);
 
-    const completionRate =
-      totalAssignments === 0 ? 0 : Math.round((submittedAssignments / totalAssignments) * 100);
+    const revenue        = revenueResult[0]?.total ?? 0;
+    const completionRate = totalAssignments === 0
+      ? 0
+      : Math.round((submittedAssignments / totalAssignments) * 100);
 
     const months = lastNMonths(6);
 
-    // Real enrollment data per month
     const enrollmentData = await Promise.all(
-      months.map(async ({ label, date }) => {
-        const nextMonth = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+      months.map(async ({ label, date, next }) => {
         const count = await User.countDocuments({
-          role: "student",
-          createdAt: { $gte: date, $lt: nextMonth },
+          role:      "student",
+          createdAt: { $gte: date, $lt: next },
         });
         return { month: label, students: count };
       })
     );
 
-    res.json({ stats: { students, courses, revenue: 0, completionRate }, enrollmentData });
+    res.json({
+      stats: { students, courses, revenue, completionRate },
+      enrollmentData,
+    });
   } catch (err) {
+    console.error("getDashboard error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-/* ================= ANALYTICS ================= */
-
+/* ─── ANALYTICS ───────────────────────────────────────── */
 export const getAnalytics = async (req, res) => {
   try {
-    const [totalUsers, totalStudents, totalCourses, totalContent, totalSubmissions] = await Promise.all([
+    const [
+      totalUsers,
+      totalStudents,
+      totalCourses,
+      totalContent,
+      totalSubmissions,
+    ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ role: "student" }),
       Course.countDocuments(),
@@ -89,22 +115,22 @@ export const getAnalytics = async (req, res) => {
 
     const months = lastNMonths(6);
 
+    // Monthly new user growth
     const monthlyGrowth = await Promise.all(
-      months.map(async ({ label, date }) => {
-        const nextMonth = new Date(date.getFullYear(), date.getMonth() + 1, 1);
-        const users = await User.countDocuments({ createdAt: { $gte: date, $lt: nextMonth } });
+      months.map(async ({ label, date, next }) => {
+        const users = await User.countDocuments({ createdAt: { $gte: date, $lt: next } });
         return { month: label, users };
       })
     );
 
-    // Submissions per day for last 7 days (user engagement)
+    // Daily submission activity (last 7 days)
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const userEngagement = await Promise.all(
       Array.from({ length: 7 }, async (_, i) => {
-        const d = new Date();
+        const d     = new Date();
         d.setDate(d.getDate() - (6 - i));
         const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const end = new Date(start.getTime() + 86400000);
+        const end   = new Date(start.getTime() + 86_400_000);
         const active = await Submission.countDocuments({ createdAt: { $gte: start, $lt: end } });
         return { day: days[start.getDay()], active };
       })
@@ -113,12 +139,12 @@ export const getAnalytics = async (req, res) => {
     // Course ratings
     const courses = await Course.find({}, "title rating enrolledStudents").lean();
     const courseRatings = courses.map((c) => ({
-      name: c.title.length > 20 ? c.title.slice(0, 18) + "…" : c.title,
-      rating: c.rating || 4.5,
-      students: c.enrolledStudents?.length || 0,
+      name:     c.title.length > 20 ? c.title.slice(0, 18) + "…" : c.title,
+      rating:   c.rating ?? 4.5,
+      students: c.enrolledStudents?.length ?? 0,
     }));
 
-    // Submission status distribution
+    // Submission status distribution — only include non-zero slices
     const [drafted, submitted, graded] = await Promise.all([
       Submission.countDocuments({ status: "draft" }),
       Submission.countDocuments({ status: "submitted" }),
@@ -126,9 +152,23 @@ export const getAnalytics = async (req, res) => {
     ]);
 
     const completionRates = [
-      { name: "Draft", value: drafted },
+      { name: "Draft",     value: drafted   },
       { name: "Submitted", value: submitted },
-      { name: "Graded", value: graded },
+      { name: "Graded",    value: graded    },
+    ].filter((d) => d.value > 0); // remove zero slices so pie chart renders
+
+    // Traffic sources — derived from user counts since we have no analytics DB
+    const trafficSources = [
+      { source: "Direct",   visits: Math.floor(totalUsers * 0.40) },
+      { source: "Search",   visits: Math.floor(totalUsers * 0.35) },
+      { source: "Referral", visits: Math.floor(totalUsers * 0.25) },
+    ];
+
+    const kpiMetrics = [
+      { label: "Total Users",   value: totalUsers },
+      { label: "Students",      value: totalStudents },
+      { label: "Courses",       value: totalCourses },
+      { label: "Submissions",   value: totalSubmissions },
     ];
 
     res.json({
@@ -136,50 +176,57 @@ export const getAnalytics = async (req, res) => {
       userEngagement,
       courseRatings,
       completionRates,
-      trafficSources: [
-        { source: "Direct", visits: Math.floor(totalUsers * 0.4) },
-        { source: "Search", visits: Math.floor(totalUsers * 0.35) },
-        { source: "Referral", visits: Math.floor(totalUsers * 0.25) },
-      ],
-      kpiMetrics: [
-        { label: "Total Users", value: totalUsers },
-        { label: "Students", value: totalStudents },
-        { label: "Courses", value: totalCourses },
-        { label: "Submissions", value: totalSubmissions },
-      ],
+      trafficSources,
+      kpiMetrics,
     });
   } catch (err) {
+    console.error("getAnalytics error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-/* ================= FEES ================= */
-
+/* ─── FEES STATS ──────────────────────────────────────── */
 export const getFeesStats = async (req, res) => {
   try {
-    const paidStudents = await User.countDocuments({ role: "student" });
-    res.json({ totalRevenue: 0, pendingPayments: 0, paidStudents, growthRate: 0 });
+    const [revenueResult, pendingResult, paidStudentCount] = await Promise.all([
+      Fee.aggregate([
+        { $match: { status: "paid" } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Fee.aggregate([
+        { $match: { status: "pending" } },
+        { $group: { _id: null, total: { $sum: "$amount" } } },
+      ]),
+      Fee.distinct("student", { status: "paid" }),
+    ]);
+
+    res.json({
+      totalRevenue:    revenueResult[0]?.total  ?? 0,
+      pendingPayments: pendingResult[0]?.total  ?? 0,
+      paidStudents:    paidStudentCount.length,
+      growthRate:      0,
+    });
   } catch (err) {
+    console.error("getFeesStats error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-/* ================= GET SETTINGS ================= */
-
+/* ─── GET SETTINGS ────────────────────────────────────── */
 export const getSettings = async (req, res) => {
   try {
     const settings = await Setting.findOne().sort({ createdAt: -1 });
-    res.json(settings ? settings : defaultSettings);
+    res.json(settings ?? defaultSettings);
   } catch (err) {
+    console.error("getSettings error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
-/* ================= SAVE SETTINGS ================= */
-
+/* ─── SAVE SETTINGS ───────────────────────────────────── */
 export const saveSettings = async (req, res) => {
   try {
-    const payload = req.body || {};
+    const payload = req.body ?? {};
     const updated = await Setting.findOneAndUpdate(
       {},
       { ...defaultSettings, ...payload },
@@ -187,6 +234,7 @@ export const saveSettings = async (req, res) => {
     );
     res.json(updated);
   } catch (err) {
+    console.error("saveSettings error:", err);
     res.status(500).json({ error: err.message });
   }
 };
