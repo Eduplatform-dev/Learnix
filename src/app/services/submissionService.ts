@@ -1,121 +1,116 @@
-// src/app/services/submissionService.ts
-
 import { getAuthHeader, getAuthHeaderNoContentType } from "./authService";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API          = `${API_BASE_URL}/api/submissions`;
 
-const API = `${API_BASE_URL}/api/submissions`;
-
-/* ─── TYPES ──────────────────────────────────────────── */
 export type SubmissionStatus = "draft" | "submitted" | "graded";
 
-export type SubmissionFile = {
-  originalName: string;
-  filename: string;
-  url: string;
-  size: number;
-};
-
 export type Submission = {
-  _id: string;
-  assignmentId: string;
-  assignmentTitle: string;
-  course: string;
-  studentId: string;
-  studentName: string;
-  title: string;
-  description: string;
-  text: string;
-  files: SubmissionFile[];
-  grade: string | null;
-  feedback: string;
-  gradedAt: string | null;
-  status: SubmissionStatus;
-  createdAt: string;
-  updatedAt: string;
+  _id:            string;
+  assignmentId:   string;
+  assignmentTitle:string;
+  course:         string;
+  studentId:      string;
+  studentName:    string;
+  title:          string;
+  description:    string;
+  text:           string;
+  files:          { originalName: string; filename: string; url: string; size: number }[];
+  grade:          string | null;
+  feedback:       string;
+  gradedAt:       string | null;
+  status:         SubmissionStatus;
+  createdAt:      string;
+  updatedAt:      string;
 };
 
-export type GradePayload = {
-  grade: string;
-  feedback?: string;
-};
-
-/* ─── HELPERS ────────────────────────────────────────── */
-const handleResponse = async <T>(res: Response): Promise<T> => {
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Request failed");
+const handle = async <T>(res: Response): Promise<T> => {
+  let data: Record<string, unknown>;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error(`Server error (${res.status})`);
+  }
+  if (!res.ok) throw new Error((data.error as string) || `Request failed (${res.status})`);
   return data as T;
 };
 
-/* ─── GET ALL (student sees own, admin sees all) ──────── */
-export const getSubmissions = async (): Promise<Submission[]> => {
-  const res = await fetch(API, { headers: getAuthHeader() });
-  return handleResponse<Submission[]>(res);
+/* ─── GET SUBMISSIONS ────────────────────────────────────── */
+export const getSubmissions = async (params?: {
+  assignmentId?: string;
+  studentId?:    string;
+  status?:       SubmissionStatus;
+}): Promise<Submission[]> => {
+  const qs = new URLSearchParams();
+  if (params?.assignmentId) qs.set("assignmentId", params.assignmentId);
+  if (params?.studentId)    qs.set("studentId",    params.studentId);
+  if (params?.status)       qs.set("status",       params.status);
+
+  const url = `${API}${qs.toString() ? "?" + qs : ""}`;
+  const res = await fetch(url, { headers: getAuthHeader() });
+  const data = await handle<Submission[] | { submissions: Submission[] }>(res);
+  return Array.isArray(data) ? data : (data as any).submissions ?? [];
 };
 
-/* ─── GET BY ASSIGNMENT ──────────────────────────────── */
-export const getSubmissionsByAssignment = async (
-  assignmentId: string
-): Promise<Submission[]> => {
-  const res = await fetch(`${API}/assignment/${assignmentId}`, {
+/* ─── GET SINGLE SUBMISSION ──────────────────────────────── */
+export const getSubmissionById = async (id: string): Promise<Submission> => {
+  const res = await fetch(`${API}/${id}`, { headers: getAuthHeader() });
+  return handle<Submission>(res);
+};
+
+/* ─── CREATE SUBMISSION (supports file upload) ───────────── */
+export const createSubmission = async (data: {
+  assignmentId: string;
+  title?:       string;
+  description?: string;
+  text?:        string;
+  files?:       File[];
+}): Promise<Submission> => {
+  const formData = new FormData();
+  formData.append("assignmentId", data.assignmentId);
+  if (data.title)       formData.append("title",       data.title);
+  if (data.description) formData.append("description", data.description);
+  if (data.text)        formData.append("text",        data.text);
+  data.files?.forEach((f) => formData.append("files", f));
+
+  const res = await fetch(API, {
+    method:  "POST",
+    headers: getAuthHeaderNoContentType(),
+    body:    formData,
+  });
+  return handle<Submission>(res);
+};
+
+/* ─── SUBMIT (draft → submitted) ────────────────────────── */
+export const submitSubmission = async (id: string): Promise<Submission> => {
+  const res = await fetch(`${API}/${id}/submit`, {
+    method:  "PATCH",
     headers: getAuthHeader(),
   });
-  return handleResponse<Submission[]>(res);
+  return handle<Submission>(res);
 };
 
-/* ─── GET SINGLE ─────────────────────────────────────── */
-export const getSubmission = async (id: string): Promise<Submission> => {
-  const res = await fetch(`${API}/${id}`, { headers: getAuthHeader() });
-  return handleResponse<Submission>(res);
-};
-
-/* ─── CREATE (with optional file upload) ─────────────── */
-export const createSubmission = async (
-  formData: FormData
-): Promise<Submission> => {
-  const res = await fetch(API, {
-    method: "POST",
-    headers: getAuthHeaderNoContentType(),
-    body: formData,
-  });
-  return handleResponse<Submission>(res);
-};
-
-/* ─── UPDATE (with optional new files) ───────────────── */
-export const updateSubmission = async (
-  id: string,
-  formData: FormData
-): Promise<Submission> => {
-  const res = await fetch(`${API}/${id}`, {
-    method: "PUT",
-    headers: getAuthHeaderNoContentType(),
-    body: formData,
-  });
-  return handleResponse<Submission>(res);
-};
-
-/* ─── GRADE (admin/instructor) ───────────────────────── */
+/* ─── GRADE SUBMISSION (instructor/admin) ────────────────── */
 export const gradeSubmission = async (
-  id: string,
-  payload: GradePayload
+  id:   string,
+  data: { grade: string; feedback?: string }
 ): Promise<Submission> => {
   const res = await fetch(`${API}/${id}/grade`, {
-    method: "PATCH",
+    method:  "PATCH",
     headers: getAuthHeader(),
-    body: JSON.stringify(payload),
+    body:    JSON.stringify(data),
   });
-  return handleResponse<Submission>(res);
+  return handle<Submission>(res);
 };
 
-/* ─── DELETE (admin) ─────────────────────────────────── */
+/* ─── DELETE SUBMISSION ──────────────────────────────────── */
 export const deleteSubmission = async (id: string): Promise<void> => {
   const res = await fetch(`${API}/${id}`, {
-    method: "DELETE",
+    method:  "DELETE",
     headers: getAuthHeader(),
   });
   if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.error || "Delete failed");
+    const d = await res.json().catch(() => ({}));
+    throw new Error((d as any).error || "Delete failed");
   }
 };

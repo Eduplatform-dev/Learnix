@@ -1,5 +1,3 @@
-﻿// src/app/components/pages/admin/AdminCourses.tsx
-
 import { useEffect, useState, useCallback } from "react";
 import {
   Plus, Search, BookOpen, Users, Clock, Edit, Trash2, X, Layers,
@@ -8,28 +6,32 @@ import { Card, CardContent } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import {
-  getCourses, createCourse, deleteCourse, updateCourse, type Course,
+  getCourses,
+  createCourse,
+  deleteCourse,
+  updateCourse,
+  type Course,
 } from "../../../services/courseService";
 import { getCourseContents } from "../../../services/contentService";
 
 export function AdminCourses() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
+  const [courses,       setCourses]       = useState<Course[]>([]);
+  const [loading,       setLoading]       = useState(true);
+  const [query,         setQuery]         = useState("");
 
-  /* Modal state */
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Course | null>(null);
-  const [form, setForm] = useState({ title: "", instructor: "", duration: "" });
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState("");
+  /* Modal */
+  const [modalOpen,  setModalOpen]  = useState(false);
+  const [editing,    setEditing]    = useState<Course | null>(null);
+  const [form,       setForm]       = useState({ title: "", instructor: "", duration: "" });
+  const [saving,     setSaving]     = useState(false);
+  const [formError,  setFormError]  = useState("");
 
   /* Lessons panel */
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [lessons, setLessons] = useState<any[]>([]);
-  const [lessonLoading, setLessonLoading] = useState(false);
+  const [selectedCourse,  setSelectedCourse]  = useState<Course | null>(null);
+  const [lessons,         setLessons]         = useState<any[]>([]);
+  const [lessonLoading,   setLessonLoading]   = useState(false);
 
-  /* ================= LOAD ================= */
+  /* ─── LOAD ─────────────────────────────────────────────── */
   const loadCourses = useCallback(async () => {
     try {
       setLoading(true);
@@ -44,7 +46,7 @@ export function AdminCourses() {
 
   useEffect(() => { loadCourses(); }, [loadCourses]);
 
-  /* ================= LESSONS ================= */
+  /* ─── LESSONS ──────────────────────────────────────────── */
   const openLessons = async (course: Course) => {
     setSelectedCourse(course);
     try {
@@ -58,14 +60,16 @@ export function AdminCourses() {
     }
   };
 
-  /* ================= FILTER ================= */
-  const filtered = courses.filter(
-    (c) =>
-      c.title?.toLowerCase().includes(query.toLowerCase()) ||
-      c.instructor?.toLowerCase().includes(query.toLowerCase())
-  );
+  /* ─── FILTER ───────────────────────────────────────────── */
+  const filtered = courses.filter((c) => {
+    const q = query.toLowerCase();
+    return (
+      c.title?.toLowerCase().includes(q) ||
+      c.instructor?.toLowerCase().includes(q)
+    );
+  });
 
-  /* ================= OPEN MODAL ================= */
+  /* ─── MODAL ────────────────────────────────────────────── */
   const openCreate = () => {
     setEditing(null);
     setForm({ title: "", instructor: "", duration: "" });
@@ -80,13 +84,9 @@ export function AdminCourses() {
     setModalOpen(true);
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditing(null);
-    setFormError("");
-  };
+  const closeModal = () => { setModalOpen(false); setEditing(null); setFormError(""); };
 
-  /* ================= SAVE ================= */
+  /* ─── SAVE ─────────────────────────────────────────────── */
   const handleSave = async () => {
     if (!form.title.trim() || !form.instructor.trim() || !form.duration.trim()) {
       setFormError("All fields are required");
@@ -102,13 +102,13 @@ export function AdminCourses() {
       closeModal();
       await loadCourses();
     } catch {
-      setFormError("Save failed. Please try again.");
+      setFormError("Save failed — please try again.");
     } finally {
       setSaving(false);
     }
   };
 
-  /* ================= DELETE ================= */
+  /* ─── DELETE ───────────────────────────────────────────── */
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this course?")) return;
     setCourses((prev) => prev.filter((c) => c._id !== id));
@@ -120,17 +120,18 @@ export function AdminCourses() {
     }
   };
 
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
+  if (loading) return <div className="p-6 text-center text-gray-500">Loading...</div>;
 
   return (
     <div className="space-y-6">
+
       {/* HEADER */}
-      <div className="flex justify-between">
+      <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-semibold">Course Management</h1>
           <p className="text-gray-500">Manage courses &amp; lessons</p>
         </div>
-        <Button className="bg-purple-600" onClick={openCreate}>
+        <Button className="bg-purple-600 hover:bg-purple-700" onClick={openCreate}>
           <Plus className="w-4 h-4 mr-2" />
           New Course
         </Button>
@@ -144,7 +145,7 @@ export function AdminCourses() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border rounded-lg"
+              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
               placeholder="Search courses..."
             />
           </div>
@@ -152,57 +153,64 @@ export function AdminCourses() {
       </Card>
 
       {/* COURSE CARDS */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filtered.map((course) => (
-          <Card key={course._id}>
-            <CardContent className="p-6">
-              <div className="flex justify-between mb-3">
-                <div className="flex gap-3">
-                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <BookOpen className="w-6 h-6 text-purple-600" />
+      {filtered.length === 0 ? (
+        <div className="text-center text-gray-500 py-12">No courses found.</div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {filtered.map((course) => (
+            <Card key={course._id}>
+              <CardContent className="p-6">
+                <div className="flex justify-between mb-3">
+                  <div className="flex gap-3">
+                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <BookOpen className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{course.title}</h3>
+                      {/* instructor is already a string from courseService mapping */}
+                      <p className="text-sm text-gray-600">{course.instructor || "—"}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold">{course.title}</h3>
-                    <p className="text-sm text-gray-600">{course.instructor}</p>
+                  <Badge className="capitalize">{course.status || "active"}</Badge>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mb-3 text-sm text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <Users className="w-4 h-4" />
+                    {course.students ?? 0} students
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    {course.duration}
+                  </div>
+                  <div className="text-purple-600">
+                    ★ {course.rating ?? 4.5}
                   </div>
                 </div>
-                <Badge>{course.status || "active"}</Badge>
-              </div>
 
-              <div className="grid grid-cols-3 gap-4 mb-3">
-                <div className="flex gap-2 text-sm text-gray-600">
-                  <Users className="w-4 h-4" /> {course.students || 0}
+                <div className="flex justify-end gap-2 pt-3 border-t">
+                  <Button size="sm" variant="ghost" onClick={() => openLessons(course)}>
+                    <Layers className="w-4 h-4 mr-1" /> Lessons
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => openEdit(course)}>
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => handleDelete(course._id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
-                <div className="flex gap-2 text-sm text-gray-600">
-                  <Clock className="w-4 h-4" /> {course.duration}
-                </div>
-                <div className="text-sm text-purple-600">
-                  ★ {course.rating || 4.5}
-                </div>
-              </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-              <div className="flex justify-end gap-2 pt-3 border-t">
-                <Button size="sm" variant="ghost" onClick={() => openLessons(course)}>
-                  <Layers className="w-4 h-4 mr-1" /> Lessons
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => openEdit(course)}>
-                  <Edit className="w-4 h-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-red-600"
-                  onClick={() => handleDelete(course._id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* ================= CREATE / EDIT MODAL ================= */}
+      {/* CREATE / EDIT MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white w-full max-w-md p-6 rounded-xl shadow-xl">
@@ -216,51 +224,29 @@ export function AdminCourses() {
             </div>
 
             <div className="space-y-3">
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Course Title
-                </label>
-                <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="e.g., React Fundamentals"
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Instructor
-                </label>
-                <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="e.g., Dr. Smith"
-                  value={form.instructor}
-                  onChange={(e) => setForm((f) => ({ ...f, instructor: e.target.value }))}
-                />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  Duration
-                </label>
-                <input
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  placeholder="e.g., 6 weeks"
-                  value={form.duration}
-                  onChange={(e) => setForm((f) => ({ ...f, duration: e.target.value }))}
-                />
-              </div>
+              {(["title", "instructor", "duration"] as const).map((field) => (
+                <div key={field}>
+                  <label className="text-sm font-medium text-gray-700 block mb-1 capitalize">
+                    {field}
+                  </label>
+                  <input
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder={
+                      field === "title"      ? "e.g., React Fundamentals" :
+                      field === "instructor" ? "e.g., Dr. Smith"          :
+                                              "e.g., 6 weeks"
+                    }
+                    value={form[field]}
+                    onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+                  />
+                </div>
+              ))}
             </div>
 
-            {formError && (
-              <p className="text-red-500 text-sm mt-2">{formError}</p>
-            )}
+            {formError && <p className="text-red-500 text-sm mt-2">{formError}</p>}
 
             <div className="flex justify-end gap-2 mt-5">
-              <Button variant="ghost" onClick={closeModal}>
-                Cancel
-              </Button>
+              <Button variant="ghost" onClick={closeModal}>Cancel</Button>
               <Button
                 className="bg-purple-600 hover:bg-purple-700"
                 onClick={handleSave}
@@ -273,12 +259,12 @@ export function AdminCourses() {
         </div>
       )}
 
-      {/* ================= LESSONS PANEL ================= */}
+      {/* LESSONS PANEL */}
       {selectedCourse && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white w-[650px] max-h-[80vh] overflow-y-auto p-6 rounded-xl shadow-xl">
             <div className="flex justify-between mb-4">
-              <h3 className="font-semibold">
+              <h3 className="font-semibold text-lg">
                 {selectedCourse.title} — Lessons
               </h3>
               <Button variant="ghost" onClick={() => setSelectedCourse(null)}>
@@ -289,12 +275,12 @@ export function AdminCourses() {
             {lessonLoading ? (
               <p className="text-gray-500">Loading lessons...</p>
             ) : lessons.length === 0 ? (
-              <p className="text-gray-500">No lessons yet.</p>
+              <p className="text-gray-500">No lessons yet. Upload content from the Content page.</p>
             ) : (
               lessons.map((l) => (
                 <div key={l._id} className="border p-3 rounded mb-2">
                   <p className="font-medium">{l.title}</p>
-                  <p className="text-xs text-gray-500">{l.type}</p>
+                  <p className="text-xs text-gray-500 capitalize">{l.type}</p>
                 </div>
               ))
             )}

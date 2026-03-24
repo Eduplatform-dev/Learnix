@@ -1,6 +1,11 @@
-// src/app/providers/AuthProvider.tsx
-
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 
 export type UserRole = "student" | "admin" | "instructor";
 
@@ -21,23 +26,26 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-/** Decode a JWT payload without verifying signature (client-side only check) */
+/** Client-side JWT expiry check (does NOT verify signature) */
 function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
-    // exp is in seconds, Date.now() is ms
-    return payload.exp * 1000 < Date.now();
+    // exp is seconds, Date.now() is ms — add 10s buffer
+    return payload.exp * 1000 < Date.now() + 10_000;
   } catch {
-    return true; // malformed token → treat as expired
+    return true;
   }
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user,    setUser]    = useState<User | null>(null);
+  const [token,   setToken]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  /* ================= LOGOUT ================= */
+  // Keep a ref to original fetch so we can restore it on unmount
+  const originalFetchRef = useRef<typeof fetch | null>(null);
+
+  /* ─── LOGOUT ──────────────────────────────────────────── */
   const logout = useCallback(() => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -45,15 +53,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
   }, []);
 
-  /* ================= RESTORE SESSION ================= */
+  /* ─── RESTORE SESSION ─────────────────────────────────── */
   useEffect(() => {
     try {
       const storedToken = localStorage.getItem("token");
-      const storedUser = localStorage.getItem("user");
+      const storedUser  = localStorage.getItem("user");
 
       if (storedToken && storedUser) {
         if (isTokenExpired(storedToken)) {
-          // Token expired — clear and force re-login
           localStorage.removeItem("token");
           localStorage.removeItem("user");
         } else {
@@ -70,40 +77,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  /* ================= GLOBAL 401 INTERCEPTOR ================= */
+  /* ─── GLOBAL 401 INTERCEPTOR ──────────────────────────── */
   useEffect(() => {
-    const originalFetch = window.fetch;
+    // Save original fetch
+    originalFetchRef.current = window.fetch;
 
-    window.fetch = async (...args) => {
-      const response = await originalFetch(...args);
+    const intercepted: typeof fetch = async (...args) => {
+      const response = await originalFetchRef.current!(...args);
 
       if (response.status === 401) {
-        // Clone so the original response body can still be read by caller
-        const cloned = response.clone();
-        // Only auto-logout if we currently think we're logged in
-        setUser((currentUser) => {
-          if (currentUser) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-            return null;
-          }
-          return currentUser;
-        });
-        setToken(null);
-        return cloned;
+        // Only auto-logout if we think we're logged in
+        // and this is an API call (not a CDN/static asset)
+        const url = args[0]?.toString() ?? "";
+        const isApiCall = url.includes("/api/");
+
+        if (isApiCall) {
+          setUser((currentUser) => {
+            if (currentUser) {
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              return null;
+            }
+            return currentUser;
+          });
+          setToken(null);
+        }
+
+        return response;
       }
 
       return response;
     };
 
+    window.fetch = intercepted;
+
+    // Restore on unmount — prevents memory leak
     return () => {
-      window.fetch = originalFetch;
+      if (originalFetchRef.current) {
+        window.fetch = originalFetchRef.current;
+      }
     };
   }, []);
 
-  /* ================= LOGIN ================= */
+  /* ─── SET AUTH USER ───────────────────────────────────── */
   const setAuthUser = useCallback((user: User, token: string) => {
-    localStorage.setItem("user", JSON.stringify(user));
+    localStorage.setItem("user",  JSON.stringify(user));
     localStorage.setItem("token", token);
     setUser(user);
     setToken(token);

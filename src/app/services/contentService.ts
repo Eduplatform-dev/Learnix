@@ -1,71 +1,74 @@
-﻿// src/app/services/contentService.ts
-
 import { getAuthHeader, getAuthHeaderNoContentType } from "./authService";
 
-export type ContentType = "video" | "pdf" | "image";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API          = `${API_BASE_URL}/api/content`;
+
+export type ContentType = "pdf" | "video" | "image" | "document" | "other";
 
 export type Content = {
-  _id: string;
-  title: string;
-  type: ContentType;
-  url: string;
-  course?: string;
+  _id:        string;
+  title:      string;
+  type:       ContentType;
+  url:        string;
+  course:     string;
+  uploadedBy: string;
+  createdAt:  string;
 };
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
-const API = `${API_BASE_URL}/api/content`;
-
-/* GET ALL */
-export const getContents = async (): Promise<Content[]> => {
-  const res = await fetch(API, { headers: getAuthHeader() });
-  if (!res.ok) throw new Error("Fetch failed");
-  return res.json();
+const handle = async <T>(res: Response): Promise<T> => {
+  let data: Record<string, unknown>;
+  try { data = await res.json(); } catch { throw new Error(`Server error (${res.status})`); }
+  if (!res.ok) throw new Error((data.error as string) || `Request failed (${res.status})`);
+  return data as T;
 };
 
-/* GET BY COURSE */
-export const getCourseContents = async (
-  courseId: string
-): Promise<Content[]> => {
-  const res = await fetch(`${API}/course/${courseId}`, {
-    headers: getAuthHeader(),
-  });
-  if (!res.ok) throw new Error("Failed to fetch course contents");
-  return res.json();
+/* ─── GET ALL CONTENT ────────────────────────────────────── */
+export const getContent = async (): Promise<Content[]> => {
+  const res = await fetch(`${API}?limit=100`, { headers: getAuthHeader() });
+  const data = await handle<Content[] | { content: Content[] }>(res);
+  return Array.isArray(data) ? data : (data as any).content ?? [];
 };
 
-/* CREATE (FormData — no Content-Type header, browser sets multipart boundary) */
-export const createContent = async (formData: FormData): Promise<Content> => {
+/* ─── GET CONTENT FOR A COURSE ───────────────────────────── */
+export const getCourseContents = async (courseId: string): Promise<Content[]> => {
+  const res = await fetch(`${API}/course/${courseId}`, { headers: getAuthHeader() });
+  const data = await handle<Content[] | { content: Content[] }>(res);
+  return Array.isArray(data) ? data : (data as any).content ?? [];
+};
+
+/* ─── GET SINGLE ─────────────────────────────────────────── */
+export const getContentById = async (id: string): Promise<Content> => {
+  const res = await fetch(`${API}/${id}`, { headers: getAuthHeader() });
+  return handle<Content>(res);
+};
+
+/* ─── UPLOAD CONTENT ─────────────────────────────────────── */
+export const uploadContent = async (data: {
+  title:    string;
+  course?:  string;
+  file:     File;
+}): Promise<Content> => {
+  const form = new FormData();
+  form.append("title",  data.title);
+  form.append("file",   data.file);
+  if (data.course) form.append("course", data.course);
+
   const res = await fetch(API, {
-    method: "POST",
-    headers: getAuthHeaderNoContentType(), // must NOT set Content-Type for FormData
-    body: formData,
+    method:  "POST",
+    headers: getAuthHeaderNoContentType(),
+    body:    form,
   });
-  if (!res.ok) throw new Error("Upload failed");
-  return res.json();
+  return handle<Content>(res);
 };
 
-/* UPDATE */
-export const updateContent = async (
-  id: string,
-  data: { title?: string }
-): Promise<Content> => {
+/* ─── DELETE CONTENT ─────────────────────────────────────── */
+export const deleteContent = async (id: string): Promise<void> => {
   const res = await fetch(`${API}/${id}`, {
-    method: "PUT",
-    headers: getAuthHeader(),
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error("Update failed");
-  return res.json();
-};
-
-/* DELETE */
-export const deleteContent = async (id: string): Promise<boolean> => {
-  const res = await fetch(`${API}/${id}`, {
-    method: "DELETE",
+    method:  "DELETE",
     headers: getAuthHeader(),
   });
-  if (!res.ok) throw new Error("Delete failed");
-  return true;
+  if (!res.ok) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error((d as any).error || "Delete failed");
+  }
 };
