@@ -5,6 +5,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
+import mongoose from "mongoose";
 import { authenticateToken, authorize } from "../middleware/auth.js";
 import Submission from "../models/Submission.js";
 import Assignment from "../models/Assignment.js";

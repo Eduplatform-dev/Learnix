@@ -59,19 +59,30 @@ export const getSubmissionById = async (id: string): Promise<Submission> => {
 };
 
 /* ─── CREATE SUBMISSION (supports file upload) ───────────── */
-export const createSubmission = async (data: {
-  assignmentId: string;
-  title?:       string;
-  description?: string;
-  text?:        string;
-  files?:       File[];
-}): Promise<Submission> => {
-  const formData = new FormData();
-  formData.append("assignmentId", data.assignmentId);
-  if (data.title)       formData.append("title",       data.title);
-  if (data.description) formData.append("description", data.description);
-  if (data.text)        formData.append("text",        data.text);
-  data.files?.forEach((f) => formData.append("files", f));
+export const createSubmission = async (
+  data: FormData | {
+    assignmentId: string;
+    title?:       string;
+    description?: string;
+    text?:        string;
+    files?:       File[];
+    status?:      SubmissionStatus;
+  }
+): Promise<Submission> => {
+  let formData: FormData;
+
+  if (data instanceof FormData) {
+    // Submissions.tsx builds its own FormData — use as-is
+    formData = data;
+  } else {
+    formData = new FormData();
+    formData.append("assignmentId", data.assignmentId);
+    if (data.title)       formData.append("title",       data.title);
+    if (data.description) formData.append("description", data.description);
+    if (data.text)        formData.append("text",        data.text);
+    if (data.status)      formData.append("status",      data.status);
+    data.files?.forEach((f) => formData.append("files", f));
+  }
 
   const res = await fetch(API, {
     method:  "POST",
