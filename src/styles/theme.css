@@ -2,54 +2,35 @@
 
 :root {
   --font-size: 16px;
-  /* Professional neutral background */
   --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  
-  /* Primary: Modern indigo/blue palette */
   --primary: #4f46e5;
   --primary-foreground: #ffffff;
-  
-  /* Secondary: Subtle slate tones */
   --secondary: #f1f5f9;
   --secondary-foreground: #0f172a;
-  
-  /* Muted: Refined grays */
   --muted: #f1f5f9;
   --muted-foreground: #64748b;
-  
-  /* Accent: Professional slate with hint of blue */
   --accent: #e0e7ff;
   --accent-foreground: #4f46e5;
-  
-  /* Destructive: Professional red */
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
-  
-  /* Borders and inputs */
   --border: #e2e8f0;
   --input: transparent;
   --input-background: #f8fafc;
   --switch-background: #cbd5e1;
-  
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --ring: #4f46e5;
-  
-  /* Chart colors - Professional palette */
   --chart-1: #6366f1;
   --chart-2: #8b5cf6;
   --chart-3: #ec4899;
   --chart-4: #14b8a6;
   --chart-5: #f59e0b;
-  
   --radius: 0.75rem;
-  
-  /* Sidebar colors - Clean and modern */
   --sidebar: #ffffff;
   --sidebar-foreground: #0f172a;
   --sidebar-primary: #4f46e5;
@@ -80,8 +61,6 @@
   --border: #334155;
   --input: #1e293b;
   --ring: #6366f1;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
   --chart-1: #6366f1;
   --chart-2: #8b5cf6;
   --chart-3: #ec4899;
@@ -142,65 +121,20 @@
   * {
     @apply border-border outline-ring/50;
   }
-
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-
-  /**
-  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
-  */
-
   html {
     font-size: var(--font-size);
     scroll-behavior: smooth;
   }
-
-  body {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  h1 {
-    font-size: var(--text-2xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  h2 {
-    font-size: var(--text-xl);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  h3 {
-    font-size: var(--text-lg);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  h4 {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  label {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  button {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  input {
-    font-size: var(--text-base);
-    font-weight: var(--font-weight-normal);
-    line-height: 1.5;
-  }
+  h1 { font-size: var(--text-2xl); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  h2 { font-size: var(--text-xl);  font-weight: var(--font-weight-medium); line-height: 1.5; }
+  h3 { font-size: var(--text-lg);  font-weight: var(--font-weight-medium); line-height: 1.5; }
+  h4 { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  label  { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  button { font-size: var(--text-base); font-weight: var(--font-weight-medium); line-height: 1.5; }
+  input  { font-size: var(--text-base); font-weight: var(--font-weight-normal); line-height: 1.5; }
 }

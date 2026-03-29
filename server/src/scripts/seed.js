@@ -4,7 +4,6 @@ import bcrypt from "bcrypt";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Load .env from server directory
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
@@ -18,7 +17,7 @@ import Fee        from "../models/Fee.js";
 async function seed() {
   await connectDB();
 
-  /* ─── USERS ──────────────────────────────────────────── */
+  /* ─── ADMIN ──────────────────────────────────────────── */
   let admin = await User.findOne({ role: "admin" });
   if (!admin) {
     admin = await User.create({
@@ -32,6 +31,21 @@ async function seed() {
     console.log("  ℹ️   Admin already exists");
   }
 
+  /* ─── INSTRUCTOR ─────────────────────────────────────── */
+  let instructor = await User.findOne({ email: "instructor@learnix.com" });
+  if (!instructor) {
+    instructor = await User.create({
+      email:    "instructor@learnix.com",
+      username: "DrSmith",
+      password: await bcrypt.hash("instructor123", 10),
+      role:     "instructor",
+    });
+    console.log("  ✅  Instructor created: instructor@learnix.com / instructor123");
+  } else {
+    console.log("  ℹ️   Instructor already exists");
+  }
+
+  /* ─── STUDENT ────────────────────────────────────────── */
   let student = await User.findOne({ email: "student@learnix.com" });
   if (!student) {
     student = await User.create({
@@ -52,7 +66,7 @@ async function seed() {
       {
         title:            "React Fundamentals",
         description:      "Learn React basics including hooks, state management, and component patterns.",
-        instructor:       admin._id,
+        instructor:       instructor._id,
         duration:         "6 weeks",
         rating:           4.8,
         status:           "active",
@@ -61,7 +75,7 @@ async function seed() {
       {
         title:            "Data Structures & Algorithms",
         description:      "Master essential data structures and algorithm design techniques.",
-        instructor:       admin._id,
+        instructor:       instructor._id,
         duration:         "8 weeks",
         rating:           4.6,
         status:           "active",
@@ -75,13 +89,20 @@ async function seed() {
         rating:      4.7,
         status:      "active",
       },
+      {
+        title:       "Database Design",
+        description: "Learn SQL and NoSQL database design principles.",
+        instructor:  instructor._id,
+        duration:    "4 weeks",
+        rating:      4.5,
+        status:      "active",
+        enrolledStudents: [student._id],
+      },
     ]);
     console.log(`  ✅  ${courses.length} courses seeded`);
   } else {
     console.log(`  ℹ️   ${courses.length} courses already exist`);
   }
-
-  const course = courses[0];
 
   /* ─── ASSIGNMENTS ─────────────────────────────────────── */
   if ((await Assignment.countDocuments()) === 0) {
@@ -89,17 +110,25 @@ async function seed() {
       {
         title:       "React Todo App",
         description: "Build a fully functional Todo app using React hooks and local state management.",
-        course:      course._id,
-        instructor:  admin._id,
+        course:      courses[0]._id,
+        instructor:  instructor._id,
         dueDate:     new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
         maxMarks:    100,
       },
       {
         title:       "Binary Search Tree",
         description: "Implement a BST with insert, search, and traversal methods.",
-        course:      courses[1]?._id || course._id,
-        instructor:  admin._id,
+        course:      courses[1]?._id || courses[0]._id,
+        instructor:  instructor._id,
         dueDate:     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        maxMarks:    100,
+      },
+      {
+        title:       "REST API Design",
+        description: "Design and implement a RESTful API with proper authentication.",
+        course:      courses[2]?._id || courses[0]._id,
+        instructor:  admin._id,
+        dueDate:     new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
         maxMarks:    100,
       },
     ]);
@@ -115,8 +144,15 @@ async function seed() {
         title:      "React Hooks Guide",
         type:       "pdf",
         url:        "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-        course:     String(course._id),
-        uploadedBy: admin._id,
+        course:     String(courses[0]._id),
+        uploadedBy: instructor._id,
+      },
+      {
+        title:      "DSA Lecture Notes",
+        type:       "pdf",
+        url:        "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        course:     String(courses[1]._id),
+        uploadedBy: instructor._id,
       },
       {
         title:      "Welcome to Learnix",
@@ -186,8 +222,9 @@ async function seed() {
 
   console.log("\n  🎉  Seed complete!");
   console.log("\n  Demo accounts:");
-  console.log("    Admin:   admin@learnix.com   / admin123");
-  console.log("    Student: student@learnix.com / student123\n");
+  console.log("    Admin:      admin@learnix.com      / admin123");
+  console.log("    Instructor: instructor@learnix.com / instructor123");
+  console.log("    Student:    student@learnix.com    / student123\n");
 }
 
 seed().catch((err) => {

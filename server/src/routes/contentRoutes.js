@@ -14,28 +14,16 @@ import { upload } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
-/* ================= GET ALL ================= */
-router.get(
-  "/",
-  authenticateToken,
-  getContent
-);
+/* GET /api/content */
+router.get("/", authenticateToken, getContent);
 
-/* ================= GET BY COURSE ================= */
-router.get(
-  "/course/:courseId",
-  authenticateToken,
-  getCourseContent
-);
+/* GET /api/content/course/:courseId */
+router.get("/course/:courseId", authenticateToken, getCourseContent);
 
-/* ================= GET BY ID ================= */
-router.get(
-  "/:id",
-  authenticateToken,
-  getContentById
-);
+/* GET /api/content/:id */
+router.get("/:id", authenticateToken, getContentById);
 
-/* ================= CREATE (with optional file upload) ================= */
+/* POST /api/content — admin or instructor */
 router.post(
   "/",
   authenticateToken,
@@ -44,7 +32,7 @@ router.post(
   createContent
 );
 
-/* ================= UPDATE ================= */
+/* PUT /api/content/:id — admin or instructor */
 router.put(
   "/:id",
   authenticateToken,
@@ -52,11 +40,11 @@ router.put(
   updateContent
 );
 
-/* ================= DELETE ================= */
+/* DELETE /api/content/:id — admin or instructor */
 router.delete(
   "/:id",
   authenticateToken,
-  authorize(["admin"]),
+  authorize(["admin", "instructor"]),
   deleteContent
 );
 

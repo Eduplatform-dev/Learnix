@@ -12,14 +12,13 @@ import { authenticateToken, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
 
-/* GET /api/assignments
-   Query params: ?course=id  ?status=In+Progress  ?page=1  ?limit=50 */
+/* GET /api/assignments */
 router.get("/", authenticateToken, getAssignments);
 
 /* GET /api/assignments/:id */
 router.get("/:id", authenticateToken, getAssignmentById);
 
-/* POST /api/assignments  — admin or instructor only */
+/* POST /api/assignments — admin or instructor */
 router.post(
   "/",
   authenticateToken,
@@ -27,7 +26,7 @@ router.post(
   createAssignment
 );
 
-/* PUT /api/assignments/:id  — admin or instructor only */
+/* PUT /api/assignments/:id — admin or instructor */
 router.put(
   "/:id",
   authenticateToken,
@@ -35,11 +34,11 @@ router.put(
   updateAssignment
 );
 
-/* DELETE /api/assignments/:id  — admin only */
+/* DELETE /api/assignments/:id — admin or instructor */
 router.delete(
   "/:id",
   authenticateToken,
-  authorize(["admin"]),
+  authorize(["admin", "instructor"]),
   deleteAssignment
 );
 

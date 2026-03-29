@@ -20,10 +20,10 @@ export type Fee = {
 };
 
 export type MyFeesResponse = {
-  fees:          Fee[];
-  totalPaid:     number;
-  totalPending:  number;
-  nextFee:       Fee | null;
+  fees:         Fee[];
+  totalPaid:    number;
+  totalPending: number;
+  nextFee:      Fee | null;
 };
 
 export type AllFeesResponse = {
@@ -45,13 +45,13 @@ const handle = async <T>(res: Response): Promise<T> => {
   return data as T;
 };
 
-/* ─── STUDENT: get own fees ─────────────────────────────── */
+/* ─── STUDENT: get own fees ──────────────────────────── */
 export const getMyFees = async (): Promise<MyFeesResponse> => {
   const res = await fetch(`${API}/my`, { headers: getAuthHeader() });
   return handle<MyFeesResponse>(res);
 };
 
-/* ─── STUDENT/ADMIN: mark as paid ──────────────────────── */
+/* ─── STUDENT/ADMIN: mark as paid ───────────────────── */
 export const markFeePaid = async (id: string): Promise<Fee> => {
   const res = await fetch(`${API}/${id}/pay`, {
     method:  "PATCH",
@@ -60,7 +60,7 @@ export const markFeePaid = async (id: string): Promise<Fee> => {
   return handle<Fee>(res);
 };
 
-/* ─── ADMIN: get all fees ────────────────────────────────── */
+/* ─── ADMIN: get all fees ────────────────────────────── */
 export const getAllFees = async (params?: {
   page?:      number;
   limit?:     number;
@@ -78,14 +78,14 @@ export const getAllFees = async (params?: {
   return handle<AllFeesResponse>(res);
 };
 
-/* ─── ADMIN: create fee ──────────────────────────────────── */
+/* ─── ADMIN: create fee ──────────────────────────────── */
 export const createFee = async (data: {
-  studentId:    string;
-  description:  string;
-  amount:       number;
-  dueDate:      string;
-  category?:    FeeCategory;
-  semester?:    string;
+  studentId:   string;
+  description: string;
+  amount:      number;
+  dueDate:     string;
+  category?:   FeeCategory;
+  semester?:   string;
 }): Promise<Fee> => {
   const res = await fetch(API, {
     method:  "POST",
@@ -95,7 +95,7 @@ export const createFee = async (data: {
   return handle<Fee>(res);
 };
 
-/* ─── ADMIN: delete fee ──────────────────────────────────── */
+/* ─── ADMIN: delete fee ──────────────────────────────── */
 export const deleteFeeRecord = async (id: string): Promise<void> => {
   const res = await fetch(`${API}/${id}`, {
     method:  "DELETE",

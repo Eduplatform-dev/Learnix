@@ -1,7 +1,7 @@
 {
   "name": "server",
   "version": "1.0.0",
-  "description": "Learnix LMS backend",
+  "description": "Learnix LMS backend — Express + MongoDB + Zod",
   "main": "index.js",
   "scripts": {
     "start": "node src/index.js",

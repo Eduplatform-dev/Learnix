@@ -55,6 +55,8 @@ jobs:
       MONGO_URI:   mongodb://localhost:27017/learnix_test
       JWT_SECRET:  ci-test-secret-not-for-production
       CORS_ORIGIN: http://localhost:5173
+      GEMINI_API_KEY: ""
+      ANTHROPIC_API_KEY: ""
 
     steps:
       - uses: actions/checkout@v4

@@ -10,41 +10,26 @@ type ProtectedRouteProps = {
 };
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-
   const { user, loading } = useAuth();
   const location = useLocation();
-
-  /* WAIT FOR AUTH RESTORE */
 
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center">
-        Loading...
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
-  /* NOT LOGGED IN */
-
   if (!user) {
-    return (
-      <Navigate
-        to="/login"
-        state={{ from: location.pathname }}
-        replace
-      />
-    );
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  /* ROLE CHECK */
-
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-
     const redirectPath =
-      user.role === "admin"
-        ? "/admin/dashboard"
-        : "/dashboard";
-
+      user.role === "admin"       ? "/admin/dashboard" :
+      user.role === "instructor"  ? "/instructor/dashboard" :
+      "/dashboard";
     return <Navigate to={redirectPath} replace />;
   }
 

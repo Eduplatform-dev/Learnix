@@ -5,7 +5,7 @@ export type CourseStatus = "In Progress" | "Completed" | "Not Started" | "active
 export type Course = {
   _id:              string;
   title:            string;
-  instructor:       string;   // always a display string after mapping
+  instructor:       string;
   duration:         string;
   students:         number;
   rating:           number;
@@ -13,6 +13,7 @@ export type Course = {
   status:           CourseStatus;
   image:            string;
   enrolledStudents?: string[];
+  description?:     string;
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -21,7 +22,6 @@ const API          = `${API_BASE_URL}/api/courses`;
 const normaliseCourse = (c: any): Course => ({
   _id:        c._id,
   title:      c.title       || "",
-  // instructor may be an object {username, email} or already a string
   instructor: typeof c.instructor === "object" && c.instructor !== null
     ? (c.instructor.username || c.instructor.email || "")
     : (c.instructor || ""),
@@ -31,6 +31,7 @@ const normaliseCourse = (c: any): Course => ({
   progress:   c.progress    ?? 0,
   status:     c.status      || "active",
   image:      c.image       || "",
+  description: c.description || "",
 });
 
 export const getCourses = async (): Promise<Course[]> => {
@@ -44,10 +45,20 @@ export const getCourses = async (): Promise<Course[]> => {
   return raw.map(normaliseCourse);
 };
 
+export const getCourseById = async (id: string): Promise<Course> => {
+  const res = await fetch(`${API}/${id}`, { headers: getAuthHeader() });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as any).error || "Failed to fetch course");
+  }
+  return normaliseCourse(await res.json());
+};
+
 export const createCourse = async (data: {
-  title:       string;
-  instructor:  string;
-  duration:    string;
+  title:        string;
+  instructor?:  string;
+  duration:     string;
+  description?: string;
 }): Promise<Course> => {
   const res = await fetch(API, {
     method:  "POST",

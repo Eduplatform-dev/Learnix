@@ -31,7 +31,7 @@ app.disable("x-powered-by");
 /* ─── GLOBAL MIDDLEWARE ─────────────────────────────── */
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }, // allow /uploads/* to load in browser
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
@@ -39,7 +39,6 @@ app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(
   cors({
     origin(origin, callback) {
-      // Allow requests with no origin (curl, Postman, mobile apps)
       if (!origin) return callback(null, true);
       if (corsOrigins.includes(origin)) return callback(null, true);
       return callback(new Error(`CORS: origin '${origin}' not allowed`));
@@ -90,10 +89,17 @@ app.use("/api/ai",          aiRoutes);
 
 /* ─── HEALTH ─────────────────────────────────────────── */
 app.get("/health", (_req, res) => {
+  const aiProvider =
+    process.env.ANTHROPIC_API_KEY ? "anthropic" :
+    process.env.GEMINI_API_KEY    ? "gemini" :
+    "none";
+
   res.json({
-    ok:  true,
-    env: env.NODE_ENV,
-    ai:  !!process.env.ANTHROPIC_API_KEY,
+    ok:          true,
+    env:         env.NODE_ENV,
+    ai:          aiProvider !== "none",
+    ai_provider: aiProvider,
+    timestamp:   new Date().toISOString(),
   });
 });
 
@@ -105,11 +111,17 @@ app.use(errorHandler);
 async function start() {
   try {
     await connectDB();
+
+    const aiStatus =
+      process.env.ANTHROPIC_API_KEY ? "Anthropic Claude (configured)" :
+      process.env.GEMINI_API_KEY    ? "Google Gemini (configured)" :
+      "⚠️  No AI key set (add GEMINI_API_KEY for free AI)";
+
     app.listen(PORT, () => {
       console.log(`\n✅  Server running on http://localhost:${PORT}`);
       console.log(`   Mode:  ${env.NODE_ENV}`);
       console.log(`   CORS:  ${corsOrigins.join(", ")}`);
-      console.log(`   AI:    ${process.env.ANTHROPIC_API_KEY ? "configured" : "not configured (set ANTHROPIC_API_KEY)"}\n`);
+      console.log(`   AI:    ${aiStatus}\n`);
     });
   } catch (err) {
     console.error("Failed to start server:", err);

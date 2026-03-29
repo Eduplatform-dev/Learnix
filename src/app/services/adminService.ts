@@ -14,7 +14,7 @@ const handle = async <T>(res: Response): Promise<T> => {
   return data as T;
 };
 
-/* ─── TYPES ──────────────────────────────────────────────── */
+/* ─── TYPES ──────────────────────────────────────────── */
 export type DashboardData = {
   stats: {
     students:       number;
@@ -43,31 +43,31 @@ export type Settings = {
   backup:        { autoBackup: boolean; retentionDays: string; backupWindow: string };
 };
 
-/* ─── DASHBOARD ──────────────────────────────────────────── */
+/* ─── DASHBOARD ──────────────────────────────────────── */
 export const getDashboardData = async (): Promise<DashboardData> => {
   const res = await fetch(`${API}/dashboard`, { headers: getAuthHeader() });
   return handle<DashboardData>(res);
 };
 
-/* ─── ANALYTICS ──────────────────────────────────────────── */
+/* ─── ANALYTICS ──────────────────────────────────────── */
 export const getAnalyticsData = async (): Promise<AnalyticsData> => {
   const res = await fetch(`${API}/analytics`, { headers: getAuthHeader() });
   return handle<AnalyticsData>(res);
 };
 
-/* ─── STATS (simple counters) ────────────────────────────── */
+/* ─── STATS ──────────────────────────────────────────── */
 export const getAdminStats = async () => {
   const res = await fetch(`${API}/stats`, { headers: getAuthHeader() });
   return handle<Record<string, number>>(res);
 };
 
-/* ─── FEES STATS ─────────────────────────────────────────── */
+/* ─── FEES STATS ─────────────────────────────────────── */
 export const getFeesStats = async () => {
   const res = await fetch(`${API}/fees-stats`, { headers: getAuthHeader() });
   return handle<{ totalRevenue: number; pendingPayments: number; paidStudents: number; growthRate: number }>(res);
 };
 
-/* ─── SETTINGS ───────────────────────────────────────────── */
+/* ─── SETTINGS ───────────────────────────────────────── */
 export const getSettings = async (): Promise<Settings> => {
   const res = await fetch(`${API}/settings`, { headers: getAuthHeader() });
   return handle<Settings>(res);

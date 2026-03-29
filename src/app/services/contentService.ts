@@ -22,34 +22,29 @@ const handle = async <T>(res: Response): Promise<T> => {
   return data as T;
 };
 
-/* ─── GET ALL CONTENT ────────────────────────────────────── */
+/* ─── GET ALL ─────────────────────────────────────────────── */
 export const getContent = async (): Promise<Content[]> => {
   const res = await fetch(`${API}?limit=100`, { headers: getAuthHeader() });
   const data = await handle<Content[] | { content: Content[] }>(res);
   return Array.isArray(data) ? data : (data as any).content ?? [];
 };
 
-/** Alias — several pages import getContents (plural) */
 export const getContents = getContent;
 
-/* ─── GET CONTENT FOR A COURSE ───────────────────────────── */
+/* ─── GET BY COURSE ───────────────────────────────────────── */
 export const getCourseContents = async (courseId: string): Promise<Content[]> => {
   const res = await fetch(`${API}/course/${courseId}`, { headers: getAuthHeader() });
   const data = await handle<Content[] | { content: Content[] }>(res);
   return Array.isArray(data) ? data : (data as any).content ?? [];
 };
 
-/* ─── GET SINGLE ─────────────────────────────────────────── */
+/* ─── GET SINGLE ──────────────────────────────────────────── */
 export const getContentById = async (id: string): Promise<Content> => {
   const res = await fetch(`${API}/${id}`, { headers: getAuthHeader() });
   return handle<Content>(res);
 };
 
-/* ─── UPLOAD / CREATE CONTENT ────────────────────────────── */
-/**
- * Accepts either a FormData object (from AdminContent which builds its own FormData)
- * or a plain object with title + file (from other callers).
- */
+/* ─── CREATE ──────────────────────────────────────────────── */
 export const createContent = async (
   data: FormData | { title: string; course?: string; file: File }
 ): Promise<Content> => {
@@ -71,10 +66,9 @@ export const createContent = async (
   return handle<Content>(res);
 };
 
-/** Alias for callers that import uploadContent */
 export const uploadContent = createContent;
 
-/* ─── UPDATE CONTENT ─────────────────────────────────────── */
+/* ─── UPDATE ──────────────────────────────────────────────── */
 export const updateContent = async (
   id:   string,
   data: Partial<Pick<Content, "title" | "course">>
@@ -87,7 +81,7 @@ export const updateContent = async (
   return handle<Content>(res);
 };
 
-/* ─── DELETE CONTENT ─────────────────────────────────────── */
+/* ─── DELETE ──────────────────────────────────────────────── */
 export const deleteContent = async (id: string): Promise<void> => {
   const res = await fetch(`${API}/${id}`, {
     method:  "DELETE",

@@ -4,35 +4,40 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../providers/AuthProvider";
 
 const TITLES: Record<string, string> = {
-  "/dashboard": "Home",
-  "/dashboard/courses": "My Courses",
-  "/dashboard/videos": "Video Library",
-  "/dashboard/library": "Resources",
-  "/dashboard/progress": "My Progress",
-  "/dashboard/assignments": "Assignments",
-  "/dashboard/submissions": "Submissions",
-  "/dashboard/fees": "Fee Payment",
-  "/dashboard/ai-chat": "AI Assistant",
-
-  "/admin/dashboard": "Admin Dashboard",
-  "/admin/users": "User Management",
-  "/admin/courses": "Course Management",
-  "/admin/analytics": "Analytics",
-  "/admin/content": "Content Library",
-  "/admin/fees": "Fee Management",
-  "/admin/submissions": "Submissions Review",
-  "/admin/settings": "System Settings",
+  // Student
+  "/dashboard":              "Home",
+  "/dashboard/courses":      "My Courses",
+  "/dashboard/videos":       "Video Library",
+  "/dashboard/library":      "Resources",
+  "/dashboard/progress":     "My Progress",
+  "/dashboard/assignments":  "Assignments",
+  "/dashboard/submissions":  "Submissions",
+  "/dashboard/fees":         "Fee Payment",
+  "/dashboard/ai-chat":      "AI Assistant",
+  // Admin
+  "/admin/dashboard":        "Admin Dashboard",
+  "/admin/users":            "User Management",
+  "/admin/courses":          "Course Management",
+  "/admin/analytics":        "Analytics",
+  "/admin/content":          "Content Library",
+  "/admin/fees":             "Fee Management",
+  "/admin/submissions":      "Submissions Review",
+  "/admin/settings":         "System Settings",
+  // Instructor
+  "/instructor/dashboard":   "Instructor Dashboard",
+  "/instructor/courses":     "My Courses",
+  "/instructor/assignments": "Assignments",
+  "/instructor/submissions": "Grade Submissions",
+  "/instructor/students":    "My Students",
+  "/instructor/content":     "Content Library",
+  "/instructor/ai-chat":     "AI Assistant",
 };
 
 interface HeaderProps {
@@ -44,11 +49,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const cleanPath =
-    pathname.endsWith("/") && pathname !== "/"
-      ? pathname.slice(0, -1)
-      : pathname;
-
+  const cleanPath = pathname.endsWith("/") && pathname !== "/" ? pathname.slice(0, -1) : pathname;
   const title = TITLES[cleanPath] || "Dashboard";
 
   const initials =
@@ -58,39 +59,23 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const displayName = user?.username || user?.email || "User";
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login"); // 🔥 fixed redirect
-  };
+  const handleLogout = () => { logout(); navigate("/login"); };
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
       <div className="px-4 md:px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={onMenuClick}
-          >
+          <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>
             <Menu className="w-6 h-6" />
           </Button>
-
-          <h2 className="text-xl md:text-2xl font-bold text-slate-900">
-            {title}
-          </h2>
+          <h2 className="text-xl md:text-2xl font-bold text-slate-900">{title}</h2>
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-
           {/* Search */}
           <div className="relative hidden md:block">
             <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              className="pl-10 w-64 bg-slate-50"
-            />
+            <Input type="search" placeholder="Search..." className="pl-10 w-64 bg-slate-50" />
           </div>
 
           {/* Notifications */}
@@ -103,13 +88,12 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </Badge>
               </Button>
             </DropdownMenuTrigger>
-
             <DropdownMenuContent align="end" className="w-80">
               <DropdownMenuLabel>Notifications</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>New assignment posted</DropdownMenuItem>
-              <DropdownMenuItem>Fee reminder</DropdownMenuItem>
-              <DropdownMenuItem>New course available</DropdownMenuItem>
+              <DropdownMenuItem>New submission received</DropdownMenuItem>
+              <DropdownMenuItem>Assignment deadline tomorrow</DropdownMenuItem>
+              <DropdownMenuItem>New course material available</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -124,17 +108,17 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{displayName}</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                <div>
+                  <p>{displayName}</p>
+                  <p className="text-xs text-gray-400 font-normal capitalize">{user?.role}</p>
+                </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600"
-                onClick={handleLogout}
-              >
+              <DropdownMenuItem className="text-red-600" onClick={handleLogout}>
                 Logout
               </DropdownMenuItem>
             </DropdownMenuContent>

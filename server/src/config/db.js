@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { env } from "./env.js";
 
 const CONNECT_OPTIONS = {
-  serverSelectionTimeoutMS: 5000,   // fail fast if MongoDB not reachable
+  serverSelectionTimeoutMS: 5000,
   socketTimeoutMS:          45000,
   maxPoolSize:              10,
   retryWrites:              true,

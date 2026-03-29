@@ -9,7 +9,6 @@ import { Header } from "./app/components/Header";
 import { Login } from "./app/components/Login";
 
 /* ================= STUDENT PAGES ================= */
-
 import { Dashboard } from "./app/components/pages/student/Dashboard";
 import { Courses } from "./app/components/pages/student/Courses";
 import { Videos } from "./app/components/pages/student/Videos";
@@ -21,7 +20,6 @@ import { AIChat } from "./app/components/pages/student/AIChat";
 import { ContentLibrary } from "./app/components/pages/student/ContentLibrary";
 
 /* ================= ADMIN PAGES ================= */
-
 import { AdminDashboard } from "./app/components/pages/admin/AdminDashboard";
 import { AdminUsers } from "./app/components/pages/admin/AdminUsers";
 import { AdminCourses } from "./app/components/pages/admin/AdminCourses";
@@ -31,10 +29,17 @@ import { AdminFees } from "./app/components/pages/admin/AdminFees";
 import { AdminSubmissions } from "./app/components/pages/admin/AdminSubmissions";
 import { AdminSettings } from "./app/components/pages/admin/AdminSettings";
 
+/* ================= INSTRUCTOR PAGES ================= */
+import { InstructorDashboard } from "./app/components/pages/instructor/InstructorDashboard";
+import { InstructorCourses } from "./app/components/pages/instructor/InstructorCourses";
+import { InstructorAssignments } from "./app/components/pages/instructor/InstructorAssignments";
+import { InstructorSubmissions } from "./app/components/pages/instructor/InstructorSubmissions";
+import { InstructorContent } from "./app/components/pages/instructor/InstructorContent";
+import { InstructorStudents } from "./app/components/pages/instructor/InstructorStudents";
+
 /* =========================================================
    🔐 PROTECTED ROUTE WRAPPER
 ========================================================= */
-
 function ProtectedLayout({
   roles,
   userRole,
@@ -44,17 +49,14 @@ function ProtectedLayout({
   userRole: UserRole | null;
   children: ReactNode;
 }) {
-  if (!userRole) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!userRole) return <Navigate to="/login" replace />;
 
   if (!roles.includes(userRole)) {
-    return (
-      <Navigate
-        to={userRole === "admin" ? "/admin/dashboard" : "/dashboard"}
-        replace
-      />
-    );
+    const redirectPath =
+      userRole === "admin" ? "/admin/dashboard" :
+      userRole === "instructor" ? "/instructor/dashboard" :
+      "/dashboard";
+    return <Navigate to={redirectPath} replace />;
   }
 
   return <>{children}</>;
@@ -63,26 +65,16 @@ function ProtectedLayout({
 /* =========================================================
    🧩 SHARED LAYOUT
 ========================================================= */
-
 function AppShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-
-      <Sidebar
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-      />
-
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex-1 lg:ml-64">
-
         <Header onMenuClick={() => setSidebarOpen(true)} />
-
         <main className="p-4 md:p-8">{children}</main>
-
       </div>
-
     </div>
   );
 }
@@ -90,11 +82,9 @@ function AppShell({ children }: { children: ReactNode }) {
 /* =========================================================
    🎓 STUDENT ROUTES
 ========================================================= */
-
 function UserRoutes() {
   return (
     <Routes>
-
       <Route index element={<Dashboard />} />
       <Route path="courses" element={<Courses />} />
       <Route path="videos" element={<Videos />} />
@@ -104,9 +94,7 @@ function UserRoutes() {
       <Route path="submissions" element={<Submissions />} />
       <Route path="fees" element={<Fees />} />
       <Route path="ai-chat" element={<AIChat />} />
-
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
-
     </Routes>
   );
 }
@@ -114,11 +102,9 @@ function UserRoutes() {
 /* =========================================================
    🛠 ADMIN ROUTES
 ========================================================= */
-
 function AdminRoutes() {
   return (
     <Routes>
-
       <Route path="dashboard" element={<AdminDashboard />} />
       <Route path="users" element={<AdminUsers />} />
       <Route path="courses" element={<AdminCourses />} />
@@ -127,9 +113,25 @@ function AdminRoutes() {
       <Route path="fees" element={<AdminFees />} />
       <Route path="submissions" element={<AdminSubmissions />} />
       <Route path="settings" element={<AdminSettings />} />
-
       <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
+    </Routes>
+  );
+}
 
+/* =========================================================
+   👩‍🏫 INSTRUCTOR ROUTES
+========================================================= */
+function InstructorRoutes() {
+  return (
+    <Routes>
+      <Route path="dashboard" element={<InstructorDashboard />} />
+      <Route path="courses" element={<InstructorCourses />} />
+      <Route path="assignments" element={<InstructorAssignments />} />
+      <Route path="submissions" element={<InstructorSubmissions />} />
+      <Route path="content" element={<InstructorContent />} />
+      <Route path="students" element={<InstructorStudents />} />
+      <Route path="ai-chat" element={<AIChat />} />
+      <Route path="*" element={<Navigate to="/instructor/dashboard" replace />} />
     </Routes>
   );
 }
@@ -137,15 +139,16 @@ function AdminRoutes() {
 /* =========================================================
    🚀 APP ROOT
 ========================================================= */
-
 export default function App() {
-
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center text-lg">
-        Loading...
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-gray-500">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -153,36 +156,24 @@ export default function App() {
   const userRole = user?.role ?? null;
 
   const redirectPath =
-    !userRole
-      ? "/login"
-      : userRole === "admin"
-      ? "/admin/dashboard"
-      : "/dashboard";
+    !userRole ? "/login" :
+    userRole === "admin" ? "/admin/dashboard" :
+    userRole === "instructor" ? "/instructor/dashboard" :
+    "/dashboard";
 
   return (
-
     <Routes>
-
       {/* LOGIN */}
-
       <Route
         path="/login"
-        element={
-          userRole
-            ? <Navigate to={redirectPath} replace />
-            : <Login />
-        }
+        element={userRole ? <Navigate to={redirectPath} replace /> : <Login />}
       />
 
       {/* STUDENT */}
-
       <Route
         path="/dashboard/*"
         element={
-          <ProtectedLayout
-            roles={["student", "instructor"]}
-            userRole={userRole}
-          >
+          <ProtectedLayout roles={["student"]} userRole={userRole}>
             <AppShell>
               <UserRoutes />
             </AppShell>
@@ -191,14 +182,10 @@ export default function App() {
       />
 
       {/* ADMIN */}
-
       <Route
         path="/admin/*"
         element={
-          <ProtectedLayout
-            roles={["admin"]}
-            userRole={userRole}
-          >
+          <ProtectedLayout roles={["admin"]} userRole={userRole}>
             <AppShell>
               <AdminRoutes />
             </AppShell>
@@ -206,14 +193,20 @@ export default function App() {
         }
       />
 
-      {/* GLOBAL FALLBACK */}
-
+      {/* INSTRUCTOR */}
       <Route
-        path="*"
-        element={<Navigate to={redirectPath} replace />}
+        path="/instructor/*"
+        element={
+          <ProtectedLayout roles={["instructor"]} userRole={userRole}>
+            <AppShell>
+              <InstructorRoutes />
+            </AppShell>
+          </ProtectedLayout>
+        }
       />
 
+      {/* GLOBAL FALLBACK */}
+      <Route path="*" element={<Navigate to={redirectPath} replace />} />
     </Routes>
-
   );
 }

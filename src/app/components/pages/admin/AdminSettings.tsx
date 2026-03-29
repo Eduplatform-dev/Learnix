@@ -6,581 +6,129 @@ import { Label } from "../../ui/label";
 import { Switch } from "../../ui/switch";
 import { Textarea } from "../../ui/textarea";
 import { Separator } from "../../ui/separator";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../../ui/select";
-
-import {
-  Settings,
-  Bell,
-  Lock,
-  Globe,
-  Mail,
-  Database,
-} from "lucide-react";
-
-/* ✅ NEW SERVICE IMPORT */
-import {
-  getSettings,
-  saveSettings,
-} from "../../../services/adminService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../ui/select";
+import { Settings, Bell, Lock, Globe, Mail, Database, CheckCircle } from "lucide-react";
+import { getSettings, saveSettings } from "../../../services/adminService";
 
 export function AdminSettings() {
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [lastSaved, setLastSaved] = useState<string | null>(null);
-
-  /* ================= STATES ================= */
-
-  const [general, setGeneral] = useState({
-    platformName: "",
-    supportEmail: "",
-    logoUrl: "",
-  });
-
-  const [notifications, setNotifications] = useState({
-    emailUpdates: true,
-    productUpdates: false,
-    billingAlerts: true,
-  });
-
-  const [security, setSecurity] = useState({
-    enforceTwoFactor: false,
-    allowGoogleLogin: true,
-    sessionTimeout: "30",
-  });
-
-  const [localization, setLocalization] = useState({
-    language: "en",
-    timezone: "UTC",
-    dateFormat: "MM/DD/YYYY",
-  });
-
-  const [emailConfig, setEmailConfig] = useState({
-    smtpHost: "",
-    smtpPort: "587",
-    smtpUser: "",
-    fromName: "",
-    fromEmail: "",
-    footer: "",
-  });
-
-  const [backup, setBackup] = useState({
-    autoBackup: true,
-    retentionDays: "30",
-    backupWindow: "02:00-04:00",
-  });
-
-  /* ================= LOAD SETTINGS ================= */
+  const [saving,    setSaving]    = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const [saved,     setSaved]     = useState(false);
+  const [general,   setGeneral]   = useState({ platformName: "Learnix", supportEmail: "", logoUrl: "" });
+  const [notifs,    setNotifs]    = useState({ emailUpdates: true, productUpdates: false, billingAlerts: true });
+  const [security,  setSecurity]  = useState({ enforceTwoFactor: false, allowGoogleLogin: true, sessionTimeout: "30" });
+  const [locale,    setLocale]    = useState({ language: "en", timezone: "UTC", dateFormat: "MM/DD/YYYY" });
+  const [emailConf, setEmailConf] = useState({ smtpHost: "", smtpPort: "587", smtpUser: "", fromName: "", fromEmail: "", footer: "" });
+  const [backup,    setBackup]    = useState({ autoBackup: true, retentionDays: "30", backupWindow: "02:00-04:00" });
 
   useEffect(() => {
-    async function load() {
-      try {
-        const data = await getSettings();
-
-        setGeneral(data.general);
-        setNotifications(data.notifications);
-        setSecurity(data.security);
-        setLocalization(data.localization);
-        setEmailConfig(data.emailConfig);
-        setBackup(data.backup);
-      } catch (err) {
-        console.error("Settings load failed", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
+    getSettings().then((data) => {
+      setGeneral(data.general);
+      setNotifs(data.notifications);
+      setSecurity(data.security);
+      setLocale(data.localization);
+      setEmailConf(data.emailConfig);
+      setBackup(data.backup);
+    }).catch(console.error).finally(() => setLoading(false));
   }, []);
-
-  /* ================= SAVE SETTINGS ================= */
 
   const handleSave = async () => {
     try {
       setSaving(true);
-
-      await saveSettings({
-        general,
-        notifications,
-        security,
-        localization,
-        emailConfig,
-        backup,
-      });
-
-      setLastSaved(new Date().toLocaleString());
-    } catch (err) {
-      alert("Failed to save settings");
-    } finally {
-      setSaving(false);
-    }
+      await saveSettings({ general, notifications: notifs, security, localization: locale, emailConfig: emailConf, backup });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch { alert("Failed to save settings"); }
+    finally { setSaving(false); }
   };
 
-  if (loading) {
-    return <div className="p-6">Loading settings...</div>;
-  }
+  if (loading) return <div className="flex items-center justify-center p-12"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
 
-  /* ================= UI (UNCHANGED) ================= */
+  const SectionCard = ({ title, icon: Icon, color, children }: any) => (
+    <Card>
+      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Icon className={`w-5 h-5 ${color}`} />{title}</CardTitle></CardHeader>
+      <CardContent className="space-y-4">{children}</CardContent>
+    </Card>
+  );
+
+  const Field = ({ label, children }: any) => <div className="space-y-1.5"><Label className="text-sm">{label}</Label>{children}</div>;
+  const Toggle = ({ label, sub, checked, onChange }: any) => (
+    <div>
+      <div className="flex items-center justify-between gap-4"><div><p className="text-sm font-medium text-gray-900">{label}</p>{sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}</div><Switch checked={checked} onCheckedChange={onChange} /></div>
+      <Separator className="mt-4" />
+    </div>
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">
-            System Settings
-          </h1>
-          <p className="text-gray-600">
-            Configure platform settings
-          </p>
-        </div>
-
-        <div className="flex gap-3">
-          {lastSaved && (
-            <p className="text-xs text-gray-500">
-              Last saved: {lastSaved}
-            </p>
-          )}
-
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save Changes"}
-          </Button>
+      <div className="flex items-center justify-between">
+        <div><h1 className="text-2xl font-semibold">System Settings</h1><p className="text-gray-500">Configure platform settings</p></div>
+        <div className="flex items-center gap-3">
+          {saved && <span className="flex items-center gap-1.5 text-green-600 text-sm"><CheckCircle className="w-4 h-4" />Saved!</span>}
+          <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save Changes"}</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* GENERAL */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Settings className="w-5 h-5 text-indigo-600" />
-              General
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="platformName">Platform name</Label>
-              <Input
-                id="platformName"
-                value={general.platformName}
-                onChange={(e) =>
-                  setGeneral((p) => ({
-                    ...p,
-                    platformName: e.target.value,
-                  }))
-                }
-                placeholder="e.g., Learnix"
-              />
-            </div>
+        <SectionCard title="General" icon={Settings} color="text-indigo-600">
+          <Field label="Platform Name"><Input value={general.platformName} onChange={(e) => setGeneral((p) => ({ ...p, platformName: e.target.value }))} /></Field>
+          <Field label="Support Email"><Input type="email" placeholder="support@example.com" value={general.supportEmail} onChange={(e) => setGeneral((p) => ({ ...p, supportEmail: e.target.value }))} /></Field>
+          <Field label="Logo URL"><Input placeholder="https://..." value={general.logoUrl} onChange={(e) => setGeneral((p) => ({ ...p, logoUrl: e.target.value }))} /></Field>
+        </SectionCard>
 
-            <div className="space-y-2">
-              <Label htmlFor="supportEmail">Support email</Label>
-              <Input
-                id="supportEmail"
-                type="email"
-                value={general.supportEmail}
-                onChange={(e) =>
-                  setGeneral((p) => ({
-                    ...p,
-                    supportEmail: e.target.value,
-                  }))
-                }
-                placeholder="support@example.com"
-              />
-            </div>
+        <SectionCard title="Notifications" icon={Bell} color="text-amber-500">
+          <Toggle label="Email Updates" sub="Send weekly learning summaries" checked={notifs.emailUpdates} onChange={(v: boolean) => setNotifs((p) => ({ ...p, emailUpdates: v }))} />
+          <Toggle label="Product Updates" sub="Announce new features to users" checked={notifs.productUpdates} onChange={(v: boolean) => setNotifs((p) => ({ ...p, productUpdates: v }))} />
+          <div className="flex items-center justify-between gap-4"><div><p className="text-sm font-medium text-gray-900">Billing Alerts</p><p className="text-xs text-gray-500 mt-0.5">Notify admins about payments</p></div><Switch checked={notifs.billingAlerts} onCheckedChange={(v) => setNotifs((p) => ({ ...p, billingAlerts: v }))} /></div>
+        </SectionCard>
 
-            <div className="space-y-2">
-              <Label htmlFor="logoUrl">Logo URL</Label>
-              <Input
-                id="logoUrl"
-                value={general.logoUrl}
-                onChange={(e) =>
-                  setGeneral((p) => ({
-                    ...p,
-                    logoUrl: e.target.value,
-                  }))
-                }
-                placeholder="https://..."
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <SectionCard title="Security" icon={Lock} color="text-red-500">
+          <Toggle label="Enforce 2FA" sub="Require two-factor authentication" checked={security.enforceTwoFactor} onChange={(v: boolean) => setSecurity((p) => ({ ...p, enforceTwoFactor: v }))} />
+          <Toggle label="Allow Google Login" sub="Enable Google SSO for users" checked={security.allowGoogleLogin} onChange={(v: boolean) => setSecurity((p) => ({ ...p, allowGoogleLogin: v }))} />
+          <Field label="Session Timeout (minutes)"><Input value={security.sessionTimeout} onChange={(e) => setSecurity((p) => ({ ...p, sessionTimeout: e.target.value }))} /></Field>
+        </SectionCard>
 
-        {/* NOTIFICATIONS */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Bell className="w-5 h-5 text-indigo-600" />
-              Notifications
-            </CardTitle>
-          </CardHeader>
+        <SectionCard title="Localization" icon={Globe} color="text-green-500">
+          <Field label="Language">
+            <Select value={locale.language} onValueChange={(v) => setLocale((p) => ({ ...p, language: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="en">English</SelectItem><SelectItem value="hi">Hindi</SelectItem></SelectContent>
+            </Select>
+          </Field>
+          <Field label="Timezone">
+            <Select value={locale.timezone} onValueChange={(v) => setLocale((p) => ({ ...p, timezone: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="UTC">UTC</SelectItem><SelectItem value="Asia/Kolkata">Asia/Kolkata</SelectItem><SelectItem value="America/New_York">America/New_York</SelectItem></SelectContent>
+            </Select>
+          </Field>
+          <Field label="Date Format">
+            <Select value={locale.dateFormat} onValueChange={(v) => setLocale((p) => ({ ...p, dateFormat: v }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem><SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem><SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem></SelectContent>
+            </Select>
+          </Field>
+        </SectionCard>
 
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium">Email updates</p>
-                <p className="text-sm text-gray-500">
-                  Send weekly learning summaries
-                </p>
-              </div>
-              <Switch
-                checked={notifications.emailUpdates}
-                onCheckedChange={(v) =>
-                  setNotifications((p) => ({
-                    ...p,
-                    emailUpdates: v,
-                  }))
-                }
-              />
-            </div>
+        <SectionCard title="Email Configuration" icon={Mail} color="text-blue-500">
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="SMTP Host"><Input placeholder="smtp.example.com" value={emailConf.smtpHost} onChange={(e) => setEmailConf((p) => ({ ...p, smtpHost: e.target.value }))} /></Field>
+            <Field label="SMTP Port"><Input value={emailConf.smtpPort} onChange={(e) => setEmailConf((p) => ({ ...p, smtpPort: e.target.value }))} /></Field>
+          </div>
+          <Field label="SMTP Username"><Input value={emailConf.smtpUser} onChange={(e) => setEmailConf((p) => ({ ...p, smtpUser: e.target.value }))} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="From Name"><Input value={emailConf.fromName} onChange={(e) => setEmailConf((p) => ({ ...p, fromName: e.target.value }))} /></Field>
+            <Field label="From Email"><Input type="email" value={emailConf.fromEmail} onChange={(e) => setEmailConf((p) => ({ ...p, fromEmail: e.target.value }))} /></Field>
+          </div>
+          <Field label="Footer"><Textarea rows={3} value={emailConf.footer} onChange={(e) => setEmailConf((p) => ({ ...p, footer: e.target.value }))} /></Field>
+        </SectionCard>
 
-            <Separator />
-
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium">Product updates</p>
-                <p className="text-sm text-gray-500">
-                  Announce new features to users
-                </p>
-              </div>
-              <Switch
-                checked={notifications.productUpdates}
-                onCheckedChange={(v) =>
-                  setNotifications((p) => ({
-                    ...p,
-                    productUpdates: v,
-                  }))
-                }
-              />
-            </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium">Billing alerts</p>
-                <p className="text-sm text-gray-500">
-                  Notify admins about payments
-                </p>
-              </div>
-              <Switch
-                checked={notifications.billingAlerts}
-                onCheckedChange={(v) =>
-                  setNotifications((p) => ({
-                    ...p,
-                    billingAlerts: v,
-                  }))
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* SECURITY */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Lock className="w-5 h-5 text-indigo-600" />
-              Security
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium">Enforce 2FA</p>
-                <p className="text-sm text-gray-500">
-                  Require two-factor authentication
-                </p>
-              </div>
-              <Switch
-                checked={security.enforceTwoFactor}
-                onCheckedChange={(v) =>
-                  setSecurity((p) => ({
-                    ...p,
-                    enforceTwoFactor: v,
-                  }))
-                }
-              />
-            </div>
-
-            <Separator />
-
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium">Allow Google login</p>
-                <p className="text-sm text-gray-500">
-                  Enable Google SSO for users
-                </p>
-              </div>
-              <Switch
-                checked={security.allowGoogleLogin}
-                onCheckedChange={(v) =>
-                  setSecurity((p) => ({
-                    ...p,
-                    allowGoogleLogin: v,
-                  }))
-                }
-              />
-            </div>
-
-            <Separator />
-
-            <div className="space-y-2">
-              <Label htmlFor="sessionTimeout">Session timeout (minutes)</Label>
-              <Input
-                id="sessionTimeout"
-                value={security.sessionTimeout}
-                onChange={(e) =>
-                  setSecurity((p) => ({
-                    ...p,
-                    sessionTimeout: e.target.value,
-                  }))
-                }
-                placeholder="30"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* LOCALIZATION */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-indigo-600" />
-              Localization
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Language</Label>
-              <Select
-                value={localization.language}
-                onValueChange={(v) =>
-                  setLocalization((p) => ({ ...p, language: v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="hi">Hindi</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Timezone</Label>
-              <Select
-                value={localization.timezone}
-                onValueChange={(v) =>
-                  setLocalization((p) => ({ ...p, timezone: v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="UTC">UTC</SelectItem>
-                  <SelectItem value="Asia/Calcutta">Asia/Calcutta</SelectItem>
-                  <SelectItem value="Asia/Kolkata">Asia/Kolkata</SelectItem>
-                  <SelectItem value="America/New_York">America/New_York</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Date format</Label>
-              <Select
-                value={localization.dateFormat}
-                onValueChange={(v) =>
-                  setLocalization((p) => ({ ...p, dateFormat: v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select date format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
-                  <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
-                  <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* EMAIL */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5 text-indigo-600" />
-              Email
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="smtpHost">SMTP host</Label>
-                <Input
-                  id="smtpHost"
-                  value={emailConfig.smtpHost}
-                  onChange={(e) =>
-                    setEmailConfig((p) => ({
-                      ...p,
-                      smtpHost: e.target.value,
-                    }))
-                  }
-                  placeholder="smtp.example.com"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="smtpPort">SMTP port</Label>
-                <Input
-                  id="smtpPort"
-                  value={emailConfig.smtpPort}
-                  onChange={(e) =>
-                    setEmailConfig((p) => ({
-                      ...p,
-                      smtpPort: e.target.value,
-                    }))
-                  }
-                  placeholder="587"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="smtpUser">SMTP username</Label>
-              <Input
-                id="smtpUser"
-                value={emailConfig.smtpUser}
-                onChange={(e) =>
-                  setEmailConfig((p) => ({
-                    ...p,
-                    smtpUser: e.target.value,
-                  }))
-                }
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fromName">From name</Label>
-                <Input
-                  id="fromName"
-                  value={emailConfig.fromName}
-                  onChange={(e) =>
-                    setEmailConfig((p) => ({
-                      ...p,
-                      fromName: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fromEmail">From email</Label>
-                <Input
-                  id="fromEmail"
-                  type="email"
-                  value={emailConfig.fromEmail}
-                  onChange={(e) =>
-                    setEmailConfig((p) => ({
-                      ...p,
-                      fromEmail: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="footer">Footer</Label>
-              <Textarea
-                id="footer"
-                value={emailConfig.footer}
-                onChange={(e) =>
-                  setEmailConfig((p) => ({
-                    ...p,
-                    footer: e.target.value,
-                  }))
-                }
-                placeholder="Email footer text…"
-                rows={4}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* BACKUP */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-indigo-600" />
-              Backup
-            </CardTitle>
-          </CardHeader>
-
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="font-medium">Automatic backups</p>
-                <p className="text-sm text-gray-500">
-                  Create daily backups automatically
-                </p>
-              </div>
-              <Switch
-                checked={backup.autoBackup}
-                onCheckedChange={(v) =>
-                  setBackup((p) => ({ ...p, autoBackup: v }))
-                }
-              />
-            </div>
-
-            <Separator />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="retentionDays">Retention (days)</Label>
-                <Input
-                  id="retentionDays"
-                  value={backup.retentionDays}
-                  onChange={(e) =>
-                    setBackup((p) => ({
-                      ...p,
-                      retentionDays: e.target.value,
-                    }))
-                  }
-                  placeholder="30"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="backupWindow">Backup window</Label>
-                <Input
-                  id="backupWindow"
-                  value={backup.backupWindow}
-                  onChange={(e) =>
-                    setBackup((p) => ({
-                      ...p,
-                      backupWindow: e.target.value,
-                    }))
-                  }
-                  placeholder="02:00-04:00"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <SectionCard title="Backup" icon={Database} color="text-purple-500">
+          <Toggle label="Automatic Backups" sub="Create daily backups automatically" checked={backup.autoBackup} onChange={(v: boolean) => setBackup((p) => ({ ...p, autoBackup: v }))} />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Retention (days)"><Input value={backup.retentionDays} onChange={(e) => setBackup((p) => ({ ...p, retentionDays: e.target.value }))} /></Field>
+            <Field label="Backup Window"><Input value={backup.backupWindow} onChange={(e) => setBackup((p) => ({ ...p, backupWindow: e.target.value }))} /></Field>
+          </div>
+        </SectionCard>
       </div>
     </div>
   );

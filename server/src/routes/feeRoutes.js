@@ -5,7 +5,6 @@ import Fee from "../models/Fee.js";
 
 const router = express.Router();
 
-/* ─── SCHEMAS ─────────────────────────────────────────── */
 const createFeeSchema = z.object({
   studentId:   z.string().min(1, "studentId is required"),
   description: z.string().min(1).max(200).trim(),
@@ -82,8 +81,6 @@ router.post(
       }
 
       const { studentId, ...rest } = parsed.data;
-
-      // Auto-generate invoice number
       const count   = await Fee.countDocuments();
       const invoice = rest.invoice || `INV-${new Date().getFullYear()}-${String(count + 1).padStart(4, "0")}`;
 
@@ -108,7 +105,6 @@ router.patch("/:id/pay", authenticateToken, async (req, res) => {
     const fee = await Fee.findById(req.params.id);
     if (!fee) return res.status(404).json({ error: "Fee not found" });
 
-    // Students can only pay their own fees
     if (
       req.user.role === "student" &&
       String(fee.student) !== String(req.user._id)

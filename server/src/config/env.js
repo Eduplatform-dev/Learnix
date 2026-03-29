@@ -24,7 +24,13 @@ const envSchema = z.object({
 
   PUBLIC_BASE_URL: z.string().optional(),
 
-  // Optional — AI features disabled if not set
+  // AI Options — at least one should be set for AI chat to work
+  // Option 1: Google Gemini (FREE — 1500 requests/day)
+  // Get key at: https://aistudio.google.com/app/apikey
+  GEMINI_API_KEY: z.string().optional(),
+
+  // Option 2: Anthropic Claude (paid but higher quality)
+  // If both set, Anthropic takes priority
   ANTHROPIC_API_KEY: z.string().optional(),
 });
 

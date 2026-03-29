@@ -11,9 +11,7 @@ if (!rootElement) {
   throw new Error("Root element with id 'root' was not found");
 }
 
-const root = createRoot(rootElement);
-
-root.render(
+createRoot(rootElement).render(
   <React.StrictMode>
     <AuthProvider>
       <BrowserRouter>

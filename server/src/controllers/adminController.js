@@ -115,7 +115,6 @@ export const getAnalytics = async (req, res) => {
 
     const months = lastNMonths(6);
 
-    // Monthly new user growth
     const monthlyGrowth = await Promise.all(
       months.map(async ({ label, date, next }) => {
         const users = await User.countDocuments({ createdAt: { $gte: date, $lt: next } });
@@ -123,7 +122,6 @@ export const getAnalytics = async (req, res) => {
       })
     );
 
-    // Daily submission activity (last 7 days)
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const userEngagement = await Promise.all(
       Array.from({ length: 7 }, async (_, i) => {
@@ -136,7 +134,6 @@ export const getAnalytics = async (req, res) => {
       })
     );
 
-    // Course ratings
     const courses = await Course.find({}, "title rating enrolledStudents").lean();
     const courseRatings = courses.map((c) => ({
       name:     c.title.length > 20 ? c.title.slice(0, 18) + "…" : c.title,
@@ -144,7 +141,6 @@ export const getAnalytics = async (req, res) => {
       students: c.enrolledStudents?.length ?? 0,
     }));
 
-    // Submission status distribution — only include non-zero slices
     const [drafted, submitted, graded] = await Promise.all([
       Submission.countDocuments({ status: "draft" }),
       Submission.countDocuments({ status: "submitted" }),
@@ -155,9 +151,8 @@ export const getAnalytics = async (req, res) => {
       { name: "Draft",     value: drafted   },
       { name: "Submitted", value: submitted },
       { name: "Graded",    value: graded    },
-    ].filter((d) => d.value > 0); // remove zero slices so pie chart renders
+    ].filter((d) => d.value > 0);
 
-    // Traffic sources — derived from user counts since we have no analytics DB
     const trafficSources = [
       { source: "Direct",   visits: Math.floor(totalUsers * 0.40) },
       { source: "Search",   visits: Math.floor(totalUsers * 0.35) },

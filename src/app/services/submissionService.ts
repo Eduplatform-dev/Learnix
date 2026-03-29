@@ -6,22 +6,22 @@ const API          = `${API_BASE_URL}/api/submissions`;
 export type SubmissionStatus = "draft" | "submitted" | "graded";
 
 export type Submission = {
-  _id:            string;
-  assignmentId:   string;
-  assignmentTitle:string;
-  course:         string;
-  studentId:      string;
-  studentName:    string;
-  title:          string;
-  description:    string;
-  text:           string;
-  files:          { originalName: string; filename: string; url: string; size: number }[];
-  grade:          string | null;
-  feedback:       string;
-  gradedAt:       string | null;
-  status:         SubmissionStatus;
-  createdAt:      string;
-  updatedAt:      string;
+  _id:             string;
+  assignmentId:    string;
+  assignmentTitle: string;
+  course:          string;
+  studentId:       string;
+  studentName:     string;
+  title:           string;
+  description:     string;
+  text:            string;
+  files:           { originalName: string; filename: string; url: string; size: number }[];
+  grade:           string | null;
+  feedback:        string;
+  gradedAt:        string | null;
+  status:          SubmissionStatus;
+  createdAt:       string;
+  updatedAt:       string;
 };
 
 const handle = async <T>(res: Response): Promise<T> => {
@@ -35,15 +35,13 @@ const handle = async <T>(res: Response): Promise<T> => {
   return data as T;
 };
 
-/* ─── GET SUBMISSIONS ────────────────────────────────────── */
+/* ─── GET SUBMISSIONS ─────────────────────────────────── */
 export const getSubmissions = async (params?: {
   assignmentId?: string;
-  studentId?:    string;
   status?:       SubmissionStatus;
 }): Promise<Submission[]> => {
   const qs = new URLSearchParams();
   if (params?.assignmentId) qs.set("assignmentId", params.assignmentId);
-  if (params?.studentId)    qs.set("studentId",    params.studentId);
   if (params?.status)       qs.set("status",       params.status);
 
   const url = `${API}${qs.toString() ? "?" + qs : ""}`;
@@ -52,13 +50,13 @@ export const getSubmissions = async (params?: {
   return Array.isArray(data) ? data : (data as any).submissions ?? [];
 };
 
-/* ─── GET SINGLE SUBMISSION ──────────────────────────────── */
+/* ─── GET SINGLE ──────────────────────────────────────── */
 export const getSubmissionById = async (id: string): Promise<Submission> => {
   const res = await fetch(`${API}/${id}`, { headers: getAuthHeader() });
   return handle<Submission>(res);
 };
 
-/* ─── CREATE SUBMISSION (supports file upload) ───────────── */
+/* ─── CREATE SUBMISSION ───────────────────────────────── */
 export const createSubmission = async (
   data: FormData | {
     assignmentId: string;
@@ -70,9 +68,7 @@ export const createSubmission = async (
   }
 ): Promise<Submission> => {
   let formData: FormData;
-
   if (data instanceof FormData) {
-    // Submissions.tsx builds its own FormData — use as-is
     formData = data;
   } else {
     formData = new FormData();
@@ -92,16 +88,7 @@ export const createSubmission = async (
   return handle<Submission>(res);
 };
 
-/* ─── SUBMIT (draft → submitted) ────────────────────────── */
-export const submitSubmission = async (id: string): Promise<Submission> => {
-  const res = await fetch(`${API}/${id}/submit`, {
-    method:  "PATCH",
-    headers: getAuthHeader(),
-  });
-  return handle<Submission>(res);
-};
-
-/* ─── GRADE SUBMISSION (instructor/admin) ────────────────── */
+/* ─── GRADE SUBMISSION ────────────────────────────────── */
 export const gradeSubmission = async (
   id:   string,
   data: { grade: string; feedback?: string }
@@ -114,7 +101,7 @@ export const gradeSubmission = async (
   return handle<Submission>(res);
 };
 
-/* ─── DELETE SUBMISSION ──────────────────────────────────── */
+/* ─── DELETE SUBMISSION ───────────────────────────────── */
 export const deleteSubmission = async (id: string): Promise<void> => {
   const res = await fetch(`${API}/${id}`, {
     method:  "DELETE",

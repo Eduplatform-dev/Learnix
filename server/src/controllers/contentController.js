@@ -18,6 +18,11 @@ export const getContent = async (req, res) => {
     if (req.query.type)   filter.type   = req.query.type;
     if (req.query.course) filter.course = req.query.course;
 
+    // Instructors see only their own content
+    if (req.user?.role === "instructor") {
+      filter.uploadedBy = req.user._id;
+    }
+
     const [items, total] = await Promise.all([
       Content.find(filter)
         .populate("uploadedBy", "username email")
@@ -88,7 +93,6 @@ export const createContent = async (req, res) => {
     let url = req.body.url || "";
     let filePath = null;
 
-    // Handle uploaded file
     if (req.file) {
       filePath = req.file.filename;
       url = `${baseUrl(req)}/uploads/${req.file.filename}`;
@@ -124,6 +128,17 @@ export const updateContent = async (req, res) => {
       return res.status(400).json({ error: "Invalid content ID" });
     }
 
+    const existing = await Content.findById(id);
+    if (!existing) return res.status(404).json({ error: "Content not found" });
+
+    // Instructors can only update their own content
+    if (
+      req.user.role === "instructor" &&
+      String(existing.uploadedBy) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ error: "You can only update your own content" });
+    }
+
     const allowed = ["title", "course", "folder"];
     const updates = {};
     for (const key of allowed) {
@@ -138,10 +153,6 @@ export const updateContent = async (req, res) => {
       new: true,
       runValidators: true,
     });
-
-    if (!updated) {
-      return res.status(404).json({ error: "Content not found" });
-    }
 
     res.json(updated);
   } catch (err) {
@@ -159,11 +170,18 @@ export const deleteContent = async (req, res) => {
       return res.status(400).json({ error: "Invalid content ID" });
     }
 
-    const item = await Content.findByIdAndDelete(id);
+    const item = await Content.findById(id);
+    if (!item) return res.status(404).json({ error: "Content not found" });
 
-    if (!item) {
-      return res.status(404).json({ error: "Content not found" });
+    // Instructors can only delete their own content
+    if (
+      req.user.role === "instructor" &&
+      String(item.uploadedBy) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ error: "You can only delete your own content" });
     }
+
+    await Content.findByIdAndDelete(id);
 
     // Delete physical file if it was uploaded
     if (item.filePath) {

@@ -21,6 +21,11 @@ export const getCourses = async (req, res) => {
     const filter = {};
     if (req.query.status) filter.status = req.query.status;
 
+    // Instructors only see their own courses
+    if (req.user?.role === "instructor") {
+      filter.instructor = req.user._id;
+    }
+
     const [courses, total] = await Promise.all([
       Course.find(filter)
         .populate("instructor", "username email")
@@ -87,6 +92,17 @@ export const updateCourse = async (req, res) => {
       return res.status(400).json({ error: "Invalid course ID" });
     }
 
+    // Instructors can only update their own courses
+    const existingCourse = await Course.findById(id);
+    if (!existingCourse) return res.status(404).json({ error: "Course not found" });
+
+    if (
+      req.user.role === "instructor" &&
+      String(existingCourse.instructor) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ error: "You can only update your own courses" });
+    }
+
     const parsed = updateCourseSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ error: parsed.error.errors[0].message });
@@ -96,8 +112,6 @@ export const updateCourse = async (req, res) => {
       new:           true,
       runValidators: true,
     }).populate("instructor", "username email");
-
-    if (!updated) return res.status(404).json({ error: "Course not found" });
 
     res.json(updated);
   } catch (err) {
@@ -114,9 +128,18 @@ export const deleteCourse = async (req, res) => {
       return res.status(400).json({ error: "Invalid course ID" });
     }
 
-    const deleted = await Course.findByIdAndDelete(id);
-    if (!deleted) return res.status(404).json({ error: "Course not found" });
+    const course = await Course.findById(id);
+    if (!course) return res.status(404).json({ error: "Course not found" });
 
+    // Instructors can only delete their own courses
+    if (
+      req.user.role === "instructor" &&
+      String(course.instructor) !== String(req.user._id)
+    ) {
+      return res.status(403).json({ error: "You can only delete your own courses" });
+    }
+
+    await Course.findByIdAndDelete(id);
     res.json({ message: "Course deleted successfully" });
   } catch (err) {
     console.error("deleteCourse error:", err);

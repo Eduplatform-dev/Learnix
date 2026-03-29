@@ -12,6 +12,33 @@ export default defineConfig({
     },
   },
 
+  server: {
+    port: 5173,
+    proxy: {
+      // Optionally proxy /api to backend during dev so you avoid CORS issues
+      // '/api': 'http://localhost:5000',
+    },
+  },
+
+  build: {
+    outDir: "dist",
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor:   ["react", "react-dom", "react-router-dom"],
+          recharts: ["recharts"],
+          radix:    [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-select",
+          ],
+        },
+      },
+    },
+  },
+
   test: {
     globals:     true,
     environment: "jsdom",

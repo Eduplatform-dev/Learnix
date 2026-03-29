@@ -4,7 +4,7 @@ import { z } from "zod";
 import User from "../models/User.js";
 import { env } from "../config/env.js";
 
-/* ── Optional Activity logging — won't crash if model missing ── */
+/* ── Optional Activity logging ── */
 let Activity = null;
 try {
   const mod = await import("../models/Activity.js");
@@ -62,7 +62,6 @@ export const register = async (req, res) => {
     });
 
     const token = jwt.sign({ id: user._id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
-
     await logActivity(user._id, "register", "User account created");
 
     res.status(201).json({
@@ -93,7 +92,6 @@ export const login = async (req, res) => {
     if (!match) return res.status(401).json({ error: "Invalid credentials" });
 
     const token = jwt.sign({ id: user._id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
-
     await logActivity(user._id, "login", "User logged in");
 
     res.json({

@@ -1,23 +1,21 @@
 export type UserRole = "student" | "admin" | "instructor";
 
 export type User = {
-  _id: string;
-  email: string;
+  _id:      string;
+  email:    string;
   username: string;
-  role: UserRole;
+  role:     UserRole;
 };
 
 export type AuthResponse = {
-  user: User;
+  user:  User;
   token: string;
 };
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const API = `${API_BASE_URL}/api/auth`;
 
-/* ─── TOKEN HELPERS ───────────────────────────────────── */
+/* ─── TOKEN HELPERS ─────────────────────────────────────── */
 export const getToken = (): string | null => localStorage.getItem("token");
 
 /** Returns auth + JSON content-type headers */
@@ -38,34 +36,30 @@ export const getAuthHeaderNoContentType = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-/* ─── RESPONSE HANDLER ────────────────────────────────── */
+/* ─── RESPONSE HANDLER ─────────────────────────────────── */
 const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
   let data: Record<string, unknown>;
-
   try {
     data = await res.json();
   } catch {
     throw new Error(`Server error (${res.status})`);
   }
-
   if (!res.ok) {
     throw new Error((data.error as string) || `Request failed (${res.status})`);
   }
-
   if (data.token && data.user) {
     localStorage.setItem("token", data.token as string);
-    localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("user",  JSON.stringify(data.user));
   }
-
   return { user: data.user as User, token: data.token as string };
 };
 
-/* ─── REGISTER ────────────────────────────────────────── */
+/* ─── REGISTER ─────────────────────────────────────────── */
 export const registerUser = async (
-  email: string,
+  email:    string,
   password: string,
   username: string,
-  role: UserRole = "student"
+  role:     UserRole = "student"
 ): Promise<AuthResponse> => {
   const res = await fetch(`${API}/register`, {
     method:  "POST",
@@ -75,9 +69,9 @@ export const registerUser = async (
   return handleAuthResponse(res);
 };
 
-/* ─── LOGIN ───────────────────────────────────────────── */
+/* ─── LOGIN ────────────────────────────────────────────── */
 export const loginUser = async (
-  email: string,
+  email:    string,
   password: string
 ): Promise<AuthResponse> => {
   const res = await fetch(`${API}/login`, {
@@ -88,7 +82,7 @@ export const loginUser = async (
   return handleAuthResponse(res);
 };
 
-/* ─── CURRENT USER ────────────────────────────────────── */
+/* ─── CURRENT USER ─────────────────────────────────────── */
 export const getCurrentUser = (): User | null => {
   const stored = localStorage.getItem("user");
   if (!stored) return null;
@@ -99,7 +93,7 @@ export const getCurrentUser = (): User | null => {
   }
 };
 
-/* ─── LOGOUT ──────────────────────────────────────────── */
+/* ─── LOGOUT ───────────────────────────────────────────── */
 export const logoutUser = () => {
   localStorage.removeItem("token");
   localStorage.removeItem("user");

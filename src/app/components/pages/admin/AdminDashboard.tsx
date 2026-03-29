@@ -1,113 +1,62 @@
 import { useEffect, useState } from "react";
-import {
-  Users,
-  BookOpen,
-  DollarSign,
-  TrendingUp,
-} from "lucide-react";
-
+import { Users, BookOpen, DollarSign, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { getDashboardData } from "../../../services/adminService";
 
-type DashboardStats = {
-  students: number;
-  courses: number;
-  revenue: number;
-  completionRate: number;
-};
-
-type DashboardResponse = {
-  stats: DashboardStats;
-  enrollmentData: { month: string; students: number }[];
-};
-
 export function AdminDashboard() {
-  const [data, setData] = useState<DashboardResponse | null>(null);
+  const [data,    setData]    = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await getDashboardData();
-        setData(res);
-      } catch (err) {
-        console.error("Dashboard error:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
+    getDashboardData()
+      .then(setData)
+      .catch((err) => console.error("Dashboard error:", err))
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="p-6">Loading dashboard...</div>;
-  if (!data) return <div className="p-6">No dashboard data</div>;
+  if (loading) return <div className="flex items-center justify-center p-12"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
+  if (!data)   return <div className="p-6 text-center text-gray-400">No dashboard data available.</div>;
 
-  const statCards = [
-    { title: "Students", value: data.stats.students, icon: Users },
-    { title: "Courses", value: data.stats.courses, icon: BookOpen },
-    { title: "Revenue", value: `$${data.stats.revenue}`, icon: DollarSign },
-    {
-      title: "Completion",
-      value: `${data.stats.completionRate}%`,
-      icon: TrendingUp,
-    },
+  const cards = [
+    { title: "Students",    value: data.stats.students,                     icon: Users,      color: "from-indigo-500 to-blue-600" },
+    { title: "Courses",     value: data.stats.courses,                      icon: BookOpen,   color: "from-emerald-500 to-teal-600" },
+    { title: "Revenue",     value: `$${data.stats.revenue.toFixed(2)}`,     icon: DollarSign, color: "from-violet-500 to-purple-600" },
+    { title: "Completion",  value: `${data.stats.completionRate}%`,          icon: TrendingUp, color: "from-amber-500 to-orange-600" },
   ];
 
   return (
     <div className="space-y-6">
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {cards.map((card) => {
+          const Icon = card.icon;
           return (
-            <Card key={stat.title}>
-              <CardContent className="p-6 flex justify-between">
+            <Card key={card.title} className="border-0 shadow-md">
+              <CardContent className="p-5 flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-gray-600">{stat.title}</p>
-                  <h3 className="text-2xl font-bold">{stat.value}</h3>
+                  <p className="text-sm text-gray-500 mb-1">{card.title}</p>
+                  <p className="text-3xl font-bold text-gray-900">{card.value}</p>
                 </div>
-
-                <Icon className="w-6 h-6 text-indigo-600" />
+                <div className={`bg-gradient-to-br ${card.color} w-12 h-12 rounded-xl flex items-center justify-center`}>
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      {/* Chart */}
       <Card>
-        <CardHeader>
-          <CardTitle>Enrollment Trend</CardTitle>
-        </CardHeader>
-
+        <CardHeader><CardTitle>Student Enrollment Trend (Last 6 Months)</CardTitle></CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={data.enrollmentData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="month" />
-              <YAxis />
+              <YAxis allowDecimals={false} />
               <Tooltip />
               <Legend />
-              <Line
-                type="monotone"
-                dataKey="students"
-                stroke="#6366f1"
-                strokeWidth={3}
-              />
+              <Line type="monotone" dataKey="students" stroke="#6366f1" strokeWidth={3} dot={{ fill: "#6366f1" }} name="New Students" />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

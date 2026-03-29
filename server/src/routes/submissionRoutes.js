@@ -4,8 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-
 import mongoose from "mongoose";
+
 import { authenticateToken, authorize } from "../middleware/auth.js";
 import Submission from "../models/Submission.js";
 import Assignment from "../models/Assignment.js";
@@ -59,7 +59,19 @@ router.get("/", authenticateToken, async (req, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
     const skip  = (page - 1) * limit;
 
-    const filter = isStaff(req.user) ? {} : { studentId: req.user._id };
+    let filter = {};
+
+    if (req.user.role === "student") {
+      // Students see only their own submissions
+      filter.studentId = req.user._id;
+    } else if (req.user.role === "instructor") {
+      // Instructors see submissions for their assignments
+      const myAssignments = await Assignment.find({ instructor: req.user._id }).select("_id");
+      const myAssignmentIds = myAssignments.map((a) => a._id);
+      filter.assignmentId = { $in: myAssignmentIds };
+    }
+    // Admin sees all
+
     if (req.query.status)       filter.status       = req.query.status;
     if (req.query.assignmentId) filter.assignmentId = req.query.assignmentId;
 
@@ -117,10 +129,6 @@ router.post(
 
       if (!assignmentId) {
         return res.status(400).json({ error: "assignmentId is required" });
-      }
-
-      if (!mongoose.Types.ObjectId.isValid?.(assignmentId)) {
-        // Basic check — mongoose will also validate on save
       }
 
       const assignment = await Assignment.findById(assignmentId);
@@ -219,20 +227,24 @@ router.patch(
         return res.status(400).json({ error: parsed.error.errors[0].message });
       }
 
-      const sub = await Submission.findByIdAndUpdate(
-        req.params.id,
-        {
-          grade:    parsed.data.grade,
-          feedback: parsed.data.feedback,
-          status:   "graded",
-          gradedAt: new Date(),
-          gradedBy: req.user._id,
-        },
-        { new: true }
-      );
-
+      const sub = await Submission.findById(req.params.id);
       if (!sub) return res.status(404).json({ error: "Submission not found" });
 
+      // Instructors can only grade submissions for their own assignments
+      if (req.user.role === "instructor") {
+        const assignment = await Assignment.findById(sub.assignmentId);
+        if (!assignment || String(assignment.instructor) !== String(req.user._id)) {
+          return res.status(403).json({ error: "You can only grade submissions for your assignments" });
+        }
+      }
+
+      sub.grade    = parsed.data.grade;
+      sub.feedback = parsed.data.feedback;
+      sub.status   = "graded";
+      sub.gradedAt = new Date();
+      sub.gradedBy = req.user._id;
+
+      await sub.save();
       res.json(sub);
     } catch (err) {
       console.error("gradeSubmission error:", err);

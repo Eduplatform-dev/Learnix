@@ -1,62 +1,63 @@
-﻿// src/app/services/userService.ts
-
-import { getAuthHeader } from "./authService";
+﻿import { getAuthHeader } from "./authService";
 
 export type UserRole = "student" | "admin" | "instructor";
 
 export type AdminUser = {
-  _id: string;
-  email: string;
+  _id:      string;
+  email:    string;
   username: string;
-  role: UserRole;
+  role:     UserRole;
 };
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API          = `${API_BASE_URL}/api/users`;
 
-const API = `${API_BASE_URL}/api/users`;
+const handle = async <T>(res: Response): Promise<T> => {
+  let data: Record<string, unknown>;
+  try { data = await res.json(); }
+  catch { throw new Error(`Server error (${res.status})`); }
+  if (!res.ok) throw new Error((data.error as string) || "Request failed");
+  return data as T;
+};
 
-/* GET ALL */
+/* ─── GET ALL ─────────────────────────────────────────── */
 export const getUsers = async (): Promise<AdminUser[]> => {
   const res = await fetch(API, { headers: getAuthHeader() });
-  if (!res.ok) throw new Error("Fetch failed");
-  return res.json();
+  return handle<AdminUser[]>(res);
 };
 
-/* CREATE */
+/* ─── CREATE ──────────────────────────────────────────── */
 export const createUserDoc = async (data: {
-  email: string;
-  password: string;
-  username: string;
-  role?: UserRole;
+  email:     string;
+  password:  string;
+  username:  string;
+  role?:     UserRole;
 }): Promise<AdminUser> => {
   const res = await fetch(API, {
-    method: "POST",
+    method:  "POST",
     headers: getAuthHeader(),
-    body: JSON.stringify(data),
+    body:    JSON.stringify(data),
   });
-  if (!res.ok) throw new Error("Create failed");
-  return res.json();
+  return handle<AdminUser>(res);
 };
 
-/* UPDATE ROLE */
+/* ─── UPDATE ROLE ─────────────────────────────────────── */
 export const updateUserRole = async (
-  id: string,
+  id:   string,
   role: UserRole
 ): Promise<AdminUser> => {
   const res = await fetch(`${API}/${id}`, {
-    method: "PATCH",
+    method:  "PATCH",
     headers: getAuthHeader(),
-    body: JSON.stringify({ role }),
+    body:    JSON.stringify({ role }),
   });
-  if (!res.ok) throw new Error("Update failed");
-  return res.json();
+  return handle<AdminUser>(res);
 };
 
-/* DELETE */
+/* ─── DELETE ──────────────────────────────────────────── */
 export const deleteUser = async (id: string): Promise<boolean> => {
   const res = await fetch(`${API}/${id}`, {
-    method: "DELETE",
+    method:  "DELETE",
     headers: getAuthHeader(),
   });
   if (!res.ok) throw new Error("Delete failed");

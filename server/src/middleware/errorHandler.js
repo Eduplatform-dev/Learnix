@@ -5,7 +5,7 @@ export const notFound = (req, res, _next) => {
 export const errorHandler = (err, _req, res, _next) => {
   console.error("[Error]", err?.message || err);
 
-  // Multer errors (file too large, wrong type)
+  // Multer errors
   if (err?.code === "LIMIT_FILE_SIZE") {
     return res.status(400).json({ error: "File too large. Maximum size is 50 MB." });
   }
@@ -31,6 +31,11 @@ export const errorHandler = (err, _req, res, _next) => {
   }
   if (err?.name === "TokenExpiredError") {
     return res.status(401).json({ error: "Token expired" });
+  }
+
+  // CORS errors
+  if (err?.message?.startsWith("CORS:")) {
+    return res.status(403).json({ error: err.message });
   }
 
   const status  = Number(err?.statusCode || err?.status || 500);

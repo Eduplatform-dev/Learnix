@@ -1,19 +1,7 @@
-﻿// src/app/components/Sidebar.tsx
-
-import {
-  Home,
-  BookOpen,
-  PlayCircle,
-  LineChart,
-  FileText,
-  Upload,
-  DollarSign,
-  MessageSquare,
-  Users,
-  Settings,
-  BarChart3,
-  FolderOpen,
-  Shield,
+﻿import {
+  Home, BookOpen, PlayCircle, LineChart, FileText,
+  Upload, DollarSign, MessageSquare, Users, Settings,
+  BarChart3, FolderOpen, Shield, GraduationCap, CheckSquare,
 } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -30,7 +18,6 @@ type MenuItem = {
   label: string;
   icon: LucideIcon;
   badge?: number;
-  /** exact=true means only highlight when path matches exactly */
   exact?: boolean;
 };
 
@@ -45,18 +32,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const navigate = useNavigate();
 
   const userRole = user?.role as UserRole | undefined;
-
   if (!userRole) return null;
 
   const activePath = location.pathname;
 
   const initials = user?.username
-    ? user.username
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase()
+    ? user.username.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() || "U";
 
   /* ================= MENUS ================= */
@@ -84,7 +65,35 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/admin/settings", label: "Settings", icon: Settings },
   ];
 
-  const menuItems = userRole === "admin" ? adminMenu : studentMenu;
+  const instructorMenu: MenuItem[] = [
+    { path: "/instructor/dashboard", label: "Dashboard", icon: Home, exact: true },
+    { path: "/instructor/courses", label: "My Courses", icon: BookOpen },
+    { path: "/instructor/assignments", label: "Assignments", icon: FileText },
+    { path: "/instructor/submissions", label: "Grade Work", icon: CheckSquare },
+    { path: "/instructor/students", label: "Students", icon: Users },
+    { path: "/instructor/content", label: "Content", icon: FolderOpen },
+    { path: "/instructor/ai-chat", label: "AI Assistant", icon: MessageSquare },
+  ];
+
+  const menuItems =
+    userRole === "admin" ? adminMenu :
+    userRole === "instructor" ? instructorMenu :
+    studentMenu;
+
+  const portalLabel =
+    userRole === "admin" ? "Admin Portal" :
+    userRole === "instructor" ? "Instructor Portal" :
+    "Student Portal";
+
+  const logoIcon =
+    userRole === "admin" ? <Shield className="w-6 h-6 text-white" /> :
+    userRole === "instructor" ? <GraduationCap className="w-6 h-6 text-white" /> :
+    <BookOpen className="w-6 h-6 text-white" />;
+
+  const gradientClass =
+    userRole === "admin" ? "from-violet-600 to-purple-600" :
+    userRole === "instructor" ? "from-emerald-600 to-teal-600" :
+    "from-indigo-600 to-blue-600";
 
   return (
     <div
@@ -95,24 +104,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* HEADER */}
       <div className="p-6 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <div
-            className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
-              userRole === "admin"
-                ? "bg-gradient-to-br from-violet-600 to-purple-600"
-                : "bg-gradient-to-br from-indigo-600 to-blue-600"
-            }`}
-          >
-            {userRole === "admin" ? (
-              <Shield className="w-6 h-6 text-white" />
-            ) : (
-              <BookOpen className="w-6 h-6 text-white" />
-            )}
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br ${gradientClass}`}>
+            {logoIcon}
           </div>
           <div>
             <h1 className="font-bold text-slate-900">Learnix</h1>
-            <p className="text-xs text-slate-500">
-              {userRole === "admin" ? "Admin Portal" : "Student Portal"}
-            </p>
+            <p className="text-xs text-slate-500">{portalLabel}</p>
           </div>
         </div>
       </div>
@@ -122,9 +119,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="space-y-1">
           {menuItems.map((item) => {
             const Icon = item.icon;
-
-            // FIX: exact items only highlight on exact match
-            // Non-exact items highlight when activePath starts with item.path
             const isActive = item.exact
               ? activePath === item.path
               : activePath === item.path || activePath.startsWith(item.path + "/");
@@ -134,17 +128,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 key={item.path}
                 variant={isActive ? "default" : "ghost"}
                 className="w-full justify-start rounded-xl"
-                onClick={() => {
-                  navigate(item.path);
-                  onClose();
-                }}
+                onClick={() => { navigate(item.path); onClose(); }}
               >
                 <Icon className="w-5 h-5 mr-3" />
                 {item.label}
                 {item.badge && (
-                  <Badge className="ml-auto bg-red-500 text-white">
-                    {item.badge}
-                  </Badge>
+                  <Badge className="ml-auto bg-red-500 text-white">{item.badge}</Badge>
                 )}
               </Button>
             );
@@ -156,15 +145,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       <div className="p-4 border-t border-slate-200 bg-slate-50">
         <div className="flex items-center gap-3">
           <Avatar className="w-10 h-10">
-            <AvatarFallback>{initials}</AvatarFallback>
+            <AvatarFallback className={`bg-gradient-to-br ${gradientClass} text-white font-semibold`}>
+              {initials}
+            </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">
-              {user?.username || "User"}
-            </p>
-            <p className="text-xs text-slate-500 truncate">
-              {user?.email || ""}
-            </p>
+            <p className="text-sm font-semibold truncate">{user?.username || "User"}</p>
+            <p className="text-xs text-slate-500 truncate capitalize">{userRole}</p>
           </div>
         </div>
       </div>

@@ -9,7 +9,7 @@ const submissionSchema = new mongoose.Schema(
     },
     assignmentTitle: {
       type:    String,
-      default: "",   // not required — gets filled server-side
+      default: "",
     },
     course: {
       type:    String,
@@ -24,13 +24,9 @@ const submissionSchema = new mongoose.Schema(
       type:    String,
       default: "",
     },
-
-    /* Submission content */
     title:       { type: String, default: "" },
     description: { type: String, default: "" },
     text:        { type: String, default: "" },
-
-    /* Uploaded files */
     files: [
       {
         originalName: String,
@@ -39,8 +35,6 @@ const submissionSchema = new mongoose.Schema(
         size:         Number,
       },
     ],
-
-    /* Grading */
     grade:    { type: String, default: null },
     feedback: { type: String, default: "" },
     gradedAt: { type: Date,   default: null },
@@ -49,7 +43,6 @@ const submissionSchema = new mongoose.Schema(
       ref:     "User",
       default: null,
     },
-
     status: {
       type:    String,
       enum:    ["draft", "submitted", "graded"],
@@ -59,10 +52,8 @@ const submissionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/* Indexes for common queries */
 submissionSchema.index({ studentId: 1, createdAt: -1 });
 submissionSchema.index({ assignmentId: 1 });
 submissionSchema.index({ status: 1 });
 
-const Submission = mongoose.model("Submission", submissionSchema);
-export default Submission;
+export default mongoose.model("Submission", submissionSchema);
