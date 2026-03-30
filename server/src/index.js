@@ -89,9 +89,10 @@ app.use("/api/ai",          aiRoutes);
 
 /* ─── HEALTH ─────────────────────────────────────────── */
 app.get("/health", (_req, res) => {
+  /* Gemini is checked first — it is the primary provider */
   const aiProvider =
-    process.env.ANTHROPIC_API_KEY ? "anthropic" :
     process.env.GEMINI_API_KEY    ? "gemini" :
+    process.env.ANTHROPIC_API_KEY ? "anthropic" :
     "none";
 
   res.json({
@@ -112,10 +113,11 @@ async function start() {
   try {
     await connectDB();
 
+    /* Gemini is shown first in the startup log */
     const aiStatus =
-      process.env.ANTHROPIC_API_KEY ? "Anthropic Claude (configured)" :
-      process.env.GEMINI_API_KEY    ? "Google Gemini (configured)" :
-      "⚠️  No AI key set (add GEMINI_API_KEY for free AI)";
+      process.env.GEMINI_API_KEY    ? "Google Gemini (configured — primary)" :
+      process.env.ANTHROPIC_API_KEY ? "Anthropic Claude (configured — fallback only)" :
+      "⚠️  No AI key set — add GEMINI_API_KEY for free AI (https://aistudio.google.com/app/apikey)";
 
     app.listen(PORT, () => {
       console.log(`\n✅  Server running on http://localhost:${PORT}`);
