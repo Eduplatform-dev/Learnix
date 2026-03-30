@@ -21,7 +21,13 @@
     "type": "git",
     "url": "git+https://github.com/your-org/learnix.git"
   },
-  "keywords": ["lms", "learning", "react", "typescript", "tailwind"],
+  "keywords": [
+    "lms",
+    "learning",
+    "react",
+    "typescript",
+    "tailwind"
+  ],
   "author": "",
   "license": "ISC",
   "type": "module",
@@ -59,6 +65,7 @@
     "embla-carousel-react": "^8.6.0",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.577.0",
+    "mongoose": "^9.3.3",
     "react": "^19.2.4",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.4",
