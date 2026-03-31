@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   /* ─── GLOBAL 401 INTERCEPTOR ─────────────────────────── */
   useEffect(() => {
-    originalFetchRef.current = window.fetch;
+    originalFetchRef.current = window.fetch.bind(window);
 
     const intercepted: typeof fetch = async (...args) => {
       const response = await originalFetchRef.current!(...args);
