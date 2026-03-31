@@ -11,6 +11,7 @@ import { Login } from "./app/components/Login";
 /* ================= STUDENT PAGES ================= */
 import { Dashboard } from "./app/components/pages/student/Dashboard";
 import { Courses } from "./app/components/pages/student/Courses";
+import { CourseViewer } from "./app/components/pages/student/CourseViewer";
 import { Videos } from "./app/components/pages/student/Videos";
 import { Progress } from "./app/components/pages/student/Progress";
 import { Assignments } from "./app/components/pages/student/Assignments";
@@ -50,7 +51,6 @@ function ProtectedLayout({
   children: ReactNode;
 }) {
   if (!userRole) return <Navigate to="/login" replace />;
-
   if (!roles.includes(userRole)) {
     const redirectPath =
       userRole === "admin" ? "/admin/dashboard" :
@@ -58,7 +58,6 @@ function ProtectedLayout({
       "/dashboard";
     return <Navigate to={redirectPath} replace />;
   }
-
   return <>{children}</>;
 }
 
@@ -67,7 +66,6 @@ function ProtectedLayout({
 ========================================================= */
 function AppShell({ children }: { children: ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
@@ -87,6 +85,7 @@ function UserRoutes() {
     <Routes>
       <Route index element={<Dashboard />} />
       <Route path="courses" element={<Courses />} />
+      {/* Course viewer has its own full-screen layout — rendered without AppShell */}
       <Route path="videos" element={<Videos />} />
       <Route path="library" element={<ContentLibrary />} />
       <Route path="progress" element={<Progress />} />
@@ -154,7 +153,6 @@ export default function App() {
   }
 
   const userRole = user?.role ?? null;
-
   const redirectPath =
     !userRole ? "/login" :
     userRole === "admin" ? "/admin/dashboard" :
@@ -167,6 +165,16 @@ export default function App() {
       <Route
         path="/login"
         element={userRole ? <Navigate to={redirectPath} replace /> : <Login />}
+      />
+
+      {/* COURSE VIEWER — Full screen, no sidebar/header shell */}
+      <Route
+        path="/dashboard/courses/:courseId"
+        element={
+          <ProtectedLayout roles={["student"]} userRole={userRole}>
+            <CourseViewer />
+          </ProtectedLayout>
+        }
       />
 
       {/* STUDENT */}

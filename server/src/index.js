@@ -17,6 +17,7 @@ import contentRoutes    from "./routes/contentRoutes.js";
 import submissionRoutes from "./routes/submissionRoutes.js";
 import feeRoutes        from "./routes/feeRoutes.js";
 import aiRoutes         from "./routes/aiRoutes.js";
+import lessonRoutes     from "./routes/lessonRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 const app  = express();
@@ -86,10 +87,10 @@ app.use("/api/content",     contentRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/fees",        feeRoutes);
 app.use("/api/ai",          aiRoutes);
+app.use("/api/lessons",     lessonRoutes);
 
 /* ─── HEALTH ─────────────────────────────────────────── */
 app.get("/health", (_req, res) => {
-  /* Gemini is checked first — it is the primary provider */
   const aiProvider =
     process.env.GEMINI_API_KEY    ? "gemini" :
     process.env.ANTHROPIC_API_KEY ? "anthropic" :
@@ -113,7 +114,6 @@ async function start() {
   try {
     await connectDB();
 
-    /* Gemini is shown first in the startup log */
     const aiStatus =
       process.env.GEMINI_API_KEY    ? "Google Gemini (configured — primary)" :
       process.env.ANTHROPIC_API_KEY ? "Anthropic Claude (configured — fallback only)" :
