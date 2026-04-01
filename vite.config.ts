@@ -15,7 +15,6 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Optionally proxy /api to backend during dev so you avoid CORS issues
       // '/api': 'http://localhost:5000',
     },
   },
@@ -25,29 +24,35 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor:   ["react", "react-dom", "react-router-dom"],
-          recharts: ["recharts"],
-          radix:    [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-tabs",
-            "@radix-ui/react-select",
-          ],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("recharts")) return "recharts";
+
+            if (
+              id.includes("@radix-ui/react-dialog") ||
+              id.includes("@radix-ui/react-dropdown-menu") ||
+              id.includes("@radix-ui/react-tabs") ||
+              id.includes("@radix-ui/react-select")
+            ) {
+              return "radix";
+            }
+
+            return "vendor";
+          }
         },
       },
     },
   },
 
   test: {
-    globals:     true,
+    globals: true,
     environment: "jsdom",
-    setupFiles:  ["./src/test/setup.ts"],
-    include:     ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}"],
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      include:  ["src/app/services/**", "src/app/providers/**"],
+      include: ["src/app/services/**", "src/app/providers/**"],
     },
   },
 });
