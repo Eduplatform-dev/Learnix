@@ -1,11 +1,11 @@
 ﻿import { useEffect, useState, useCallback } from "react";
-import { UserPlus, Trash2, Search } from "lucide-react";
+import { UserPlus, Trash2, Search, Shield } from "lucide-react";
 import { Card, CardContent } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Badge } from "../../ui/badge";
 import { Input } from "../../ui/input";
 import { Avatar, AvatarFallback } from "../../ui/avatar";
-import { getUsers, updateUserRole, deleteUser, createUserDoc, type AdminUser, type UserRole } from "../../../services/userService";
+import { getUsers, deleteUser, createUserDoc, type AdminUser, type UserRole } from "../../../services/userService";
 
 const roleBadge = (role: string) => {
   if (role === "admin")      return "bg-red-100 text-red-700";
@@ -13,12 +13,17 @@ const roleBadge = (role: string) => {
   return "bg-blue-100 text-blue-700";
 };
 
+const roleIcon = (role: string) => {
+  if (role === "admin") return <Shield className="w-3 h-3 mr-1" />;
+  return null;
+};
+
 export function AdminUsers() {
-  const [users,   setUsers]   = useState<AdminUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState("");
-  const [open,    setOpen]    = useState(false);
-  const [form,    setForm]    = useState({ username: "", email: "", password: "", role: "student" as UserRole });
+  const [users,    setUsers]    = useState<AdminUser[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [search,   setSearch]   = useState("");
+  const [open,     setOpen]     = useState(false);
+  const [form,     setForm]     = useState({ username: "", email: "", password: "", role: "student" as UserRole });
   const [addError, setAddError] = useState("");
   const [adding,   setAdding]   = useState(false);
 
@@ -34,14 +39,7 @@ export function AdminUsers() {
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
-  const handleRoleToggle = async (id: string, role: UserRole) => {
-    const newRole: UserRole = role === "admin" ? "student" : role === "instructor" ? "admin" : "instructor";
-    try {
-      await updateUserRole(id, newRole);
-      setUsers((prev) => prev.map((u) => u._id === id ? { ...u, role: newRole } : u));
-    } catch { alert("Role update failed"); }
-  };
-
+  // Role is assigned ONLY at account creation time — no mid-lifecycle cycling
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this user? This cannot be undone.")) return;
     try {
@@ -120,11 +118,17 @@ export function AdminUsers() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className={`text-xs ${roleBadge(u.role)}`}>{u.role}</Badge>
-                  <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => handleRoleToggle(u._id, u.role)}>
-                    Change Role
-                  </Button>
-                  <Button size="sm" variant="ghost" className="h-7 text-red-500 hover:text-red-700" onClick={() => handleDelete(u._id)}>
+                  {/* Role is read-only — assigned at creation, not changeable here */}
+                  <Badge className={`text-xs flex items-center ${roleBadge(u.role)}`}>
+                    {roleIcon(u.role)}
+                    {u.role}
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-red-500 hover:text-red-700"
+                    onClick={() => handleDelete(u._id)}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -134,19 +138,30 @@ export function AdminUsers() {
         </CardContent>
       </Card>
 
+      {/* Add User Modal — role is set HERE, once, at creation time */}
       {open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md">
-            <h3 className="font-semibold text-lg mb-4">Add New User</h3>
+            <h3 className="font-semibold text-lg mb-1">Add New User</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Role is assigned at creation and cannot be changed afterward.
+            </p>
             <div className="space-y-3">
               <Input placeholder="Username" value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} />
               <Input type="email" placeholder="Email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
               <Input type="password" placeholder="Password (min. 6 chars)" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
-              <select className="w-full border rounded-lg px-3 py-2 text-sm" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}>
-                <option value="student">Student</option>
-                <option value="instructor">Instructor</option>
-                <option value="admin">Admin</option>
-              </select>
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Role</label>
+                <select
+                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={form.role}
+                  onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
+                >
+                  <option value="student">Student</option>
+                  <option value="instructor">Instructor</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
             </div>
             {addError && <p className="text-red-500 text-sm mt-2">{addError}</p>}
             <div className="flex justify-end gap-2 mt-5">

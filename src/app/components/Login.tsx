@@ -3,11 +3,8 @@ import { loginUser, registerUser } from "../../app/services/authService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { User, Lock, Mail } from "lucide-react";
-// Asset images — present in original project. Safe fallbacks used if missing.
-const loginImg    = "/src/assets/4d6ab98f39ae75e687adcc13329d1df80212a3d4.png";
-const registerImg = "/src/assets/b087d7bc1149e49b815ebddc955d693760362ab7.png";
 
-/* ── Inline SVG illustrations — zero asset file dependencies ── */
+/* ── Inline SVG illustrations ── */
 const LoginIllustration = () => (
   <svg viewBox="0 0 200 160" className="login-panel-image" xmlns="http://www.w3.org/2000/svg">
     <rect x="25" y="15" width="150" height="110" rx="10" fill="rgba(255,255,255,0.18)" />
@@ -45,7 +42,7 @@ export function Login() {
     username: "",
     email:    "",
     password: "",
-    role:     "student" as "student" | "instructor" | "admin",
+    role:     "student" as "student" | "instructor",
   });
 
   /* Auto-redirect based on role */
@@ -91,7 +88,6 @@ export function Login() {
     <div className={`login-container ${isSignUpMode ? "sign-up-mode" : ""}`}>
       <div className="login-circle-bg" />
 
-      {/* ── Forms container ── */}
       <section className="login-forms-container">
         <div className="login-signin-signup">
 
@@ -128,11 +124,6 @@ export function Login() {
             <button type="submit" className="login-btn solid" disabled={loading}>
               {loading ? "Signing in…" : "Login"}
             </button>
-            <p style={{ fontSize: "0.7rem", color: "#aaa", marginTop: "10px", textAlign: "center", lineHeight: 1.5 }}>
-              Demo: admin@learnix.com / admin123<br />
-              instructor@learnix.com / instructor123<br />
-              student@learnix.com / student123
-            </p>
           </form>
 
           {/* Sign Up form */}
@@ -177,7 +168,7 @@ export function Login() {
               />
             </div>
 
-            {/* Role picker */}
+            {/* Role picker — no admin option for self-registration */}
             <select
               style={{
                 width: "100%", maxWidth: "380px",
@@ -188,7 +179,9 @@ export function Login() {
                 margin: "10px 0", cursor: "pointer", outline: "none",
               }}
               value={signUpData.role}
-              onChange={(e) => setSignUpData({ ...signUpData, role: e.target.value as any })}
+              onChange={(e) =>
+                setSignUpData({ ...signUpData, role: e.target.value as "student" | "instructor" })
+              }
             >
               <option value="student">👩‍🎓 Student</option>
               <option value="instructor">👨‍🏫 Instructor</option>
@@ -202,9 +195,8 @@ export function Login() {
         </div>
       </section>
 
-      {/* ── Side panels ── */}
+      {/* Side panels */}
       <section className="login-panels-container">
-
         <div className={`login-panel left-panel ${isSignUpMode ? "hidden-panel" : ""}`}>
           <div className="login-panel-content">
             <h3 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "6px" }}>New here?</h3>
@@ -230,7 +222,6 @@ export function Login() {
           </div>
           <RegisterIllustration />
         </div>
-
       </section>
     </div>
   );

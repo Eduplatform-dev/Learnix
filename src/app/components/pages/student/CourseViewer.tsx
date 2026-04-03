@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   Play, FileText, Type, HelpCircle, CheckCircle, Lock, ChevronLeft,
   ChevronRight, Menu, X, Clock, BookOpen, Award, BarChart3, ArrowLeft,
-  Circle, PlayCircle, RefreshCw,
+  Circle, PlayCircle, RefreshCw, ExternalLink,
 } from "lucide-react";
 import { Card, CardContent } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -122,6 +122,63 @@ function QuizPlayer({ lesson, onComplete }: { lesson: Lesson; onComplete: () => 
       >
         Submit Quiz
       </Button>
+    </div>
+  );
+}
+
+/* ─── PDF Viewer Component ── */
+function PdfViewer({ url, title, lessonId }: { url: string; title: string; lessonId: string }) {
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  return (
+    <div className="bg-gray-900 flex flex-col" style={{ height: "70vh" }}>
+      {!loadFailed ? (
+        <>
+          <iframe
+            key={lessonId}
+            src={url}
+            className="w-full flex-1 border-0"
+            title={title}
+            onError={() => setLoadFailed(true)}
+          />
+          <div className="bg-gray-800 px-4 py-2 flex items-center justify-between flex-shrink-0">
+            <span className="text-xs text-gray-400">
+              If the PDF doesn't display, use the button to open it.
+            </span>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open in new tab
+            </a>
+          </div>
+        </>
+      ) : (
+        /* Fallback UI when iframe fails */
+        <div className="flex-1 flex flex-col items-center justify-center gap-5 p-8 text-center">
+          <div className="w-16 h-16 bg-red-900/30 rounded-2xl flex items-center justify-center">
+            <FileText className="w-8 h-8 text-red-400" />
+          </div>
+          <div>
+            <p className="text-white font-semibold text-lg mb-1">Unable to display PDF inline</p>
+            <p className="text-gray-400 text-sm max-w-sm">
+              Your browser blocked the embedded viewer. Open the PDF directly to view it.
+            </p>
+          </div>
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-colors"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Open PDF
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -402,25 +459,22 @@ export function CourseViewer() {
                 </div>
               )}
 
-              {/* PDF */}
+              {/* PDF — uses native browser embed, no Google proxy needed */}
               {activeLesson.type === "pdf" && (
-                <div className="bg-gray-900 h-[70vh]">
-                  {activeLesson.contentUrl ? (
-                    <iframe
-                      key={activeLesson._id}
-                      src={`https://docs.google.com/gview?url=${encodeURIComponent(activeLesson.contentUrl)}&embedded=true`}
-                      className="w-full h-full border-0"
-                      title={activeLesson.title}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      <div className="text-center">
-                        <FileText className="w-12 h-12 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">No PDF URL provided</p>
-                      </div>
+                activeLesson.contentUrl ? (
+                  <PdfViewer
+                    url={activeLesson.contentUrl}
+                    title={activeLesson.title}
+                    lessonId={activeLesson._id}
+                  />
+                ) : (
+                  <div className="bg-gray-900 h-[70vh] flex items-center justify-center text-gray-500">
+                    <div className="text-center">
+                      <FileText className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">No PDF URL provided</p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )
               )}
 
               {/* TEXT */}

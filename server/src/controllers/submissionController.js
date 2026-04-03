@@ -26,11 +26,14 @@ export const getSubmissions = async (req, res) => {
 
 export const createSubmission = async (req, res) => {
   try {
+    // NOTE: fileUrl is optional — file uploads are handled via multer in submissionRoutes.js
+    // This controller is kept for backward compatibility only.
+    // Prefer using submissionRoutes.js directly for new functionality.
     const { assignmentId, title, description, fileUrl } = req.body;
 
-    if (!assignmentId || !title || !fileUrl) {
+    if (!assignmentId || !title) {
       return res.status(400).json({
-        error: "Assignment, title and file required",
+        error: "Assignment and title are required",
       });
     }
 
@@ -43,7 +46,8 @@ export const createSubmission = async (req, res) => {
       studentId: req.user._id,
       title: title.trim(),
       description: description?.trim() || "",
-      fileUrl,
+      // fileUrl is optional — only set if provided (legacy support)
+      ...(fileUrl ? { files: [{ url: fileUrl, originalName: "attachment", filename: fileUrl, size: 0 }] } : {}),
     });
 
     res.status(201).json(submission);
