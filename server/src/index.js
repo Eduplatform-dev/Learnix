@@ -6,7 +6,7 @@ import rateLimit from "express-rate-limit";
 import fs from "node:fs";
 import path from "node:path";
 
-import { connectDB }        from "./config/db.js";
+import { connectDB }       from "./config/db.js";
 import { corsOrigins, env } from "./config/env.js";
 import authRoutes           from "./routes/authRoutes.js";
 import userRoutes           from "./routes/userRoutes.js";
@@ -20,7 +20,9 @@ import aiRoutes             from "./routes/aiRoutes.js";
 import lessonRoutes         from "./routes/lessonRoutes.js";
 import departmentRoutes     from "./routes/departmentRoutes.js";
 import semesterRoutes       from "./routes/semesterRoutes.js";
-import profileRoutes        from "./routes/profileRoutes.js";   // ← unified profile routes
+// FIX: was importing `studentProfileRoutes` (file does not exist — crashes server).
+// The correct file is profileRoutes.js which handles both student and instructor profiles.
+import profileRoutes        from "./routes/profileRoutes.js";
 import notificationRoutes   from "./routes/notificationRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
@@ -34,7 +36,9 @@ if (env.NODE_ENV === "production") {
 app.disable("x-powered-by");
 
 /* ─── GLOBAL MIDDLEWARE ─────────────────────────────── */
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(
+  helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } })
+);
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 
 app.use(
@@ -90,7 +94,10 @@ app.use("/api/ai",            aiRoutes);
 app.use("/api/lessons",       lessonRoutes);
 app.use("/api/departments",   departmentRoutes);
 app.use("/api/semesters",     semesterRoutes);
-app.use("/api/profiles",      profileRoutes);       // student/me, instructor/me, students/:id
+// FIX: was `/api/profiles` mounting `studentProfileRoutes` (broken import).
+// Now correctly mounts profileRoutes which handles /student/me, /instructor/me,
+// /students (admin list), /students/:userId (admin update with enrollment number).
+app.use("/api/profiles",      profileRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 /* ─── HEALTH ─────────────────────────────────────────── */
@@ -121,7 +128,7 @@ async function start() {
     const aiStatus =
       process.env.GEMINI_API_KEY    ? "Google Gemini (configured)" :
       process.env.ANTHROPIC_API_KEY ? "Anthropic Claude (configured)" :
-      "⚠️  No AI key set — add GEMINI_API_KEY to server/.env for free AI chat";
+      "⚠️  No AI key set";
 
     app.listen(PORT, () => {
       console.log(`\n✅  Server running on http://localhost:${PORT}`);

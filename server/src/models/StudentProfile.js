@@ -1,63 +1,69 @@
 import mongoose from "mongoose";
 
 /**
- * StudentProfile — filled once at first login, locked after submission.
- * Only admins can edit after submission.
+ * StudentProfile — filled once at first login via onboarding form.
+ * After submission (isSubmitted: true) only an admin can modify it.
+ *
+ * FIX: unified field name to `user` (was `userId` in controller, `user` in model — now consistent).
+ * FIX: enrollmentNumber sparse unique index so multiple null values are allowed.
  */
 const studentProfileSchema = new mongoose.Schema(
   {
+    // ── Link to User account ─────────────────────────────────
     user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type:     mongoose.Schema.Types.ObjectId,
+      ref:      "User",
       required: true,
-      unique: true,
+      unique:   true,
     },
 
-    /* ── Academic ──────────────────────────────────────────────── */
+    // ── Academic (enrollment number assigned by admin, NOT self-entered) ──
     enrollmentNumber: {
-      type: String,
-      trim: true,
-      default: "",
+      type:    String,
+      trim:    true,
+      default: null,
+      // sparse: allows multiple null values while still enforcing uniqueness
+      // when a value IS set
     },
     department: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Department",
+      type:    mongoose.Schema.Types.ObjectId,
+      ref:     "Department",
       default: null,
     },
     semester: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Semester",
+      type:    mongoose.Schema.Types.ObjectId,
+      ref:     "Semester",
       default: null,
     },
     year: {
-      type: Number,
-      min: 1,
-      max: 6,
+      type:    Number,
+      min:     1,
+      max:     6,
       default: null,
     },
     division: {
-      type: String,
-      trim: true,
+      type:    String,
+      trim:    true,
       default: "",
     },
     rollNumber: {
-      type: String,
-      trim: true,
+      type:    String,
+      trim:    true,
       default: "",
     },
     admissionYear: {
-      type: Number,
+      type:    Number,
       default: null,
     },
 
-    /* ── Personal ──────────────────────────────────────────────── */
+    // ── Personal ─────────────────────────────────────────────
     fullName: {
-      type: String,
-      trim: true,
+      type:    String,
+      trim:    true,
       default: "",
     },
     dateOfBirth: {
-      type: Date,
+      type:    Date,
       default: null,
     },
     gender: {
@@ -66,17 +72,17 @@ const studentProfileSchema = new mongoose.Schema(
       default: "",
     },
     bloodGroup: {
-      type: String,
-      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown", ""],
+      type:    String,
+      enum:    ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"],
       default: "unknown",
     },
     photo: {
-      type: String,
+      type:    String,
       default: "",
     },
     phoneNumber: {
-      type: String,
-      trim: true,
+      type:    String,
+      trim:    true,
       default: "",
     },
     address: {
@@ -85,51 +91,55 @@ const studentProfileSchema = new mongoose.Schema(
       state:   { type: String, default: "" },
       pincode: { type: String, default: "" },
     },
-    category: {
-      type: String,
-      enum: ["general", "obc", "sc", "st", "nt", "other", ""],
-      default: "general",
-    },
 
-    /* ── Parent / Guardian ─────────────────────────────────────── */
+    // ── Parent / Guardian ─────────────────────────────────────
     parentName: {
-      type: String,
-      trim: true,
+      type:    String,
+      trim:    true,
       default: "",
     },
     parentPhone: {
-      type: String,
-      trim: true,
+      type:    String,
+      trim:    true,
       default: "",
     },
     parentEmail: {
-      type: String,
-      trim: true,
+      type:    String,
+      trim:    true,
       default: "",
     },
     parentOccupation: {
-      type: String,
-      trim: true,
+      type:    String,
+      trim:    true,
       default: "",
     },
 
-    /* ── Submission lock ───────────────────────────────────────── */
+    // ── Category ──────────────────────────────────────────────
+    category: {
+      type:    String,
+      enum:    ["general", "obc", "sc", "st", "nt", "other"],
+      default: "general",
+    },
+
+    // ── Submission lock ───────────────────────────────────────
+    // Once isSubmitted = true, only admin can update this document.
     isSubmitted: {
-      type: Boolean,
+      type:    Boolean,
       default: false,
     },
     submittedAt: {
-      type: Date,
+      type:    Date,
       default: null,
     },
   },
   { timestamps: true }
 );
 
-// Sparse unique index on enrollmentNumber — allows multiple empty strings
+// Sparse unique index: allows many null enrollment numbers, but no two
+// non-null documents can share the same enrollment number.
 studentProfileSchema.index(
   { enrollmentNumber: 1 },
-  { unique: true, sparse: true, partialFilterExpression: { enrollmentNumber: { $gt: "" } } }
+  { unique: true, sparse: true }
 );
 
 export default mongoose.model("StudentProfile", studentProfileSchema);

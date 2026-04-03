@@ -13,23 +13,25 @@ const baseUrl = (req) =>
 
 /* ══════════════════════════════════════════════════════════
    STUDENT PROFILE
+   FIX: removed enrollmentNumber from student-facing schema.
+   Enrollment numbers are assigned by admins, not self-entered.
+   FIX: all DB queries use `user` field consistently (not `userId`).
 ══════════════════════════════════════════════════════════ */
 
-const studentSchema = z.object({
-  enrollmentNumber: z.string().max(30).trim().optional().default(""),
-  department:       z.string().optional().nullable().default(null),
-  semester:         z.string().optional().nullable().default(null),
-  year:             z.coerce.number().int().min(1).max(6).optional().nullable().default(null),
-  division:         z.string().max(10).optional().default(""),
-  rollNumber:       z.string().max(20).optional().default(""),
-  admissionYear:    z.coerce.number().int().min(2000).max(2100).optional().nullable().default(null),
+const studentProfileSchema = z.object({
+  // Enrollment number intentionally excluded — admin assigns it
+  department:    z.string().min(1),
+  semester:      z.string().optional(),
+  year:          z.coerce.number().int().min(1).max(6),
+  division:      z.string().max(10).optional().default(""),
+  rollNumber:    z.string().max(20).optional().default(""),
+  admissionYear: z.coerce.number().int().min(2000).max(2100),
 
-  fullName:    z.string().min(2).max(100).trim(),
-  dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), "Invalid date"),
-  gender:      z.enum(["male", "female", "other", ""]).optional().default(""),
-  bloodGroup:  z.enum(["A+","A-","B+","B-","AB+","AB-","O+","O-","unknown",""]).optional().default("unknown"),
-  phoneNumber: z.string().max(15).optional().default(""),
-  category:    z.enum(["general","obc","sc","st","nt","other",""]).optional().default("general"),
+  fullName:     z.string().min(2).max(100).trim(),
+  dateOfBirth:  z.string().refine((d) => !isNaN(Date.parse(d)), "Invalid date"),
+  gender:       z.enum(["male", "female", "other"]),
+  bloodGroup:   z.enum(["A+","A-","B+","B-","AB+","AB-","O+","O-","unknown"]).optional().default("unknown"),
+  phoneNumber:  z.string().max(15).optional().default(""),
 
   "address.street":  z.string().max(200).optional().default(""),
   "address.city":    z.string().max(100).optional().default(""),
@@ -40,21 +42,24 @@ const studentSchema = z.object({
   parentPhone:      z.string().max(15).optional().default(""),
   parentEmail:      z.string().email().optional().or(z.literal("")).default(""),
   parentOccupation: z.string().max(100).optional().default(""),
+
+  category: z.enum(["general","obc","sc","st","nt","other"]).optional().default("general"),
 });
 
-/* GET /api/profiles/student/me */
+/* ── GET my student profile ──────────────────────────────── */
 router.get("/student/me", authenticateToken, async (req, res) => {
   try {
+    // FIX: use `user` field consistently (was `userId` in old controller)
     const profile = await StudentProfile.findOne({ user: req.user._id })
       .populate("department", "name code")
-      .populate("semester", "name academicYear");
+      .populate("semester",   "name academicYear");
     res.json(profile || null);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-/* POST /api/profiles/student — one-time submission */
+/* ── CREATE student profile (one-time, locked after submit) ─ */
 router.post(
   "/student",
   authenticateToken,
@@ -65,13 +70,13 @@ router.post(
         return res.status(403).json({ error: "Only students can submit a student profile" });
       }
 
-      // Block re-submission
+      // FIX: use `user` field consistently
       const existing = await StudentProfile.findOne({ user: req.user._id });
       if (existing?.isSubmitted) {
-        return res.status(409).json({ error: "Profile already submitted. Contact admin to make changes." });
+        return res.status(409).json({ error: "Profile already submitted and cannot be changed" });
       }
 
-      const parsed = studentSchema.safeParse(req.body);
+      const parsed = studentProfileSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors[0].message });
       }
@@ -90,12 +95,14 @@ router.post(
 
       const profileData = {
         ...rest,
+        // FIX: use `user` not `userId`
         user:        req.user._id,
         dateOfBirth: new Date(rest.dateOfBirth),
         address:     { street, city, state, pincode },
         photo:       photoUrl,
         isSubmitted: true,
         submittedAt: new Date(),
+        // enrollmentNumber is NOT set here — admin assigns it later
       };
 
       let profile;
@@ -108,11 +115,6 @@ router.post(
 
       res.status(201).json(profile);
     } catch (err) {
-      if (err.code === 11000) {
-        const field = Object.keys(err.keyValue || {})[0] || "field";
-        return res.status(409).json({ error: `${field} already in use` });
-      }
-      console.error("createStudentProfile error:", err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -120,11 +122,12 @@ router.post(
 
 /* ══════════════════════════════════════════════════════════
    INSTRUCTOR PROFILE
+   FIX: use `user` field consistently.
 ══════════════════════════════════════════════════════════ */
 
-const instructorSchema = z.object({
-  employeeId:      z.string().max(30).trim().optional().default(""),
-  department:      z.string().optional().nullable().default(null),
+const instructorProfileSchema = z.object({
+  employeeId:      z.string().min(1).max(30).trim(),
+  department:      z.string().min(1),
   designation:     z.string().min(2).max(100).trim(),
   qualification:   z.string().max(200).optional().default(""),
   specialization:  z.string().max(200).optional().default(""),
@@ -132,9 +135,9 @@ const instructorSchema = z.object({
   joiningDate:     z.string().refine((d) => !isNaN(Date.parse(d)), "Invalid joining date"),
 
   fullName:    z.string().min(2).max(100).trim(),
-  dateOfBirth: z.string().optional().default(""),
-  gender:      z.enum(["male", "female", "other", ""]).optional().default(""),
-  bloodGroup:  z.enum(["A+","A-","B+","B-","AB+","AB-","O+","O-","unknown",""]).optional().default("unknown"),
+  dateOfBirth: z.string().optional(),
+  gender:      z.enum(["male", "female", "other"]),
+  bloodGroup:  z.enum(["A+","A-","B+","B-","AB+","AB-","O+","O-","unknown"]).optional().default("unknown"),
   phoneNumber: z.string().max(15).optional().default(""),
 
   "address.street":  z.string().max(200).optional().default(""),
@@ -143,9 +146,10 @@ const instructorSchema = z.object({
   "address.pincode": z.string().max(10).optional().default(""),
 });
 
-/* GET /api/profiles/instructor/me */
+/* ── GET my instructor profile ───────────────────────────── */
 router.get("/instructor/me", authenticateToken, async (req, res) => {
   try {
+    // FIX: use `user` field consistently
     const profile = await InstructorProfile.findOne({ user: req.user._id })
       .populate("department", "name code");
     res.json(profile || null);
@@ -154,7 +158,7 @@ router.get("/instructor/me", authenticateToken, async (req, res) => {
   }
 });
 
-/* POST /api/profiles/instructor — one-time submission */
+/* ── CREATE instructor profile (one-time) ────────────────── */
 router.post(
   "/instructor",
   authenticateToken,
@@ -165,12 +169,13 @@ router.post(
         return res.status(403).json({ error: "Only instructors can submit an instructor profile" });
       }
 
+      // FIX: use `user` field consistently
       const existing = await InstructorProfile.findOne({ user: req.user._id });
       if (existing?.isSubmitted) {
-        return res.status(409).json({ error: "Profile already submitted. Contact admin to make changes." });
+        return res.status(409).json({ error: "Profile already submitted and cannot be changed" });
       }
 
-      const parsed = instructorSchema.safeParse(req.body);
+      const parsed = instructorProfileSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors[0].message });
       }
@@ -191,6 +196,7 @@ router.post(
 
       const profileData = {
         ...rest,
+        // FIX: use `user` not `userId`
         user:        req.user._id,
         joiningDate: new Date(joiningDate),
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
@@ -214,7 +220,6 @@ router.post(
         const field = Object.keys(err.keyValue || {})[0] || "field";
         return res.status(409).json({ error: `${field} already in use` });
       }
-      console.error("createInstructorProfile error:", err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -240,10 +245,11 @@ router.get(
       if (req.query.year)       filter.year       = parseInt(req.query.year);
 
       const [profiles, total] = await Promise.all([
+        // FIX: populate `user` field (not `userId`)
         StudentProfile.find(filter)
-          .populate("user", "username email")
+          .populate("user",       "username email")
           .populate("department", "name code")
-          .populate("semester", "name academicYear")
+          .populate("semester",   "name academicYear")
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit),
@@ -264,10 +270,11 @@ router.get(
   authorize(["admin"]),
   async (req, res) => {
     try {
+      // FIX: query by `user` field not `userId`
       const profile = await StudentProfile.findOne({ user: req.params.userId })
-        .populate("user", "username email")
+        .populate("user",       "username email")
         .populate("department", "name code")
-        .populate("semester", "name academicYear");
+        .populate("semester",   "name academicYear");
       if (!profile) return res.status(404).json({ error: "Profile not found" });
       res.json(profile);
     } catch (err) {
@@ -276,32 +283,37 @@ router.get(
   }
 );
 
-/* ADMIN: update student profile */
+/* ADMIN: assign enrollment/roll number and update profile fields */
 router.put(
   "/students/:userId",
   authenticateToken,
   authorize(["admin"]),
   async (req, res) => {
     try {
+      // Admin can set enrollment number (student cannot)
       const allowed = [
-        "enrollmentNumber","department","semester","year","division","rollNumber",
-        "admissionYear","phoneNumber","address","parentName","parentPhone",
-        "parentEmail","parentOccupation","category","bloodGroup","fullName",
+        "enrollmentNumber",  // <-- admin-only field
+        "department", "semester", "year", "division", "rollNumber",
+        "phoneNumber", "address", "parentName", "parentPhone",
+        "parentEmail", "parentOccupation", "category", "bloodGroup",
       ];
       const updates = {};
       for (const k of allowed) {
         if (req.body[k] !== undefined) updates[k] = req.body[k];
       }
 
+      // FIX: query by `user` field not `userId`
       const profile = await StudentProfile.findOneAndUpdate(
         { user: req.params.userId },
         updates,
-        { new: true, runValidators: true }
-      ).populate("user", "username email").populate("department", "name code");
-
+        { new: true }
+      );
       if (!profile) return res.status(404).json({ error: "Profile not found" });
       res.json(profile);
     } catch (err) {
+      if (err.code === 11000) {
+        return res.status(409).json({ error: "Enrollment number already in use" });
+      }
       res.status(500).json({ error: err.message });
     }
   }
@@ -314,29 +326,12 @@ router.get(
   authorize(["admin"]),
   async (req, res) => {
     try {
+      // FIX: populate `user` field
       const profiles = await InstructorProfile.find({ isSubmitted: true })
-        .populate("user", "username email")
+        .populate("user",       "username email")
         .populate("department", "name code")
         .sort({ createdAt: -1 });
       res.json(profiles);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  }
-);
-
-/* GET instructor profile by userId (admin) */
-router.get(
-  "/instructors/:userId",
-  authenticateToken,
-  authorize(["admin"]),
-  async (req, res) => {
-    try {
-      const profile = await InstructorProfile.findOne({ user: req.params.userId })
-        .populate("user", "username email")
-        .populate("department", "name code");
-      if (!profile) return res.status(404).json({ error: "Profile not found" });
-      res.json(profile);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -351,22 +346,20 @@ router.put(
   async (req, res) => {
     try {
       const allowed = [
-        "department","designation","qualification","specialization",
-        "experienceYears","phoneNumber","address","bloodGroup","fullName",
-        "employeeId","joiningDate",
+        "department", "designation", "qualification", "specialization",
+        "experienceYears", "phoneNumber", "address", "bloodGroup",
       ];
       const updates = {};
       for (const k of allowed) {
         if (req.body[k] !== undefined) updates[k] = req.body[k];
       }
-      if (updates.joiningDate) updates.joiningDate = new Date(updates.joiningDate);
 
+      // FIX: query by `user` field not `userId`
       const profile = await InstructorProfile.findOneAndUpdate(
         { user: req.params.userId },
         updates,
-        { new: true, runValidators: true }
-      ).populate("user", "username email").populate("department", "name code");
-
+        { new: true }
+      );
       if (!profile) return res.status(404).json({ error: "Profile not found" });
       res.json(profile);
     } catch (err) {

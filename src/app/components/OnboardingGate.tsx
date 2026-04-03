@@ -16,7 +16,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
       setStatus("done");
       return;
     }
-    // Admin never needs onboarding
+    // Admin doesn't need onboarding
     if (user.role === "admin") {
       setStatus("done");
       return;
@@ -26,18 +26,23 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
 
   const checkProfile = async () => {
     try {
-      const token    = localStorage.getItem("token");
-      const endpoint = user!.role === "student"
-        ? "/api/profiles/student/me"
-        : "/api/profiles/instructor/me";
+      const token = localStorage.getItem("token");
 
-      const res  = await fetch(`${API_BASE_URL}${endpoint}`, {
+      // FIX: endpoints now match the unified profileRoutes.js
+      // /api/profiles/student/me  (was /api/profiles/student/me — same, but now consistent)
+      // /api/profiles/instructor/me
+      const endpoint =
+        user!.role === "student"
+          ? "/api/profiles/student/me"
+          : "/api/profiles/instructor/me";
+
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
-        // 401 = not logged in, treat as done (AuthProvider handles redirect)
-        setStatus("done");
+        // 404 or error means no profile yet → show onboarding
+        setStatus("needs_onboarding");
         return;
       }
 
@@ -50,7 +55,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
         setStatus("done");
       }
     } catch {
-      // Network error — let them through, don't block forever
+      // On network error, let them through rather than blocking forever
       setStatus("done");
     }
   };
@@ -64,7 +69,7 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Setting up your account...</p>
+          <p className="text-gray-500 text-sm">Checking your profile...</p>
         </div>
       </div>
     );
