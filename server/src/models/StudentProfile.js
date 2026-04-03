@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 
+/**
+ * StudentProfile — filled once at first login, locked after submission.
+ * Only admins can edit after submission.
+ */
 const studentProfileSchema = new mongoose.Schema(
   {
     user: {
@@ -8,17 +12,17 @@ const studentProfileSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    // Academic
+
+    /* ── Academic ──────────────────────────────────────────────── */
     enrollmentNumber: {
       type: String,
-      required: true,
-      unique: true,
       trim: true,
+      default: "",
     },
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
-      required: true,
+      default: null,
     },
     semester: {
       type: mongoose.Schema.Types.ObjectId,
@@ -27,9 +31,9 @@ const studentProfileSchema = new mongoose.Schema(
     },
     year: {
       type: Number,
-      required: true,
       min: 1,
       max: 6,
+      default: null,
     },
     division: {
       type: String,
@@ -43,27 +47,27 @@ const studentProfileSchema = new mongoose.Schema(
     },
     admissionYear: {
       type: Number,
-      required: true,
+      default: null,
     },
 
-    // Personal
+    /* ── Personal ──────────────────────────────────────────────── */
     fullName: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     dateOfBirth: {
       type: Date,
-      required: true,
+      default: null,
     },
     gender: {
       type: String,
-      enum: ["male", "female", "other"],
-      required: true,
+      enum: ["male", "female", "other", ""],
+      default: "",
     },
     bloodGroup: {
       type: String,
-      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"],
+      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown", ""],
       default: "unknown",
     },
     photo: {
@@ -76,17 +80,22 @@ const studentProfileSchema = new mongoose.Schema(
       default: "",
     },
     address: {
-      street: { type: String, default: "" },
-      city:   { type: String, default: "" },
-      state:  { type: String, default: "" },
-      pincode:{ type: String, default: "" },
+      street:  { type: String, default: "" },
+      city:    { type: String, default: "" },
+      state:   { type: String, default: "" },
+      pincode: { type: String, default: "" },
+    },
+    category: {
+      type: String,
+      enum: ["general", "obc", "sc", "st", "nt", "other", ""],
+      default: "general",
     },
 
-    // Parent / Guardian
+    /* ── Parent / Guardian ─────────────────────────────────────── */
     parentName: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     parentPhone: {
       type: String,
@@ -104,14 +113,7 @@ const studentProfileSchema = new mongoose.Schema(
       default: "",
     },
 
-    // Category
-    category: {
-      type: String,
-      enum: ["general", "obc", "sc", "st", "nt", "other"],
-      default: "general",
-    },
-
-    // Submission is locked once submitted
+    /* ── Submission lock ───────────────────────────────────────── */
     isSubmitted: {
       type: Boolean,
       default: false,
@@ -122,6 +124,12 @@ const studentProfileSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
+);
+
+// Sparse unique index on enrollmentNumber — allows multiple empty strings
+studentProfileSchema.index(
+  { enrollmentNumber: 1 },
+  { unique: true, sparse: true, partialFilterExpression: { enrollmentNumber: { $gt: "" } } }
 );
 
 export default mongoose.model("StudentProfile", studentProfileSchema);

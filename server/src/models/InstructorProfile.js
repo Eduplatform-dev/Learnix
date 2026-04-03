@@ -1,5 +1,9 @@
 import mongoose from "mongoose";
 
+/**
+ * InstructorProfile — filled once at first login, locked after submission.
+ * Only admins can edit after submission.
+ */
 const instructorProfileSchema = new mongoose.Schema(
   {
     user: {
@@ -8,22 +12,22 @@ const instructorProfileSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    // Professional
+
+    /* ── Professional ──────────────────────────────────────────── */
     employeeId: {
       type: String,
-      required: true,
-      unique: true,
       trim: true,
+      default: "",
     },
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",
-      required: true,
+      default: null,
     },
     designation: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     qualification: {
       type: String,
@@ -38,17 +42,18 @@ const instructorProfileSchema = new mongoose.Schema(
     experienceYears: {
       type: Number,
       default: 0,
+      min: 0,
     },
     joiningDate: {
       type: Date,
-      required: true,
+      default: null,
     },
 
-    // Personal
+    /* ── Personal ──────────────────────────────────────────────── */
     fullName: {
       type: String,
-      required: true,
       trim: true,
+      default: "",
     },
     dateOfBirth: {
       type: Date,
@@ -56,12 +61,12 @@ const instructorProfileSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
-      enum: ["male", "female", "other"],
-      required: true,
+      enum: ["male", "female", "other", ""],
+      default: "",
     },
     bloodGroup: {
       type: String,
-      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"],
+      enum: ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown", ""],
       default: "unknown",
     },
     photo: {
@@ -80,7 +85,7 @@ const instructorProfileSchema = new mongoose.Schema(
       pincode: { type: String, default: "" },
     },
 
-    // Submission is locked once submitted
+    /* ── Submission lock ───────────────────────────────────────── */
     isSubmitted: {
       type: Boolean,
       default: false,
@@ -91,6 +96,12 @@ const instructorProfileSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
+);
+
+// Sparse unique index on employeeId
+instructorProfileSchema.index(
+  { employeeId: 1 },
+  { unique: true, sparse: true, partialFilterExpression: { employeeId: { $gt: "" } } }
 );
 
 export default mongoose.model("InstructorProfile", instructorProfileSchema);

@@ -1,6 +1,5 @@
-import { Bell, Search, Menu } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
@@ -14,7 +13,6 @@ import { useEffect, useState } from "react";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const TITLES: Record<string, string> = {
-  // Student
   "/dashboard":              "Home",
   "/dashboard/courses":      "My Courses",
   "/dashboard/videos":       "Video Library",
@@ -24,7 +22,6 @@ const TITLES: Record<string, string> = {
   "/dashboard/submissions":  "Submissions",
   "/dashboard/fees":         "Fee Payment",
   "/dashboard/ai-chat":      "AI Assistant",
-  // Admin
   "/admin/dashboard":        "Admin Dashboard",
   "/admin/users":            "User Management",
   "/admin/courses":          "Course Management",
@@ -33,8 +30,6 @@ const TITLES: Record<string, string> = {
   "/admin/fees":             "Fee Management",
   "/admin/submissions":      "Submissions Review",
   "/admin/settings":         "System Settings",
-  "/admin/departments":      "Departments",
-  // Instructor
   "/instructor/dashboard":   "Instructor Dashboard",
   "/instructor/courses":     "My Courses",
   "/instructor/assignments": "Assignments",
@@ -58,10 +53,9 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const { pathname } = useLocation();
-  const navigate     = useNavigate();
-  const { user, logout } = useAuth();
-
+  const { pathname }        = useLocation();
+  const navigate            = useNavigate();
+  const { user, logout }    = useAuth();
   const [notifications, setNotifications] = useState<NotifItem[]>([]);
   const [unreadCount,   setUnreadCount]   = useState(0);
   const [notifOpen,     setNotifOpen]     = useState(false);
@@ -73,7 +67,6 @@ export function Header({ onMenuClick }: HeaderProps) {
     user?.username?.slice(0, 2).toUpperCase() ||
     user?.email?.slice(0, 2).toUpperCase() ||
     "U";
-
   const displayName = user?.username || user?.email || "User";
 
   /* ── Fetch notifications ── */
@@ -86,16 +79,16 @@ export function Header({ onMenuClick }: HeaderProps) {
       if (!res.ok) return;
       const data = await res.json();
       setNotifications(data.notifications || []);
+      // Only set real unread count from server — never hardcode
       setUnreadCount(data.unreadCount || 0);
     } catch {
-      // Notifications are non-critical
+      // Notifications are non-critical — silent fail
     }
   };
 
   useEffect(() => {
     if (user) {
       fetchNotifications();
-      // Poll every 60 s
       const id = setInterval(fetchNotifications, 60_000);
       return () => clearInterval(id);
     }
@@ -105,7 +98,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     try {
       const token = localStorage.getItem("token");
       await fetch(`${API_BASE_URL}/api/notifications/${id}/read`, {
-        method:  "PATCH",
+        method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
       setNotifications((prev) =>
@@ -119,7 +112,7 @@ export function Header({ onMenuClick }: HeaderProps) {
     try {
       const token = localStorage.getItem("token");
       await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
-        method:  "PATCH",
+        method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
@@ -131,14 +124,14 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   const typeLabel = (type: string) => {
     const map: Record<string, string> = {
-      assignment:          "Assignment",
-      fee_due:             "Fee Due",
-      fee_paid:            "Fee Paid",
-      submission_graded:   "Graded",
-      course_enrolled:     "Enrolled",
-      attendance_warning:  "Attendance",
-      announcement:        "Notice",
-      system:              "System",
+      assignment:         "Assignment",
+      fee_due:            "Fee Due",
+      fee_paid:           "Fee Paid",
+      submission_graded:  "Graded",
+      course_enrolled:    "Enrolled",
+      attendance_warning: "Attendance",
+      announcement:       "Notice",
+      system:             "System",
     };
     return map[type] || "Notice";
   };
@@ -154,19 +147,18 @@ export function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-          {/* Search */}
-          <div className="relative hidden md:block">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <Input type="search" placeholder="Search..." className="pl-10 w-64 bg-slate-50" />
-          </div>
-
           {/* Notifications */}
-          <DropdownMenu modal={false} open={notifOpen} onOpenChange={(o) => { setNotifOpen(o); if (o) fetchNotifications(); }}>
+          <DropdownMenu
+            modal={false}
+            open={notifOpen}
+            onOpenChange={(o) => { setNotifOpen(o); if (o) fetchNotifications(); }}
+          >
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="w-5 h-5" />
+                {/* Only show badge when there are REAL unread notifications */}
                 {unreadCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 min-w-[20px] h-5 flex items-center justify-center p-0 px-1 bg-red-500 text-white text-xs">
+                  <Badge className="absolute -top-1 -right-1 min-w-[20px] h-5 flex items-center justify-center p-0 px-1 bg-red-500 text-white text-xs pointer-events-none">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </Badge>
                 )}
@@ -234,7 +226,6 @@ export function Header({ onMenuClick }: HeaderProps) {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-red-600" onClick={handleLogout}>
                 Logout

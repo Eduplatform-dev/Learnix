@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
 
+/**
+ * Department Model — no HOD linking (kept simple for project scope).
+ */
 const departmentSchema = new mongoose.Schema(
   {
     name: {
@@ -19,12 +22,6 @@ const departmentSchema = new mongoose.Schema(
       type: String,
       default: "",
       trim: true,
-    },
-    hod: {
-      // Head of Department
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
     },
     isActive: {
       type: Boolean,

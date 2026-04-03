@@ -15,20 +15,21 @@ const baseUrl = (req) =>
    STUDENT PROFILE
 ══════════════════════════════════════════════════════════ */
 
-const studentProfileSchema = z.object({
-  enrollmentNumber: z.string().min(1).max(30).trim(),
-  department:       z.string().min(1),
-  semester:         z.string().optional(),
-  year:             z.coerce.number().int().min(1).max(6),
+const studentSchema = z.object({
+  enrollmentNumber: z.string().max(30).trim().optional().default(""),
+  department:       z.string().optional().nullable().default(null),
+  semester:         z.string().optional().nullable().default(null),
+  year:             z.coerce.number().int().min(1).max(6).optional().nullable().default(null),
   division:         z.string().max(10).optional().default(""),
   rollNumber:       z.string().max(20).optional().default(""),
-  admissionYear:    z.coerce.number().int().min(2000).max(2100),
+  admissionYear:    z.coerce.number().int().min(2000).max(2100).optional().nullable().default(null),
 
-  fullName:         z.string().min(2).max(100).trim(),
-  dateOfBirth:      z.string().refine(d => !isNaN(Date.parse(d)), "Invalid date"),
-  gender:           z.enum(["male", "female", "other"]),
-  bloodGroup:       z.enum(["A+","A-","B+","B-","AB+","AB-","O+","O-","unknown"]).optional().default("unknown"),
-  phoneNumber:      z.string().max(15).optional().default(""),
+  fullName:    z.string().min(2).max(100).trim(),
+  dateOfBirth: z.string().refine((d) => !isNaN(Date.parse(d)), "Invalid date"),
+  gender:      z.enum(["male", "female", "other", ""]).optional().default(""),
+  bloodGroup:  z.enum(["A+","A-","B+","B-","AB+","AB-","O+","O-","unknown",""]).optional().default("unknown"),
+  phoneNumber: z.string().max(15).optional().default(""),
+  category:    z.enum(["general","obc","sc","st","nt","other",""]).optional().default("general"),
 
   "address.street":  z.string().max(200).optional().default(""),
   "address.city":    z.string().max(100).optional().default(""),
@@ -39,11 +40,9 @@ const studentProfileSchema = z.object({
   parentPhone:      z.string().max(15).optional().default(""),
   parentEmail:      z.string().email().optional().or(z.literal("")).default(""),
   parentOccupation: z.string().max(100).optional().default(""),
-
-  category:         z.enum(["general","obc","sc","st","nt","other"]).optional().default("general"),
 });
 
-/* GET my student profile (or check if exists) */
+/* GET /api/profiles/student/me */
 router.get("/student/me", authenticateToken, async (req, res) => {
   try {
     const profile = await StudentProfile.findOne({ user: req.user._id })
@@ -55,34 +54,32 @@ router.get("/student/me", authenticateToken, async (req, res) => {
   }
 });
 
-/* CREATE student profile (one-time, locked after submit) */
+/* POST /api/profiles/student — one-time submission */
 router.post(
   "/student",
   authenticateToken,
   upload.single("photo"),
   async (req, res) => {
     try {
-      // Only students can fill this
       if (req.user.role !== "student") {
         return res.status(403).json({ error: "Only students can submit a student profile" });
       }
 
-      // Check if already submitted
+      // Block re-submission
       const existing = await StudentProfile.findOne({ user: req.user._id });
       if (existing?.isSubmitted) {
-        return res.status(409).json({ error: "Profile already submitted and cannot be changed" });
+        return res.status(409).json({ error: "Profile already submitted. Contact admin to make changes." });
       }
 
-      const body = { ...req.body };
-      const parsed = studentProfileSchema.safeParse(body);
+      const parsed = studentSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors[0].message });
       }
 
       const {
         "address.street": street,
-        "address.city": city,
-        "address.state": state,
+        "address.city":   city,
+        "address.state":  state,
         "address.pincode": pincode,
         ...rest
       } = parsed.data;
@@ -93,17 +90,16 @@ router.post(
 
       const profileData = {
         ...rest,
-        user: req.user._id,
+        user:        req.user._id,
         dateOfBirth: new Date(rest.dateOfBirth),
-        address: { street, city, state, pincode },
-        photo: photoUrl,
+        address:     { street, city, state, pincode },
+        photo:       photoUrl,
         isSubmitted: true,
         submittedAt: new Date(),
       };
 
       let profile;
       if (existing) {
-        // Update draft (not yet submitted)
         Object.assign(existing, profileData);
         profile = await existing.save();
       } else {
@@ -116,6 +112,7 @@ router.post(
         const field = Object.keys(err.keyValue || {})[0] || "field";
         return res.status(409).json({ error: `${field} already in use` });
       }
+      console.error("createStudentProfile error:", err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -125,20 +122,20 @@ router.post(
    INSTRUCTOR PROFILE
 ══════════════════════════════════════════════════════════ */
 
-const instructorProfileSchema = z.object({
-  employeeId:       z.string().min(1).max(30).trim(),
-  department:       z.string().min(1),
-  designation:      z.string().min(2).max(100).trim(),
-  qualification:    z.string().max(200).optional().default(""),
-  specialization:   z.string().max(200).optional().default(""),
-  experienceYears:  z.coerce.number().int().min(0).max(50).optional().default(0),
-  joiningDate:      z.string().refine(d => !isNaN(Date.parse(d)), "Invalid joining date"),
+const instructorSchema = z.object({
+  employeeId:      z.string().max(30).trim().optional().default(""),
+  department:      z.string().optional().nullable().default(null),
+  designation:     z.string().min(2).max(100).trim(),
+  qualification:   z.string().max(200).optional().default(""),
+  specialization:  z.string().max(200).optional().default(""),
+  experienceYears: z.coerce.number().int().min(0).max(50).optional().default(0),
+  joiningDate:     z.string().refine((d) => !isNaN(Date.parse(d)), "Invalid joining date"),
 
-  fullName:         z.string().min(2).max(100).trim(),
-  dateOfBirth:      z.string().optional(),
-  gender:           z.enum(["male", "female", "other"]),
-  bloodGroup:       z.enum(["A+","A-","B+","B-","AB+","AB-","O+","O-","unknown"]).optional().default("unknown"),
-  phoneNumber:      z.string().max(15).optional().default(""),
+  fullName:    z.string().min(2).max(100).trim(),
+  dateOfBirth: z.string().optional().default(""),
+  gender:      z.enum(["male", "female", "other", ""]).optional().default(""),
+  bloodGroup:  z.enum(["A+","A-","B+","B-","AB+","AB-","O+","O-","unknown",""]).optional().default("unknown"),
+  phoneNumber: z.string().max(15).optional().default(""),
 
   "address.street":  z.string().max(200).optional().default(""),
   "address.city":    z.string().max(100).optional().default(""),
@@ -146,7 +143,7 @@ const instructorProfileSchema = z.object({
   "address.pincode": z.string().max(10).optional().default(""),
 });
 
-/* GET my instructor profile */
+/* GET /api/profiles/instructor/me */
 router.get("/instructor/me", authenticateToken, async (req, res) => {
   try {
     const profile = await InstructorProfile.findOne({ user: req.user._id })
@@ -157,7 +154,7 @@ router.get("/instructor/me", authenticateToken, async (req, res) => {
   }
 });
 
-/* CREATE instructor profile (one-time) */
+/* POST /api/profiles/instructor — one-time submission */
 router.post(
   "/instructor",
   authenticateToken,
@@ -170,18 +167,18 @@ router.post(
 
       const existing = await InstructorProfile.findOne({ user: req.user._id });
       if (existing?.isSubmitted) {
-        return res.status(409).json({ error: "Profile already submitted and cannot be changed" });
+        return res.status(409).json({ error: "Profile already submitted. Contact admin to make changes." });
       }
 
-      const parsed = instructorProfileSchema.safeParse(req.body);
+      const parsed = instructorSchema.safeParse(req.body);
       if (!parsed.success) {
         return res.status(400).json({ error: parsed.error.errors[0].message });
       }
 
       const {
-        "address.street": street,
-        "address.city": city,
-        "address.state": state,
+        "address.street":  street,
+        "address.city":    city,
+        "address.state":   state,
         "address.pincode": pincode,
         dateOfBirth,
         joiningDate,
@@ -194,11 +191,11 @@ router.post(
 
       const profileData = {
         ...rest,
-        user: req.user._id,
+        user:        req.user._id,
         joiningDate: new Date(joiningDate),
         dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        address: { street, city, state, pincode },
-        photo: photoUrl,
+        address:     { street, city, state, pincode },
+        photo:       photoUrl,
         isSubmitted: true,
         submittedAt: new Date(),
       };
@@ -217,6 +214,7 @@ router.post(
         const field = Object.keys(err.keyValue || {})[0] || "field";
         return res.status(409).json({ error: `${field} already in use` });
       }
+      console.error("createInstructorProfile error:", err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -278,7 +276,7 @@ router.get(
   }
 );
 
-/* ADMIN: update student profile (admin override — not restricted) */
+/* ADMIN: update student profile */
 router.put(
   "/students/:userId",
   authenticateToken,
@@ -286,9 +284,9 @@ router.put(
   async (req, res) => {
     try {
       const allowed = [
-        "department","semester","year","division","rollNumber",
-        "phoneNumber","address","parentName","parentPhone",
-        "parentEmail","parentOccupation","category","bloodGroup",
+        "enrollmentNumber","department","semester","year","division","rollNumber",
+        "admissionYear","phoneNumber","address","parentName","parentPhone",
+        "parentEmail","parentOccupation","category","bloodGroup","fullName",
       ];
       const updates = {};
       for (const k of allowed) {
@@ -298,8 +296,9 @@ router.put(
       const profile = await StudentProfile.findOneAndUpdate(
         { user: req.params.userId },
         updates,
-        { new: true }
-      );
+        { new: true, runValidators: true }
+      ).populate("user", "username email").populate("department", "name code");
+
       if (!profile) return res.status(404).json({ error: "Profile not found" });
       res.json(profile);
     } catch (err) {
@@ -326,6 +325,24 @@ router.get(
   }
 );
 
+/* GET instructor profile by userId (admin) */
+router.get(
+  "/instructors/:userId",
+  authenticateToken,
+  authorize(["admin"]),
+  async (req, res) => {
+    try {
+      const profile = await InstructorProfile.findOne({ user: req.params.userId })
+        .populate("user", "username email")
+        .populate("department", "name code");
+      if (!profile) return res.status(404).json({ error: "Profile not found" });
+      res.json(profile);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
 /* ADMIN: update instructor profile */
 router.put(
   "/instructors/:userId",
@@ -335,18 +352,21 @@ router.put(
     try {
       const allowed = [
         "department","designation","qualification","specialization",
-        "experienceYears","phoneNumber","address","bloodGroup",
+        "experienceYears","phoneNumber","address","bloodGroup","fullName",
+        "employeeId","joiningDate",
       ];
       const updates = {};
       for (const k of allowed) {
         if (req.body[k] !== undefined) updates[k] = req.body[k];
       }
+      if (updates.joiningDate) updates.joiningDate = new Date(updates.joiningDate);
 
       const profile = await InstructorProfile.findOneAndUpdate(
         { user: req.params.userId },
         updates,
-        { new: true }
-      );
+        { new: true, runValidators: true }
+      ).populate("user", "username email").populate("department", "name code");
+
       if (!profile) return res.status(404).json({ error: "Profile not found" });
       res.json(profile);
     } catch (err) {

@@ -2,34 +2,35 @@
   Home, BookOpen, PlayCircle, LineChart, FileText,
   Upload, DollarSign, MessageSquare, Users, Settings,
   BarChart3, FolderOpen, Shield, GraduationCap, CheckSquare,
+  UserCheck,
 } from "lucide-react";
 
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
+import { Button }   from "./ui/button";
+import { Badge }    from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
-import { useAuth } from "../providers/AuthProvider";
+import { useAuth }  from "../providers/AuthProvider";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 
 type UserRole = "student" | "admin" | "instructor";
 
 type MenuItem = {
-  path: string;
-  label: string;
-  icon: LucideIcon;
+  path:   string;
+  label:  string;
+  icon:   LucideIcon;
   badge?: number;
   exact?: boolean;
 };
 
 interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen:   boolean;
+  onClose:  () => void;
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
-  const { user } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
+  const { user }   = useAuth();
+  const location   = useLocation();
+  const navigate   = useNavigate();
 
   const userRole = user?.role as UserRole | undefined;
   if (!userRole) return null;
@@ -40,58 +41,58 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     ? user.username.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() || "U";
 
-  /* ================= MENUS ================= */
-
+  /* ── Menu definitions ── */
   const studentMenu: MenuItem[] = [
-    { path: "/dashboard", label: "Home", icon: Home, exact: true },
-    { path: "/dashboard/courses", label: "My Courses", icon: BookOpen },
-    { path: "/dashboard/videos", label: "Video Library", icon: PlayCircle },
-    { path: "/dashboard/library", label: "Resources", icon: FolderOpen },
-    { path: "/dashboard/progress", label: "My Progress", icon: LineChart },
-    { path: "/dashboard/assignments", label: "Assignments", icon: FileText },
-    { path: "/dashboard/submissions", label: "Submissions", icon: Upload },
-    { path: "/dashboard/fees", label: "Fee Payment", icon: DollarSign },
-    { path: "/dashboard/ai-chat", label: "AI Assistant", icon: MessageSquare },
+    { path: "/dashboard",             label: "Home",          icon: Home,         exact: true },
+    { path: "/dashboard/courses",     label: "My Courses",    icon: BookOpen },
+    { path: "/dashboard/videos",      label: "Video Library", icon: PlayCircle },
+    { path: "/dashboard/library",     label: "Resources",     icon: FolderOpen },
+    { path: "/dashboard/progress",    label: "My Progress",   icon: LineChart },
+    { path: "/dashboard/assignments", label: "Assignments",   icon: FileText },
+    { path: "/dashboard/submissions", label: "Submissions",   icon: Upload },
+    { path: "/dashboard/fees",        label: "Fee Payment",   icon: DollarSign },
+    { path: "/dashboard/ai-chat",     label: "AI Assistant",  icon: MessageSquare },
   ];
 
   const adminMenu: MenuItem[] = [
-    { path: "/admin/dashboard", label: "Dashboard", icon: BarChart3, exact: true },
-    { path: "/admin/users", label: "Students", icon: Users },
-    { path: "/admin/courses", label: "Courses", icon: BookOpen },
-    { path: "/admin/analytics", label: "Analytics", icon: LineChart },
-    { path: "/admin/content", label: "Content", icon: FolderOpen },
-    { path: "/admin/fees", label: "Fees", icon: DollarSign },
-    { path: "/admin/submissions", label: "Submissions", icon: Upload },
-    { path: "/admin/settings", label: "Settings", icon: Settings },
+    { path: "/admin/dashboard",   label: "Dashboard",    icon: BarChart3,  exact: true },
+    { path: "/admin/users",       label: "Users",        icon: Users },
+    { path: "/admin/profiles",    label: "Profiles",     icon: UserCheck },  // ← new
+    { path: "/admin/courses",     label: "Courses",      icon: BookOpen },
+    { path: "/admin/analytics",   label: "Analytics",    icon: LineChart },
+    { path: "/admin/content",     label: "Content",      icon: FolderOpen },
+    { path: "/admin/fees",        label: "Fees",         icon: DollarSign },
+    { path: "/admin/submissions", label: "Submissions",  icon: Upload },
+    { path: "/admin/settings",    label: "Settings",     icon: Settings },
   ];
 
   const instructorMenu: MenuItem[] = [
-    { path: "/instructor/dashboard", label: "Dashboard", icon: Home, exact: true },
-    { path: "/instructor/courses", label: "My Courses", icon: BookOpen },
+    { path: "/instructor/dashboard",   label: "Dashboard",   icon: Home,        exact: true },
+    { path: "/instructor/courses",     label: "My Courses",  icon: BookOpen },
     { path: "/instructor/assignments", label: "Assignments", icon: FileText },
-    { path: "/instructor/submissions", label: "Grade Work", icon: CheckSquare },
-    { path: "/instructor/students", label: "Students", icon: Users },
-    { path: "/instructor/content", label: "Content", icon: FolderOpen },
-    { path: "/instructor/ai-chat", label: "AI Assistant", icon: MessageSquare },
+    { path: "/instructor/submissions", label: "Grade Work",  icon: CheckSquare },
+    { path: "/instructor/students",    label: "Students",    icon: Users },
+    { path: "/instructor/content",     label: "Content",     icon: FolderOpen },
+    { path: "/instructor/ai-chat",     label: "AI Assistant",icon: MessageSquare },
   ];
 
   const menuItems =
-    userRole === "admin" ? adminMenu :
+    userRole === "admin"      ? adminMenu :
     userRole === "instructor" ? instructorMenu :
     studentMenu;
 
   const portalLabel =
-    userRole === "admin" ? "Admin Portal" :
+    userRole === "admin"      ? "Admin Portal" :
     userRole === "instructor" ? "Instructor Portal" :
     "Student Portal";
 
   const logoIcon =
-    userRole === "admin" ? <Shield className="w-6 h-6 text-white" /> :
+    userRole === "admin"      ? <Shield        className="w-6 h-6 text-white" /> :
     userRole === "instructor" ? <GraduationCap className="w-6 h-6 text-white" /> :
     <BookOpen className="w-6 h-6 text-white" />;
 
   const gradientClass =
-    userRole === "admin" ? "from-violet-600 to-purple-600" :
+    userRole === "admin"      ? "from-violet-600 to-purple-600" :
     userRole === "instructor" ? "from-emerald-600 to-teal-600" :
     "from-indigo-600 to-blue-600";
 
@@ -101,7 +102,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         isOpen ? "translate-x-0" : "-translate-x-full"
       } lg:translate-x-0`}
     >
-      {/* HEADER */}
+      {/* Header */}
       <div className="p-6 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br ${gradientClass}`}>
@@ -114,7 +115,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       </div>
 
-      {/* MENU */}
+      {/* Menu */}
       <nav className="flex-1 p-4 overflow-y-auto">
         <div className="space-y-1">
           {menuItems.map((item) => {
@@ -132,7 +133,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               >
                 <Icon className="w-5 h-5 mr-3" />
                 {item.label}
-                {item.badge && (
+                {item.badge !== undefined && (
                   <Badge className="ml-auto bg-red-500 text-white">{item.badge}</Badge>
                 )}
               </Button>
@@ -141,7 +142,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       </nav>
 
-      {/* USER INFO */}
+      {/* User info */}
       <div className="p-4 border-t border-slate-200 bg-slate-50">
         <div className="flex items-center gap-3">
           <Avatar className="w-10 h-10">
