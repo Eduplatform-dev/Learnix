@@ -2,7 +2,6 @@
   Home, BookOpen, PlayCircle, LineChart, FileText,
   Upload, DollarSign, MessageSquare, Users, Settings,
   BarChart3, FolderOpen, Shield, GraduationCap, CheckSquare,
-  UserCheck,
 } from "lucide-react";
 
 import { Button }   from "./ui/button";
@@ -41,7 +40,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     ? user.username.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : user?.email?.slice(0, 2).toUpperCase() || "U";
 
-  /* ── Menu definitions ── */
   const studentMenu: MenuItem[] = [
     { path: "/dashboard",             label: "Home",          icon: Home,         exact: true },
     { path: "/dashboard/courses",     label: "My Courses",    icon: BookOpen },
