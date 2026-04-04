@@ -1,8 +1,5 @@
 import mongoose from "mongoose";
 
-/**
- * Course Model — updated to link with Department and AcademicYear/Semester.
- */
 const courseSchema = new mongoose.Schema(
   {
     title: {
@@ -37,17 +34,55 @@ const courseSchema = new mongoose.Schema(
       min:     0,
       max:     5,
     },
+
+    // ── Course Type ────────────────────────────────────────────
+    // academic: free, linked to department + semester, only that branch/sem can enroll
+    // private:  instructor-controlled, can be free or paid
+    courseType: {
+      type:    String,
+      enum:    ["academic", "private"],
+      default: "private",
+    },
+
+    // ── Pricing (only relevant for private courses) ────────────
+    isFree: {
+      type:    Boolean,
+      default: true,
+    },
+    price: {
+      type:    Number,
+      default: 0,
+      min:     0,
+    },
+
+    // ── Approval flow ──────────────────────────────────────────
+    // pending_approval: instructor just created/submitted for review
+    // approved:         admin approved, visible and enrollable
+    // rejected:         admin rejected with a reason
+    approvalStatus: {
+      type:    String,
+      enum:    ["pending_approval", "approved", "rejected"],
+      default: "pending_approval",
+    },
+    rejectionNote: {
+      type:    String,
+      default: "",
+      trim:    true,
+    },
+
+    // legacy status field kept for archive/active toggling by admin
     status: {
       type:    String,
       enum:    ["active", "completed", "archived", "pending_approval"],
       default: "active",
     },
+
     image: {
       type:    String,
       default: "",
     },
 
-    // ── NEW: College structure fields ──────────────────────────
+    // ── Academic course fields ─────────────────────────────────
     department: {
       type:    mongoose.Schema.Types.ObjectId,
       ref:     "Department",
@@ -58,20 +93,17 @@ const courseSchema = new mongoose.Schema(
       ref:     "AcademicYear",
       default: null,
     },
-    // The semester number this course belongs to (1–8)
     semesterNumber: {
       type:    Number,
       min:     1,
       max:     8,
       default: null,
     },
-    // Subject / course code, e.g. "CS301"
     subjectCode: {
       type:    String,
       trim:    true,
       default: "",
     },
-    // Credit hours
     credits: {
       type:    Number,
       default: 0,
@@ -81,8 +113,8 @@ const courseSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Indexes for common queries
 courseSchema.index({ department: 1, semesterNumber: 1 });
 courseSchema.index({ academicYear: 1 });
+courseSchema.index({ approvalStatus: 1 });
 
 export default mongoose.model("Course", courseSchema);

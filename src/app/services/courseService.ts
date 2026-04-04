@@ -1,11 +1,13 @@
 import { getAuthHeader } from "./authService";
 
-export type CourseStatus = "In Progress" | "Completed" | "Not Started" | "active" | "archived";
+export type CourseStatus   = "In Progress" | "Completed" | "Not Started" | "active" | "archived";
+export type CourseType     = "academic" | "private";
+export type ApprovalStatus = "pending_approval" | "approved" | "rejected";
 
 export type Course = {
   _id:              string;
   title:            string;
-  instructor:       string;
+  instructor:       string | { _id: string; username: string; email: string };
   duration:         string;
   students:         number;
   rating:           number;
@@ -14,6 +16,16 @@ export type Course = {
   image:            string;
   enrolledStudents?: string[];
   description?:     string;
+  // New fields
+  courseType:       CourseType;
+  isFree:           boolean;
+  price:            number;
+  approvalStatus:   ApprovalStatus;
+  rejectionNote?:   string;
+  department?:      any;
+  semesterNumber?:  number | null;
+  subjectCode?:     string;
+  credits?:         number;
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
@@ -23,7 +35,7 @@ const normaliseCourse = (c: any): Course => ({
   _id:        c._id,
   title:      c.title       || "",
   instructor: typeof c.instructor === "object" && c.instructor !== null
-    ? (c.instructor.username || c.instructor.email || "")
+    ? c.instructor
     : (c.instructor || ""),
   duration:   c.duration    || "",
   students:   c.enrolledStudents?.length ?? c.students ?? 0,
@@ -31,7 +43,16 @@ const normaliseCourse = (c: any): Course => ({
   progress:   c.progress    ?? 0,
   status:     c.status      || "active",
   image:      c.image       || "",
-  description: c.description || "",
+  description:     c.description     || "",
+  courseType:      c.courseType      || "private",
+  isFree:          c.isFree          ?? true,
+  price:           c.price           ?? 0,
+  approvalStatus:  c.approvalStatus  || "pending_approval",
+  rejectionNote:   c.rejectionNote   || "",
+  department:      c.department      ?? null,
+  semesterNumber:  c.semesterNumber  ?? null,
+  subjectCode:     c.subjectCode     || "",
+  credits:         c.credits         ?? 0,
 });
 
 export const getCourses = async (): Promise<Course[]> => {
@@ -55,10 +76,16 @@ export const getCourseById = async (id: string): Promise<Course> => {
 };
 
 export const createCourse = async (data: {
-  title:        string;
-  instructor?:  string;
-  duration:     string;
-  description?: string;
+  title:          string;
+  duration:       string;
+  description?:   string;
+  courseType?:    CourseType;
+  isFree?:        boolean;
+  price?:         number;
+  department?:    string | null;
+  semesterNumber?: number | null;
+  subjectCode?:   string;
+  credits?:       number;
 }): Promise<Course> => {
   const res = await fetch(API, {
     method:  "POST",
