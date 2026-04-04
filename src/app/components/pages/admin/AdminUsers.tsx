@@ -681,24 +681,6 @@ function OverviewAnalytics({ counts, users }: { counts: { students: number; inst
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: "Total Users", value: counts.total, icon: Users, color: "text-indigo-600", bg: "bg-indigo-50", desc: "Excludes admins" },
-          { label: "Students", value: counts.students, icon: GraduationCap, color: "text-blue-600", bg: "bg-blue-50", desc: "Registered students" },
-          { label: "Instructors", value: counts.instructors, icon: Briefcase, color: "text-emerald-600", bg: "bg-emerald-50", desc: "Active faculty" },
-        ].map((s) => {
-          const Icon = s.icon;
-          return (
-            <Card key={s.label}><CardContent className="p-5">
-              <div className={`w-10 h-10 ${s.bg} rounded-xl flex items-center justify-center mb-3`}><Icon className={`w-5 h-5 ${s.color}`} /></div>
-              <p className="text-3xl font-bold text-gray-900">{s.value}</p>
-              <p className="text-sm font-medium text-gray-700">{s.label}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{s.desc}</p>
-            </CardContent></Card>
-          );
-        })}
-      </div>
-
       <Card>
         <CardHeader><CardTitle className="text-sm">Registration Trend (last 6 months)</CardTitle></CardHeader>
         <CardContent>
