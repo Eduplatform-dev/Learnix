@@ -811,14 +811,19 @@ export function AdminUsers() {
             onClick={() => setActiveView(key)}
             className={`cursor-pointer transition-all hover:shadow-lg ${activeView === key ? "ring-2 ring-offset-1 ring-indigo-500 shadow-md" : ""}`}
           >
-            <CardContent className="p-5">
-              <div className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center mb-3`}>
-                <Icon className="w-6 h-6 text-white" />
-              </div>
-              <p className="text-3xl font-bold text-gray-900">{count}</p>
-              <p className="text-sm font-medium text-gray-700">{label}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
-            </CardContent>
+            <CardContent className="py-5 pr-12  flex items-center gap-2">
+  {/* Left - Icon */}
+  <div className={`w-15 h-15 bg-gradient-to-br ${gradient} rounded-lg flex items-center justify-center shrink-0`}>
+    <Icon className="w-9 h-9 text-white" />
+  </div>
+
+  {/* Right - Text */}
+  <div className="flex flex-col flex-1 items-end text-right">
+    <p className="text-2xl font-bold text-gray-900 leading-tight">{count}</p>
+    <p className="text-sm font-bold text-gray-900 leading-tight">{label}</p>
+    <p className="text-xs text-gray-400 leading-tight">{desc}</p>
+  </div>
+</CardContent>
           </Card>
         ))}
       </div>
