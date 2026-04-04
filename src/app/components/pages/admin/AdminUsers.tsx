@@ -2,14 +2,15 @@
 import {
   Users, GraduationCap, Shield, Search, BarChart2, X,
   ChevronRight, BookOpen, FileText, CheckCircle, Clock,
-  TrendingUp, Award, AlertCircle, UserCheck, Briefcase,
+  TrendingUp, Award, AlertCircle, Briefcase, Edit,
+  UserCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
+import { Label } from "../../ui/label";
 import { Badge } from "../../ui/badge";
 import { Avatar, AvatarFallback } from "../../ui/avatar";
-import { Progress } from "../../ui/progress";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell,
@@ -45,6 +46,8 @@ type StudentProfile = {
   parentPhone:      string;
   isSubmitted:      boolean;
   admissionYear:    number | null;
+  user:             { _id: string; username: string; email: string };
+  createdAt:        string;
 };
 
 type InstructorProfile = {
@@ -62,6 +65,7 @@ type InstructorProfile = {
   photo:           string;
   joiningDate:     string;
   isSubmitted:     boolean;
+  user:            { _id: string; username: string; email: string };
 };
 
 type Analysis = {
@@ -75,14 +79,15 @@ type Analysis = {
   courseBreakdown:    { name: string; percent: number }[];
   submissionTrend:    { month: string; count: number }[];
   gradeDistribution:  { range: string; count: number }[];
-  // instructor
   coursesCreated?:    number;
   totalStudentsTaught?: number;
-  assignmentsCreated?:  number;
   pendingToGrade?:      number;
   gradedTotal?:         number;
   avgGradeGiven?:       number | null;
 };
+
+/* ── Active tab type ── */
+type ActiveTab = "student" | "instructor" | "admin" | "profiles";
 
 function authHeader() {
   const t = localStorage.getItem("token");
@@ -113,15 +118,8 @@ function StudentAnalysisModal({
   useEffect(() => {
     const load = async () => {
       try {
-        // Fetch submissions for this student
-        const [submissions, courses] = await Promise.all([
-          apiFetch<any[]>(`/api/submissions?studentId=${user._id}&limit=200`).catch(() => []),
-          apiFetch<any>(`/api/courses?limit=200`).catch(() => ({ courses: [] })),
-        ]);
-
+        const submissions = await apiFetch<any[]>(`/api/submissions?studentId=${user._id}&limit=200`).catch(() => []);
         const subs = Array.isArray(submissions) ? submissions : [];
-        const allCourses = courses?.courses ?? [];
-
         const graded   = subs.filter((s: any) => s.status === "graded");
         const grades   = graded
           .map((s: any) => {
@@ -136,7 +134,6 @@ function StudentAnalysisModal({
           ? Math.round(grades.reduce((a: number, b: number) => a + b, 0) / grades.length)
           : null;
 
-        // Submission trend last 6 months
         const now    = new Date();
         const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
         const trend  = Array.from({ length: 6 }, (_, i) => {
@@ -148,7 +145,6 @@ function StudentAnalysisModal({
           return { month: months[d.getMonth()], count };
         });
 
-        // Grade distribution
         const gradeRanges = [
           { range: "90-100", min: 90, max: 100 },
           { range: "75-89",  min: 75, max: 89  },
@@ -161,10 +157,7 @@ function StudentAnalysisModal({
         }));
 
         setAnalysis({
-          enrolledCourses:   0,
-          completedCourses:  0,
-          totalLessons:      0,
-          completedLessons:  0,
+          enrolledCourses: 0, completedCourses: 0, totalLessons: 0, completedLessons: 0,
           totalSubmissions:  subs.length,
           gradedSubmissions: graded.length,
           averageGrade:      avgGrade,
@@ -182,7 +175,6 @@ function StudentAnalysisModal({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
-        {/* Header */}
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -202,7 +194,6 @@ function StudentAnalysisModal({
           </div>
         ) : (
           <div className="p-6 space-y-6">
-            {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: "Total Submissions", value: analysis?.totalSubmissions ?? 0,  icon: FileText,    color: "text-indigo-600",  bg: "bg-indigo-50" },
@@ -226,7 +217,6 @@ function StudentAnalysisModal({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Submission Trend */}
               <Card>
                 <CardHeader><CardTitle className="text-sm">Submission Activity (6 Months)</CardTitle></CardHeader>
                 <CardContent>
@@ -246,7 +236,6 @@ function StudentAnalysisModal({
                 </CardContent>
               </Card>
 
-              {/* Grade Distribution */}
               <Card>
                 <CardHeader><CardTitle className="text-sm">Grade Distribution</CardTitle></CardHeader>
                 <CardContent>
@@ -254,7 +243,7 @@ function StudentAnalysisModal({
                     <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
                         <Pie data={analysis.gradeDistribution.filter(d => d.count > 0)} dataKey="count" nameKey="range" cx="50%" cy="50%" outerRadius={80} label={(props: any) => `${props.range}: ${props.count}`}>
-                          {analysis.gradeDistribution.filter(d => d.count > 0).map((_, i) => (
+                          {analysis.gradeDistribution.filter(d => d.count > 0).map((_: any, i: number) => (
                             <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
                           ))}
                         </Pie>
@@ -268,7 +257,6 @@ function StudentAnalysisModal({
               </Card>
             </div>
 
-            {/* Profile Info */}
             {profile && (
               <Card>
                 <CardHeader><CardTitle className="text-sm">Profile Details</CardTitle></CardHeader>
@@ -286,7 +274,7 @@ function StudentAnalysisModal({
                       ["Parent",         profile.parentName || "—"],
                       ["Parent Phone",   profile.parentPhone || "—"],
                       ["Admission Year", profile.admissionYear?.toString() || "—"],
-                      ["Email",          "—"],
+                      ["Email",          user.email],
                     ].map(([k, v]) => (
                       <div key={k} className="bg-gray-50 rounded-lg p-3">
                         <p className="text-xs text-gray-500">{k}</p>
@@ -331,11 +319,7 @@ function InstructorAnalysisModal({
           (c: any) => String(c.instructor?._id || c.instructor) === String(user._id)
         );
         const subs = Array.isArray(submissionsRes) ? submissionsRes : [];
-
-        const totalStudents = new Set(
-          allCourses.flatMap((c: any) => c.enrolledStudents || [])
-        ).size;
-
+        const totalStudents = new Set(allCourses.flatMap((c: any) => c.enrolledStudents || [])).size;
         const graded = subs.filter((s: any) => s.status === "graded");
         const pending = subs.filter((s: any) => s.status === "submitted");
 
@@ -364,10 +348,7 @@ function InstructorAnalysisModal({
         });
 
         setAnalysis({
-          enrolledCourses:      0,
-          completedCourses:     0,
-          totalLessons:         0,
-          completedLessons:     0,
+          enrolledCourses: 0, completedCourses: 0, totalLessons: 0, completedLessons: 0,
           totalSubmissions:     subs.length,
           gradedSubmissions:    graded.length,
           averageGrade:         null,
@@ -412,13 +393,12 @@ function InstructorAnalysisModal({
           </div>
         ) : (
           <div className="p-6 space-y-6">
-            {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { label: "Courses Created",   value: analysis?.coursesCreated ?? 0,     icon: BookOpen,    color: "text-indigo-600",  bg: "bg-indigo-50" },
-                { label: "Students Taught",   value: analysis?.totalStudentsTaught ?? 0, icon: Users,       color: "text-blue-600",    bg: "bg-blue-50" },
-                { label: "Graded",            value: analysis?.gradedTotal ?? 0,         icon: CheckCircle, color: "text-green-600",   bg: "bg-green-50" },
-                { label: "Pending to Grade",  value: analysis?.pendingToGrade ?? 0,      icon: Clock,       color: "text-amber-600",   bg: "bg-amber-50" },
+                { label: "Courses Created",  value: analysis?.coursesCreated ?? 0,     icon: BookOpen,    color: "text-indigo-600",  bg: "bg-indigo-50" },
+                { label: "Students Taught",  value: analysis?.totalStudentsTaught ?? 0, icon: Users,       color: "text-blue-600",    bg: "bg-blue-50" },
+                { label: "Graded",           value: analysis?.gradedTotal ?? 0,         icon: CheckCircle, color: "text-green-600",   bg: "bg-green-50" },
+                { label: "Pending to Grade", value: analysis?.pendingToGrade ?? 0,      icon: Clock,       color: "text-amber-600",   bg: "bg-amber-50" },
               ].map((s) => {
                 const Icon = s.icon;
                 return (
@@ -436,7 +416,6 @@ function InstructorAnalysisModal({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Grading activity trend */}
               <Card>
                 <CardHeader><CardTitle className="text-sm">Grading Activity (6 Months)</CardTitle></CardHeader>
                 <CardContent>
@@ -456,7 +435,6 @@ function InstructorAnalysisModal({
                 </CardContent>
               </Card>
 
-              {/* Students per course */}
               <Card>
                 <CardHeader><CardTitle className="text-sm">Students per Course</CardTitle></CardHeader>
                 <CardContent>
@@ -477,7 +455,6 @@ function InstructorAnalysisModal({
               </Card>
             </div>
 
-            {/* Average grade given */}
             {analysis?.avgGradeGiven != null && (
               <Card>
                 <CardContent className="p-5 flex items-center gap-4">
@@ -492,7 +469,6 @@ function InstructorAnalysisModal({
               </Card>
             )}
 
-            {/* Profile Info */}
             {profile && (
               <Card>
                 <CardHeader><CardTitle className="text-sm">Profile Details</CardTitle></CardHeader>
@@ -526,7 +502,7 @@ function InstructorAnalysisModal({
 }
 
 /* ══════════════════════════════════════════════════════
-   PROFILE DETAIL DRAWER
+   PROFILE DRAWER (side panel for user details)
 ══════════════════════════════════════════════════════ */
 function ProfileDrawer({
   user,
@@ -552,11 +528,10 @@ function ProfileDrawer({
         </div>
 
         <div className="p-5 space-y-5">
-          {/* Avatar + name */}
           <div className="flex items-center gap-4">
             <Avatar className="w-16 h-16">
               <AvatarFallback className={`text-xl font-bold ${isStudent ? "bg-indigo-100 text-indigo-600" : "bg-emerald-100 text-emerald-600"}`}>
-                {(profile as any)?.fullName?.slice(0, 2).toUpperCase() || user.username.slice(0, 2).toUpperCase()}
+                {((profile as any)?.fullName?.slice(0, 2).toUpperCase() || user.username.slice(0, 2).toUpperCase())}
               </AvatarFallback>
             </Avatar>
             <div>
@@ -575,7 +550,6 @@ function ProfileDrawer({
             </div>
           ) : (
             <>
-              {/* Student fields */}
               {isStudent && sp && (
                 <div className="space-y-3">
                   {[
@@ -599,8 +573,6 @@ function ProfileDrawer({
                   ))}
                 </div>
               )}
-
-              {/* Instructor fields */}
               {!isStudent && ip && (
                 <div className="space-y-3">
                   {[
@@ -631,6 +603,316 @@ function ProfileDrawer({
 }
 
 /* ══════════════════════════════════════════════════════
+   PROFILES TAB — merged from AdminProfiles.tsx
+   Shows all submitted student profiles with Edit Info
+   and Analysis actions inline in the table.
+══════════════════════════════════════════════════════ */
+function ProfilesTab() {
+  const [profiles,        setProfiles]        = useState<StudentProfile[]>([]);
+  const [loading,         setLoading]         = useState(true);
+  const [search,          setSearch]          = useState("");
+  const [editProfile,     setEditProfile]     = useState<StudentProfile | null>(null);
+  const [analysisProfile, setAnalysisProfile] = useState<StudentProfile | null>(null);
+  const [saving,          setSaving]          = useState(false);
+  const [saveError,       setSaveError]       = useState("");
+  const [saveOk,          setSaveOk]          = useState(false);
+  const [editForm,        setEditForm]        = useState({
+    enrollmentNumber: "",
+    rollNumber:       "",
+    division:         "",
+    year:             "",
+  });
+
+  const load = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_BASE_URL}/api/profiles/students?limit=100`, {
+        headers: authHeader(),
+      });
+      if (!res.ok) throw new Error("Failed");
+      const data = await res.json();
+      setProfiles(data.profiles || []);
+    } catch {
+      setProfiles([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openEdit = (p: StudentProfile) => {
+    setEditProfile(p);
+    setEditForm({
+      enrollmentNumber: p.enrollmentNumber || "",
+      rollNumber:       p.rollNumber       || "",
+      division:         p.division         || "",
+      year:             p.year ? String(p.year) : "",
+    });
+    setSaveError("");
+    setSaveOk(false);
+  };
+
+  const handleSave = async () => {
+    if (!editProfile) return;
+    setSaving(true);
+    setSaveError("");
+    setSaveOk(false);
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/profiles/students/${editProfile.user._id}`,
+        {
+          method:  "PUT",
+          headers: authHeader(),
+          body:    JSON.stringify({
+            enrollmentNumber: editForm.enrollmentNumber.trim(),
+            rollNumber:       editForm.rollNumber.trim(),
+            division:         editForm.division.trim(),
+            year:             editForm.year ? parseInt(editForm.year) : null,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed");
+      setSaveOk(true);
+      setProfiles((prev) =>
+        prev.map((p) =>
+          p._id === editProfile._id
+            ? { ...p,
+                enrollmentNumber: editForm.enrollmentNumber,
+                rollNumber:       editForm.rollNumber,
+                division:         editForm.division,
+                year:             editForm.year ? parseInt(editForm.year) : null,
+              }
+            : p
+        )
+      );
+      setTimeout(() => { setEditProfile(null); setSaveOk(false); }, 1200);
+    } catch (err: any) {
+      setSaveError(err.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filtered = profiles.filter((p) => {
+    const q = search.toLowerCase();
+    return (
+      p.fullName?.toLowerCase().includes(q) ||
+      p.user?.username?.toLowerCase().includes(q) ||
+      p.user?.email?.toLowerCase().includes(q) ||
+      p.enrollmentNumber?.toLowerCase().includes(q) ||
+      p.department?.name?.toLowerCase().includes(q)
+    );
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-gray-900">{profiles.length}</p>
+            <p className="text-sm text-gray-500">Submitted</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-indigo-600">
+              {profiles.filter((p) => p.enrollmentNumber).length}
+            </p>
+            <p className="text-sm text-gray-500">With Enrollment No.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-amber-600">
+              {profiles.filter((p) => !p.enrollmentNumber).length}
+            </p>
+            <p className="text-sm text-gray-500">Pending Assignment</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Input
+          className="pl-10"
+          placeholder="Search by name, email, enrollment number, department..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {/* Table */}
+      <Card>
+        <CardContent className="p-0">
+          {filtered.length === 0 ? (
+            <div className="p-12 text-center text-gray-400">
+              <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p>
+                {profiles.length === 0
+                  ? "No profiles submitted yet. Students fill this on first login."
+                  : "No profiles match your search."}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    {["Student", "Department", "Year", "Enrollment No.", "Status", "Actions"].map((h) => (
+                      <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filtered.map((p) => (
+                    <tr key={p._id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4">
+                        <p className="text-sm font-medium text-gray-900">{p.fullName || p.user.username}</p>
+                        <p className="text-xs text-gray-400">{p.user.email}</p>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {p.department ? (
+                          <Badge variant="outline" className="text-xs">{p.department.code}</Badge>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {p.year ? `Year ${p.year}` : <span className="text-gray-400">—</span>}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        {p.enrollmentNumber ? (
+                          <span className="font-mono text-indigo-700 font-medium">{p.enrollmentNumber}</span>
+                        ) : (
+                          <span className="text-amber-600 text-xs italic">Not assigned</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <Badge className={p.enrollmentNumber ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}>
+                          {p.enrollmentNumber ? "Complete" : "Pending"}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 gap-1.5 text-indigo-600 hover:bg-indigo-50 text-xs"
+                            onClick={() => setAnalysisProfile(p)}
+                          >
+                            <BarChart2 className="w-3.5 h-3.5" />
+                            Analysis
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 gap-1.5 text-gray-600 hover:bg-gray-100 text-xs"
+                            onClick={() => openEdit(p)}
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            Edit Info
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Analysis Modal */}
+      {analysisProfile && (
+        <StudentAnalysisModal
+          user={{ _id: analysisProfile.user._id, username: analysisProfile.user.username, email: analysisProfile.user.email, role: "student", createdAt: analysisProfile.createdAt }}
+          profile={analysisProfile}
+          onClose={() => setAnalysisProfile(null)}
+        />
+      )}
+
+      {/* Edit Info Modal */}
+      {editProfile && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl">
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h3 className="font-semibold text-lg">Edit Information</h3>
+                <p className="text-sm text-gray-500">{editProfile.fullName || editProfile.user.username}</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setEditProfile(null)}><X /></Button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                Assign academic identifiers to this student. Only admins can change these.
+              </p>
+              <div>
+                <Label>Enrollment Number</Label>
+                <Input className="mt-1 font-mono" placeholder="e.g., COMP2022001"
+                  value={editForm.enrollmentNumber}
+                  onChange={(e) => setEditForm((f) => ({ ...f, enrollmentNumber: e.target.value }))} />
+              </div>
+              <div>
+                <Label>Roll Number</Label>
+                <Input className="mt-1" placeholder="e.g., 42"
+                  value={editForm.rollNumber}
+                  onChange={(e) => setEditForm((f) => ({ ...f, rollNumber: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Year</Label>
+                  <select className="mt-1 w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={editForm.year}
+                    onChange={(e) => setEditForm((f) => ({ ...f, year: e.target.value }))}>
+                    <option value="">Select</option>
+                    {[1,2,3,4,5,6].map((y) => <option key={y} value={y}>Year {y}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Label>Division</Label>
+                  <Input className="mt-1" placeholder="e.g., A"
+                    value={editForm.division}
+                    onChange={(e) => setEditForm((f) => ({ ...f, division: e.target.value }))} />
+                </div>
+              </div>
+              {saveOk && (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2 text-sm">
+                  <CheckCircle className="w-4 h-4 shrink-0" /> Saved successfully!
+                </div>
+              )}
+              {saveError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0" />{saveError}
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => setEditProfile(null)}>Cancel</Button>
+                <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700" onClick={handleSave} disabled={saving}>
+                  {saving ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
    MAIN PAGE
 ══════════════════════════════════════════════════════ */
 export function AdminUsers() {
@@ -638,10 +920,10 @@ export function AdminUsers() {
   const [profiles, setProfiles] = useState<Map<string, StudentProfile | InstructorProfile>>(new Map());
   const [loading,  setLoading]  = useState(true);
   const [search,   setSearch]   = useState("");
-  const [activeTab, setActiveTab] = useState<Role>("student");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("student");
 
-  const [drawerUser,    setDrawerUser]    = useState<UserRow | null>(null);
-  const [analysisUser,  setAnalysisUser]  = useState<UserRow | null>(null);
+  const [drawerUser,   setDrawerUser]   = useState<UserRow | null>(null);
+  const [analysisUser, setAnalysisUser] = useState<UserRow | null>(null);
 
   const loadUsers = useCallback(async () => {
     try {
@@ -655,17 +937,16 @@ export function AdminUsers() {
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
-  // Load profiles for current tab when it changes
+  // Load profiles when switching to student/instructor tabs
   useEffect(() => {
+    if (activeTab === "admin" || activeTab === "profiles") return;
     const loadProfiles = async () => {
-      if (activeTab === "admin") return;
       try {
         const endpoint = activeTab === "student"
           ? "/api/profiles/students?limit=200"
           : "/api/profiles/instructors";
         const res = await apiFetch<any>(endpoint);
         const list: any[] = activeTab === "student" ? (res.profiles ?? res) : res;
-
         const map = new Map<string, StudentProfile | InstructorProfile>();
         list.forEach((p: any) => {
           const userId = p.user?._id || p.user;
@@ -673,13 +954,14 @@ export function AdminUsers() {
         });
         setProfiles(map);
       } catch {
-        // profiles might not exist yet — that's fine
+        // profiles might not exist yet
       }
     };
     loadProfiles();
   }, [activeTab]);
 
   const filtered = users.filter((u) => {
+    if (activeTab === "profiles") return false; // profiles tab handles its own data
     const matchRole   = u.role === activeTab;
     const matchSearch = !search ||
       u.username.toLowerCase().includes(search.toLowerCase()) ||
@@ -694,9 +976,10 @@ export function AdminUsers() {
   };
 
   const tabConfig = [
-    { role: "student"    as Role, label: "Students",    icon: GraduationCap, color: "from-indigo-500 to-blue-600",   bg: "bg-indigo-50",  text: "text-indigo-600" },
-    { role: "instructor" as Role, label: "Instructors",  icon: Briefcase,     color: "from-emerald-500 to-teal-600",  bg: "bg-emerald-50", text: "text-emerald-600" },
-    { role: "admin"      as Role, label: "Admins",       icon: Shield,        color: "from-violet-500 to-purple-600", bg: "bg-violet-50",  text: "text-violet-600" },
+    { id: "student"    as ActiveTab, label: "Students",    icon: GraduationCap, color: "from-indigo-500 to-blue-600",   bg: "bg-indigo-50",  text: "text-indigo-600",  count: counts.student },
+    { id: "instructor" as ActiveTab, label: "Instructors", icon: Briefcase,     color: "from-emerald-500 to-teal-600",  bg: "bg-emerald-50", text: "text-emerald-600", count: counts.instructor },
+    { id: "admin"      as ActiveTab, label: "Admins",      icon: Shield,        color: "from-violet-500 to-purple-600", bg: "bg-violet-50",  text: "text-violet-600",  count: counts.admin },
+    { id: "profiles"   as ActiveTab, label: "Profiles",    icon: UserCheck,     color: "from-rose-500 to-pink-600",     bg: "bg-rose-50",    text: "text-rose-600",    count: null },
   ];
 
   if (loading) {
@@ -718,118 +1001,118 @@ export function AdminUsers() {
       </div>
 
       {/* Tab Cards */}
-      <div className="grid grid-cols-3 gap-4">
-        {tabConfig.map(({ role, label, icon: Icon, color, bg, text }) => (
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {tabConfig.map(({ id, label, icon: Icon, color, count }) => (
           <Card
-            key={role}
-            onClick={() => setActiveTab(role)}
-            className={`cursor-pointer transition-all hover:shadow-md ${activeTab === role ? "ring-2 ring-offset-1 ring-indigo-500" : ""}`}
+            key={id}
+            onClick={() => { setActiveTab(id); setSearch(""); }}
+            className={`cursor-pointer transition-all hover:shadow-md ${activeTab === id ? "ring-2 ring-offset-1 ring-indigo-500" : ""}`}
           >
             <CardContent className="p-5">
               <div className={`w-12 h-12 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center mb-3`}>
                 <Icon className="w-6 h-6 text-white" />
               </div>
-              <p className="text-3xl font-bold text-gray-900">{counts[role]}</p>
+              <p className="text-3xl font-bold text-gray-900">{count ?? "—"}</p>
               <p className="text-sm text-gray-500">{label}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-        <Input
-          className="pl-10"
-          placeholder={`Search ${activeTab}s by name or email...`}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
+      {/* Profiles Tab — renders its own component */}
+      {activeTab === "profiles" ? (
+        <ProfilesTab />
+      ) : (
+        <>
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input
+              className="pl-10"
+              placeholder={`Search ${activeTab}s by name or email...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
 
-      {/* User List */}
-      <Card>
-        <CardContent className="p-0">
-          {filtered.length === 0 ? (
-            <div className="p-12 text-center text-gray-400">
-              <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p>No {activeTab}s found.</p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {filtered.map((user) => {
-                const profile    = profiles.get(String(user._id));
-                const hasProfile = !!profile;
-                const sp = activeTab === "student" ? (profile as StudentProfile | undefined) : undefined;
-                const ip = activeTab === "instructor" ? (profile as InstructorProfile | undefined) : undefined;
+          {/* User List */}
+          <Card>
+            <CardContent className="p-0">
+              {filtered.length === 0 ? (
+                <div className="p-12 text-center text-gray-400">
+                  <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                  <p>No {activeTab}s found.</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {filtered.map((user) => {
+                    const profile    = profiles.get(String(user._id));
+                    const hasProfile = !!profile;
+                    const sp = activeTab === "student"     ? (profile as StudentProfile    | undefined) : undefined;
+                    const ip = activeTab === "instructor"  ? (profile as InstructorProfile | undefined) : undefined;
 
-                return (
-                  <div
-                    key={user._id}
-                    className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
-                    onClick={() => setDrawerUser(user)}
-                  >
-                    {/* Avatar */}
-                    <Avatar className="w-11 h-11 flex-shrink-0">
-                      <AvatarFallback className={`font-semibold text-sm ${
-                        activeTab === "student"    ? "bg-indigo-100 text-indigo-600" :
-                        activeTab === "instructor" ? "bg-emerald-100 text-emerald-600" :
-                                                    "bg-violet-100 text-violet-600"
-                      }`}>
-                        {((sp?.fullName || ip?.fullName || user.username) || "U").slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    return (
+                      <div
+                        key={user._id}
+                        className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => setDrawerUser(user)}
+                      >
+                        <Avatar className="w-11 h-11 flex-shrink-0">
+                          <AvatarFallback className={`font-semibold text-sm ${
+                            activeTab === "student"    ? "bg-indigo-100 text-indigo-600" :
+                            activeTab === "instructor" ? "bg-emerald-100 text-emerald-600" :
+                                                        "bg-violet-100 text-violet-600"
+                          }`}>
+                            {((sp?.fullName || ip?.fullName || user.username) || "U").slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 text-sm">
-                        {sp?.fullName || ip?.fullName || user.username}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">{user.email}</p>
-                      {/* Sub-info by role */}
-                      {sp && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {sp.department?.name || "No dept"} · Year {sp.year || "—"} ·{" "}
-                          {sp.enrollmentNumber || <span className="text-amber-600">No enrollment no.</span>}
-                        </p>
-                      )}
-                      {ip && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {ip.department?.name || "No dept"} · {ip.designation || "—"} · {ip.employeeId || "No ID"}
-                        </p>
-                      )}
-                    </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900 text-sm">
+                            {sp?.fullName || ip?.fullName || user.username}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                          {sp && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {sp.department?.name || "No dept"} · Year {sp.year || "—"} ·{" "}
+                              {sp.enrollmentNumber || <span className="text-amber-600">No enrollment no.</span>}
+                            </p>
+                          )}
+                          {ip && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {ip.department?.name || "No dept"} · {ip.designation || "—"} · {ip.employeeId || "No ID"}
+                            </p>
+                          )}
+                        </div>
 
-                    {/* Profile badge */}
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      {activeTab !== "admin" && (
-                        <Badge className={`text-xs ${hasProfile ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                          {hasProfile ? "Profile ✓" : "No profile"}
-                        </Badge>
-                      )}
-
-                      {/* Analysis button — only for student/instructor */}
-                      {activeTab !== "admin" && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50"
-                          onClick={(e) => { e.stopPropagation(); setAnalysisUser(user); }}
-                          title="View Analysis"
-                        >
-                          <BarChart2 className="w-4 h-4" />
-                        </Button>
-                      )}
-
-                      <ChevronRight className="w-4 h-4 text-gray-300" />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {activeTab !== "admin" && (
+                            <Badge className={`text-xs ${hasProfile ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                              {hasProfile ? "Profile ✓" : "No profile"}
+                            </Badge>
+                          )}
+                          {activeTab !== "admin" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50"
+                              onClick={(e) => { e.stopPropagation(); setAnalysisUser(user); }}
+                              title="View Analysis"
+                            >
+                              <BarChart2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <ChevronRight className="w-4 h-4 text-gray-300" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Profile Drawer */}
       {drawerUser && (
@@ -840,7 +1123,7 @@ export function AdminUsers() {
         />
       )}
 
-      {/* Analysis Modal */}
+      {/* Analysis Modals */}
       {analysisUser && analysisUser.role === "student" && (
         <StudentAnalysisModal
           user={analysisUser}

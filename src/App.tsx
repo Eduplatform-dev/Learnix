@@ -29,7 +29,6 @@ import { AdminContent }     from "./app/components/pages/admin/AdminContent";
 import { AdminFees }        from "./app/components/pages/admin/AdminFees";
 import { AdminSubmissions } from "./app/components/pages/admin/AdminSubmissions";
 import { AdminSettings }    from "./app/components/pages/admin/AdminSettings";
-import { AdminProfiles }    from "./app/components/pages/admin/AdminProfiles";
 
 /* ================= INSTRUCTOR PAGES ================= */
 import { InstructorDashboard }   from "./app/components/pages/instructor/InstructorDashboard";
@@ -110,7 +109,6 @@ function AdminRoutes() {
       <Route path="fees"        element={<AdminFees />} />
       <Route path="submissions" element={<AdminSubmissions />} />
       <Route path="settings"    element={<AdminSettings />} />
-      <Route path="profiles"    element={<AdminProfiles />} />
       <Route path="*"           element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>
   );

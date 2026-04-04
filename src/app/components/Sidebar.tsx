@@ -57,7 +57,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const adminMenu: MenuItem[] = [
     { path: "/admin/dashboard",   label: "Dashboard",    icon: BarChart3,  exact: true },
     { path: "/admin/users",       label: "Users",        icon: Users },
-    { path: "/admin/profiles",    label: "Profiles",     icon: UserCheck },  // ← new
     { path: "/admin/courses",     label: "Courses",      icon: BookOpen },
     { path: "/admin/analytics",   label: "Analytics",    icon: LineChart },
     { path: "/admin/content",     label: "Content",      icon: FolderOpen },
