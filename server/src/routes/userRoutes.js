@@ -31,7 +31,17 @@ router.get(
       const skip  = (page - 1) * limit;
 
       const filter = {};
-      if (req.query.role)   filter.role = req.query.role;
+
+      // Support role filter — useful for fetching only students or only instructors
+      if (req.query.role) {
+        filter.role = req.query.role;
+      }
+      // FIX: if no role specified, still exclude admins from general listings
+      // Admin can see admins only if explicitly requesting role=admin
+      if (!req.query.role) {
+        filter.role = { $ne: "admin" };
+      }
+
       if (req.query.search) {
         const re = new RegExp(req.query.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
         filter.$or = [{ username: re }, { email: re }];
@@ -118,6 +128,22 @@ router.put("/:id", authenticateToken, async (req, res) => {
       updates.password = await bcrypt.hash(updates.password, 10);
     }
 
+    // Check for conflicts if changing email/username
+    if (updates.email || updates.username) {
+      const conditions = [];
+      if (updates.email)    conditions.push({ email: updates.email });
+      if (updates.username) conditions.push({ username: updates.username });
+      const conflict = await User.findOne({
+        $or: conditions,
+        _id: { $ne: req.params.id },
+      });
+      if (conflict) {
+        return res.status(409).json({
+          error: conflict.email === updates.email ? "Email already in use" : "Username already taken",
+        });
+      }
+    }
+
     const updatedUser = await User.findByIdAndUpdate(req.params.id, updates, {
       new: true,
     }).select("-password");
@@ -167,6 +193,11 @@ router.delete(
   authorize(["admin"]),
   async (req, res) => {
     try {
+      // Prevent admin from deleting themselves
+      if (req.params.id === req.user._id.toString()) {
+        return res.status(400).json({ error: "You cannot delete your own account" });
+      }
+
       const deleted = await User.findByIdAndDelete(req.params.id);
       if (!deleted) return res.status(404).json({ error: "User not found" });
       res.json({ message: "User deleted successfully" });

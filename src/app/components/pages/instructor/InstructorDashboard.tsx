@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
-import { BookOpen, Users, FileText, TrendingUp, Clock, CheckCircle } from "lucide-react";
+import { BookOpen, Users, FileText, TrendingUp, Clock, CheckCircle, Star, GraduationCap } from "lucide-react";
 import { useAuth } from "../../../providers/AuthProvider";
 import { getCourses } from "../../../services/courseService";
 import { getAssignments } from "../../../services/assignmentService";
@@ -38,17 +38,33 @@ export function InstructorDashboard() {
     load();
   }, []);
 
-  if (loading) return <div className="p-6 text-center text-gray-500">Loading dashboard...</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center p-12">
+      <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   const pendingGrading = submissions.filter((s) => s.status === "submitted").length;
   const gradedCount = submissions.filter((s) => s.status === "graded").length;
-  const totalStudents = courses.reduce((sum, c) => sum + (c.students || 0), 0);
+
+  // FIX: count unique enrolled students across instructor's courses only
+  // enrolledStudents is an array on each course
+  const enrolledSet = new Set<string>();
+  courses.forEach(c => {
+    (c.enrolledStudents || []).forEach((sid: any) => {
+      enrolledSet.add(String(sid?._id || sid));
+    });
+  });
+  const totalStudents = enrolledSet.size;
+
+  // Count only approved courses
+  const activeCourses = courses.filter(c => c.approvalStatus === "approved" || c.status === "active");
 
   const stats = [
-    { label: "My Courses", value: courses.length, icon: BookOpen, color: "from-indigo-500 to-blue-600", bg: "bg-indigo-50", iconColor: "text-indigo-600" },
-    { label: "Total Students", value: totalStudents, icon: Users, color: "from-emerald-500 to-teal-600", bg: "bg-emerald-50", iconColor: "text-emerald-600" },
-    { label: "Assignments", value: assignments.length, icon: FileText, color: "from-violet-500 to-purple-600", bg: "bg-violet-50", iconColor: "text-violet-600" },
-    { label: "Pending Review", value: pendingGrading, icon: Clock, color: "from-amber-500 to-orange-600", bg: "bg-amber-50", iconColor: "text-amber-600" },
+    { label: "My Courses",     value: courses.length,    icon: BookOpen,  color: "from-indigo-500 to-blue-600",  bg: "bg-indigo-50",  iconColor: "text-indigo-600"  },
+    { label: "Enrolled Students", value: totalStudents,  icon: Users,     color: "from-emerald-500 to-teal-600", bg: "bg-emerald-50", iconColor: "text-emerald-600" },
+    { label: "Assignments",    value: assignments.length, icon: FileText,  color: "from-violet-500 to-purple-600",bg: "bg-violet-50",  iconColor: "text-violet-600"  },
+    { label: "Pending Review", value: pendingGrading,    icon: Clock,     color: "from-amber-500 to-orange-600", bg: "bg-amber-50",   iconColor: "text-amber-600"   },
   ];
 
   // Submission trend (last 7 days)
@@ -64,9 +80,10 @@ export function InstructorDashboard() {
     return { day: days[d.getDay()], submissions: count };
   });
 
+  // Per-course enrollment data
   const courseData = courses.slice(0, 5).map((c) => ({
-    name: c.title.length > 15 ? c.title.slice(0, 13) + "…" : c.title,
-    students: c.students || 0,
+    name:     c.title.length > 15 ? c.title.slice(0, 13) + "…" : c.title,
+    students: c.enrolledStudents?.length ?? c.students ?? 0,
   }));
 
   return (
@@ -74,11 +91,17 @@ export function InstructorDashboard() {
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white">
         <h1 className="text-2xl font-bold mb-1">Welcome back, {user?.username}! 👋</h1>
-        <p className="text-indigo-100">Here's what's happening with your courses today.</p>
+        <p className="text-indigo-100">
+          {activeCourses.length > 0
+            ? `You have ${activeCourses.length} active course${activeCourses.length !== 1 ? "s" : ""} with ${totalStudents} enrolled student${totalStudents !== 1 ? "s" : ""}.`
+            : "Create your first course to get started."}
+        </p>
         {pendingGrading > 0 && (
           <div className="mt-3 bg-white/20 rounded-lg px-4 py-2 inline-flex items-center gap-2">
             <Clock className="w-4 h-4" />
-            <span className="text-sm font-medium">{pendingGrading} submission{pendingGrading !== 1 ? "s" : ""} awaiting grading</span>
+            <span className="text-sm font-medium">
+              {pendingGrading} submission{pendingGrading !== 1 ? "s" : ""} awaiting grading
+            </span>
           </div>
         )}
       </div>
@@ -160,6 +183,24 @@ export function InstructorDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Courses needing approval */}
+      {courses.filter(c => c.approvalStatus === "pending_approval").length > 0 && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2 text-amber-700 font-medium mb-3">
+              <Clock className="w-4 h-4" />
+              {courses.filter(c => c.approvalStatus === "pending_approval").length} course{courses.filter(c => c.approvalStatus === "pending_approval").length !== 1 ? "s" : ""} awaiting admin approval
+            </div>
+            {courses.filter(c => c.approvalStatus === "pending_approval").map(c => (
+              <div key={c._id} className="flex items-center justify-between py-2 border-b border-amber-100 last:border-0">
+                <p className="text-sm font-medium text-amber-900">{c.title}</p>
+                <Badge className="bg-amber-100 text-amber-700 text-xs">Pending Approval</Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent Submissions to Grade */}
       <Card>

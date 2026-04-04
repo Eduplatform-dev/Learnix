@@ -16,6 +16,9 @@ const defaultSettings = {
   backup:       { autoBackup: true, retentionDays: "30", backupWindow: "02:00-04:00" },
 };
 
+// Non-admin roles only
+const NON_ADMIN = { role: { $ne: "admin" } };
+
 const lastNMonths = (n) => {
   const now    = new Date();
   const months = [];
@@ -35,6 +38,7 @@ export const getAdminStats = async (req, res) => {
   try {
     const [totalStudents, totalCourses, totalAssignments, totalSubmissions, paidFees] =
       await Promise.all([
+        // FIX: only count students, never admins or instructors
         User.countDocuments({ role: "student" }),
         Course.countDocuments(),
         Assignment.countDocuments(),
@@ -59,6 +63,7 @@ export const getDashboard = async (req, res) => {
   try {
     const [students, courses, totalAssignments, submittedAssignments, revenueResult] =
       await Promise.all([
+        // FIX: exclude admins - only count actual students
         User.countDocuments({ role: "student" }),
         Course.countDocuments(),
         Submission.countDocuments(),
@@ -78,6 +83,7 @@ export const getDashboard = async (req, res) => {
 
     const enrollmentData = await Promise.all(
       months.map(async ({ label, date, next }) => {
+        // FIX: only count students registered in that month
         const count = await User.countDocuments({
           role:      "student",
           createdAt: { $gte: date, $lt: next },
@@ -100,24 +106,32 @@ export const getDashboard = async (req, res) => {
 export const getAnalytics = async (req, res) => {
   try {
     const [
-      totalUsers,
       totalStudents,
+      totalInstructors,
       totalCourses,
       totalContent,
       totalSubmissions,
     ] = await Promise.all([
-      User.countDocuments(),
+      // FIX: separate counts by role, never mix admin into "users"
       User.countDocuments({ role: "student" }),
+      User.countDocuments({ role: "instructor" }),
       Course.countDocuments(),
       Content.countDocuments(),
       Submission.countDocuments(),
     ]);
 
+    // Total non-admin users
+    const totalUsers = totalStudents + totalInstructors;
+
     const months = lastNMonths(6);
 
+    // Monthly growth: only students + instructors (not admins)
     const monthlyGrowth = await Promise.all(
       months.map(async ({ label, date, next }) => {
-        const users = await User.countDocuments({ createdAt: { $gte: date, $lt: next } });
+        const users = await User.countDocuments({
+          role: { $in: ["student", "instructor"] },
+          createdAt: { $gte: date, $lt: next },
+        });
         return { month: label, users };
       })
     );
@@ -159,11 +173,12 @@ export const getAnalytics = async (req, res) => {
       { source: "Referral", visits: Math.floor(totalUsers * 0.25) },
     ];
 
+    // FIX: kpiMetrics now shows students and instructors separately, not "Users" (which wrongly included admins)
     const kpiMetrics = [
-      { label: "Total Users",   value: totalUsers },
-      { label: "Students",      value: totalStudents },
-      { label: "Courses",       value: totalCourses },
-      { label: "Submissions",   value: totalSubmissions },
+      { label: "Students",    value: totalStudents    },
+      { label: "Instructors", value: totalInstructors },
+      { label: "Courses",     value: totalCourses     },
+      { label: "Submissions", value: totalSubmissions },
     ];
 
     res.json({
@@ -173,6 +188,14 @@ export const getAnalytics = async (req, res) => {
       completionRates,
       trafficSources,
       kpiMetrics,
+      // expose raw counts for frontend to use
+      counts: {
+        students:    totalStudents,
+        instructors: totalInstructors,
+        totalUsers,
+        courses:     totalCourses,
+        submissions: totalSubmissions,
+      },
     });
   } catch (err) {
     console.error("getAnalytics error:", err);

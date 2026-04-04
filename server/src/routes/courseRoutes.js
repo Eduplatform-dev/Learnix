@@ -52,7 +52,6 @@ router.get("/", authenticateToken, async (req, res) => {
       Course.find(filter)
         .populate("instructor",  "username email")
         .populate("department",  "name code")
-        .populate("academicYear","label")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -78,8 +77,6 @@ router.get("/:id", authenticateToken, async (req, res) => {
       .populate("instructor",       "username email")
       .populate("enrolledStudents", "username email")
       .populate("department",       "name code")
-      .populate("academicYear",     "label");
-
     if (!course) return res.status(404).json({ error: "Course not found" });
 
     // Students can only see approved courses

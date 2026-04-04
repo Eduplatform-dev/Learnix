@@ -39,13 +39,10 @@ export function Login() {
 
   const [signInData, setSignInData] = useState({ email: "", password: "" });
   const [signUpData, setSignUpData] = useState({
-    username: "",
-    email:    "",
-    password: "",
-    role:     "student" as "student" | "instructor",
+    username: "", email: "", password: "",
+    role: "student" as "student" | "instructor",
   });
 
-  /* Auto-redirect based on role */
   useEffect(() => {
     if (authLoading || !user) return;
     if      (user.role === "admin")      navigate("/admin/dashboard",     { replace: true });
@@ -53,7 +50,6 @@ export function Login() {
     else                                 navigate("/dashboard",            { replace: true });
   }, [user, authLoading, navigate]);
 
-  /* ── Login ── */
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -66,7 +62,6 @@ export function Login() {
     } finally { setLoading(false); }
   };
 
-  /* ── Register ── */
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
@@ -91,7 +86,7 @@ export function Login() {
       <section className="login-forms-container">
         <div className="login-signin-signup">
 
-          {/* Sign In form */}
+          {/* Sign In */}
           <form onSubmit={handleSignIn} className={`login-form ${!isSignUpMode ? "active" : ""}`}>
             <h2 className="login-title">Sign In</h2>
             {error && !isSignUpMode && (
@@ -101,32 +96,22 @@ export function Login() {
             )}
             <div className="login-input-field">
               <Mail className="login-input-icon" size={20} />
-              <input
-                type="email"
-                placeholder="Email address"
-                value={signInData.email}
-                onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
-                required
-                autoComplete="email"
-              />
+              <input type="email" placeholder="Email address" value={signInData.email}
+                onChange={e => setSignInData({ ...signInData, email: e.target.value })}
+                required autoComplete="email" />
             </div>
             <div className="login-input-field">
               <Lock className="login-input-icon" size={20} />
-              <input
-                type="password"
-                placeholder="Password"
-                value={signInData.password}
-                onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
-                required
-                autoComplete="current-password"
-              />
+              <input type="password" placeholder="Password" value={signInData.password}
+                onChange={e => setSignInData({ ...signInData, password: e.target.value })}
+                required autoComplete="current-password" />
             </div>
             <button type="submit" className="login-btn solid" disabled={loading}>
               {loading ? "Signing in…" : "Login"}
             </button>
           </form>
 
-          {/* Sign Up form */}
+          {/* Sign Up */}
           <form onSubmit={handleSignUp} className={`login-form ${isSignUpMode ? "active" : ""}`}>
             <h2 className="login-title">Sign Up</h2>
             {error && isSignUpMode && (
@@ -136,52 +121,28 @@ export function Login() {
             )}
             <div className="login-input-field">
               <User className="login-input-icon" size={20} />
-              <input
-                type="text"
-                placeholder="Username"
-                value={signUpData.username}
-                onChange={(e) => setSignUpData({ ...signUpData, username: e.target.value })}
-                required
-                autoComplete="username"
-              />
+              <input type="text" placeholder="Username" value={signUpData.username}
+                onChange={e => setSignUpData({ ...signUpData, username: e.target.value })}
+                required autoComplete="username" />
             </div>
             <div className="login-input-field">
               <Mail className="login-input-icon" size={20} />
-              <input
-                type="email"
-                placeholder="Email address"
-                value={signUpData.email}
-                onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
-                required
-                autoComplete="email"
-              />
+              <input type="email" placeholder="Email address" value={signUpData.email}
+                onChange={e => setSignUpData({ ...signUpData, email: e.target.value })}
+                required autoComplete="email" />
             </div>
             <div className="login-input-field">
               <Lock className="login-input-icon" size={20} />
-              <input
-                type="password"
-                placeholder="Password (min. 6 chars)"
-                value={signUpData.password}
-                onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
-                required
-                autoComplete="new-password"
-              />
+              <input type="password" placeholder="Password (min. 6 chars)" value={signUpData.password}
+                onChange={e => setSignUpData({ ...signUpData, password: e.target.value })}
+                required autoComplete="new-password" />
             </div>
 
-            {/* Role picker — no admin option for self-registration */}
+            {/* Role picker — uses CSS class so themes can override it */}
             <select
-              style={{
-                width: "100%", maxWidth: "380px",
-                background: "#f0f0f0", border: "none",
-                borderRadius: "55px", padding: "0 1.4rem",
-                height: "55px", fontSize: "1rem",
-                fontWeight: 600, color: "#333",
-                margin: "10px 0", cursor: "pointer", outline: "none",
-              }}
+              className="login-role-select"
               value={signUpData.role}
-              onChange={(e) =>
-                setSignUpData({ ...signUpData, role: e.target.value as "student" | "instructor" })
-              }
+              onChange={e => setSignUpData({ ...signUpData, role: e.target.value as "student" | "instructor" })}
             >
               <option value="student">👩‍🎓 Student</option>
               <option value="instructor">👨‍🏫 Instructor</option>

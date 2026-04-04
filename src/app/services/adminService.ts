@@ -17,7 +17,7 @@ const handle = async <T>(res: Response): Promise<T> => {
 /* ─── TYPES ──────────────────────────────────────────── */
 export type DashboardData = {
   stats: {
-    students:       number;
+    students:       number;  // only role=student, no admins
     courses:        number;
     revenue:        number;
     completionRate: number;
@@ -32,6 +32,13 @@ export type AnalyticsData = {
   completionRates: { name: string; value: number }[];
   trafficSources:  { source: string; visits: number }[];
   kpiMetrics:      { label: string; value: number }[];
+  counts?: {
+    students:    number;
+    instructors: number;
+    totalUsers:  number;
+    courses:     number;
+    submissions: number;
+  };
 };
 
 export type Settings = {
