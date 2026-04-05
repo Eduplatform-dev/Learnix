@@ -25,6 +25,12 @@ const TITLES: Record<string, string> = {
   "/instructor/courses": "My Courses", "/instructor/assignments": "Assignments",
   "/instructor/submissions": "Grade Submissions", "/instructor/students": "My Students",
   "/instructor/content": "Content Library", "/instructor/ai-chat": "AI Assistant",
+  "/dashboard/attendance":   "My Attendance",
+  "/dashboard/documents":    "Document Hub",
+  "/dashboard/timetable":    "Timetable",
+  "/instructor/attendance":  "Attendance",
+  "/admin/documents":        "Document Verification",
+  "/admin/timetable":        "Timetable Management",
 };
 
 type ThemeKey = "default" | "aesthetic" | "dark-glass";

@@ -20,13 +20,16 @@ import aiRoutes             from "./routes/aiRoutes.js";
 import lessonRoutes         from "./routes/lessonRoutes.js";
 import departmentRoutes     from "./routes/departmentRoutes.js";
 import semesterRoutes       from "./routes/semesterRoutes.js";
-// FIX: was importing `studentProfileRoutes` (file does not exist — crashes server).
-// The correct file is profileRoutes.js which handles both student and instructor profiles.
+import attendanceRoutes     from "./routes/attendanceRoutes.js";
+import documentRoutes       from "./routes/documentRoutes.js";
+import timetableRoutes      from "./routes/timetableRoutes.js";
+
+// ✅ correct import
 import profileRoutes        from "./routes/profileRoutes.js";
 import notificationRoutes   from "./routes/notificationRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
-const app  = express();
+const app  = express(); // ✅ FIRST
 const PORT = env.PORT;
 
 if (env.NODE_ENV === "production") {
@@ -94,9 +97,12 @@ app.use("/api/ai",            aiRoutes);
 app.use("/api/lessons",       lessonRoutes);
 app.use("/api/departments",   departmentRoutes);
 app.use("/api/semesters",     semesterRoutes);
-// FIX: was `/api/profiles` mounting `studentProfileRoutes` (broken import).
-// Now correctly mounts profileRoutes which handles /student/me, /instructor/me,
-// /students (admin list), /students/:userId (admin update with enrollment number).
+
+// ✅ MOVED HERE (only change)
+app.use("/api/attendance",    attendanceRoutes);
+app.use("/api/documents",     documentRoutes);
+app.use("/api/timetable",     timetableRoutes);
+
 app.use("/api/profiles",      profileRoutes);
 app.use("/api/notifications", notificationRoutes);
 

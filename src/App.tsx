@@ -19,6 +19,9 @@ import { Submissions }    from "./app/components/pages/student/Submissions";
 import { Fees }           from "./app/components/pages/student/Fees";
 import { AIChat }         from "./app/components/pages/student/AIChat";
 import { ContentLibrary } from "./app/components/pages/student/ContentLibrary";
+import { Attendance }    from "./app/components/pages/student/Attendance";
+import { DocumentHub }   from "./app/components/pages/student/DocumentHub";
+import { TimetableView } from "./app/components/pages/student/TimetableView";
 
 /* ================= ADMIN PAGES ================= */
 import { AdminDashboard }   from "./app/components/pages/admin/AdminDashboard";
@@ -29,6 +32,8 @@ import { AdminContent }     from "./app/components/pages/admin/AdminContent";
 import { AdminFees }        from "./app/components/pages/admin/AdminFees";
 import { AdminSubmissions } from "./app/components/pages/admin/AdminSubmissions";
 import { AdminSettings }    from "./app/components/pages/admin/AdminSettings";
+import { AdminDocuments }  from "./app/components/pages/admin/AdminDocuments";
+import { AdminTimetable }  from "./app/components/pages/admin/AdminTimetable";
 
 /* ================= INSTRUCTOR PAGES ================= */
 import { InstructorDashboard }   from "./app/components/pages/instructor/InstructorDashboard";
@@ -37,6 +42,7 @@ import { InstructorAssignments } from "./app/components/pages/instructor/Instruc
 import { InstructorSubmissions } from "./app/components/pages/instructor/InstructorSubmissions";
 import { InstructorContent }     from "./app/components/pages/instructor/InstructorContent";
 import { InstructorStudents }    from "./app/components/pages/instructor/InstructorStudents";
+import { InstructorAttendance } from "./app/components/pages/instructor/InstructorAttendance";
 
 /* =========================================================
    🔐 PROTECTED ROUTE WRAPPER
@@ -91,6 +97,9 @@ function UserRoutes() {
       <Route path="fees"        element={<Fees />} />
       <Route path="ai-chat"     element={<AIChat />} />
       <Route path="*"           element={<Navigate to="/dashboard" replace />} />
+      <Route path="attendance"  element={<Attendance />} />
+      <Route path="documents"   element={<DocumentHub />} />
+      <Route path="timetable"   element={<TimetableView />} />
     </Routes>
   );
 }
@@ -110,6 +119,8 @@ function AdminRoutes() {
       <Route path="submissions" element={<AdminSubmissions />} />
       <Route path="settings"    element={<AdminSettings />} />
       <Route path="*"           element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="documents"   element={<AdminDocuments />} />
+      <Route path="timetable"   element={<AdminTimetable />} />
     </Routes>
   );
 }
@@ -128,6 +139,7 @@ function InstructorRoutes() {
       <Route path="students"    element={<InstructorStudents />} />
       <Route path="ai-chat"     element={<AIChat />} />
       <Route path="*"           element={<Navigate to="/instructor/dashboard" replace />} />
+      <Route path="attendance"  element={<InstructorAttendance />} />
     </Routes>
   );
 }

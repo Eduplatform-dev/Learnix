@@ -132,7 +132,7 @@ export function Dashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 text-sm truncate">{course.title}</p>
-                      <p className="text-xs text-gray-400">{course.instructor} · {course.duration}</p>
+                      <p className="text-xs text-gray-400">{typeof course.instructor === "string" ? course.instructor : course.instructor.username} · {course.duration}</p>
                     </div>
                     <Badge className="text-xs bg-blue-100 text-blue-700 shrink-0">Active</Badge>
                   </div>

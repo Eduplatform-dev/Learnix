@@ -8,6 +8,8 @@ import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useAuth }  from "../providers/AuthProvider";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
+import { BookMarked, FolderCheck, Grid3X3 } from "lucide-react";
+
 
 type UserRole = "student" | "admin" | "instructor";
 type MenuItem  = { path: string; label: string; icon: LucideIcon; badge?: number; exact?: boolean; };
@@ -36,6 +38,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/dashboard/submissions", label: "Submissions",   icon: Upload },
     { path: "/dashboard/fees",        label: "Fee Payment",   icon: DollarSign },
     { path: "/dashboard/ai-chat",     label: "AI Assistant",  icon: MessageSquare },
+    { path: "/dashboard/attendance", label: "Attendance",  icon: BookMarked },
+    { path: "/dashboard/documents",  label: "Documents",   icon: FolderCheck },
+    { path: "/dashboard/timetable",  label: "Timetable",   icon: Grid3X3 },
   ];
 
   const adminMenu: MenuItem[] = [
@@ -47,6 +52,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/admin/fees",        label: "Fees",        icon: DollarSign },
     { path: "/admin/submissions", label: "Submissions", icon: Upload },
     { path: "/admin/settings",    label: "Settings",    icon: Settings },
+    { path: "/admin/documents",   label: "Documents",  icon: FolderCheck },
+    { path: "/admin/timetable",   label: "Timetable",  icon: Grid3X3 },
   ];
 
   const instructorMenu: MenuItem[] = [
@@ -57,6 +64,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/instructor/students",    label: "Students",     icon: Users },
     { path: "/instructor/content",     label: "Content",      icon: FolderOpen },
     { path: "/instructor/ai-chat",     label: "AI Assistant", icon: MessageSquare },
+    { path: "/instructor/attendance", label: "Attendance", icon: BookMarked },
+
   ];
 
   const menuItems =
