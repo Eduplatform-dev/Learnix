@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { loginUser, registerUser } from "../../app/services/authService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../app/providers/AuthProvider";
-import { User, Lock, Mail } from "lucide-react";
+import { User, Lock, Mail, Hash } from "lucide-react";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 /* ── Inline SVG illustrations ── */
 const LoginIllustration = () => (
@@ -29,15 +31,32 @@ const RegisterIllustration = () => (
   </svg>
 );
 
+// Login with enrollment number — calls a custom endpoint
+async function loginWithEnrollment(enrollmentNumber: string, password: string) {
+  const res  = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json" },
+    body:    JSON.stringify({ enrollmentNumber, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Invalid credentials");
+  if (data.token) {
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user",  JSON.stringify(data.user));
+  }
+  return { user: data.user, token: data.token };
+}
+
 export function Login() {
   const navigate = useNavigate();
   const { setAuthUser, user, loading: authLoading } = useAuth();
 
-  const [isSignUpMode, setIsSignUpMode] = useState(false);
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
+  const [isSignUpMode,    setIsSignUpMode]    = useState(false);
+  const [loading,         setLoading]         = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
+  const [useEnrollment,   setUseEnrollment]   = useState(false);  // ← NEW
 
-  const [signInData, setSignInData] = useState({ email: "", password: "" });
+  const [signInData, setSignInData] = useState({ email: "", enrollmentNumber: "", password: "" });
   const [signUpData, setSignUpData] = useState({
     username: "", email: "", password: "",
     role: "student" as "student" | "instructor",
@@ -55,10 +74,15 @@ export function Login() {
     if (loading) return;
     setLoading(true); setError(null);
     try {
-      const { user, token } = await loginUser(signInData.email, signInData.password);
-      setAuthUser(user, token);
+      let result;
+      if (useEnrollment && signInData.enrollmentNumber) {
+        result = await loginWithEnrollment(signInData.enrollmentNumber.trim(), signInData.password);
+      } else {
+        result = await loginUser(signInData.email, signInData.password);
+      }
+      setAuthUser(result.user, result.token);
     } catch (err: any) {
-      setError(err?.message || "Invalid email or password.");
+      setError(err?.message || "Invalid credentials.");
     } finally { setLoading(false); }
   };
 
@@ -86,38 +110,96 @@ export function Login() {
       <section className="login-forms-container">
         <div className="login-signin-signup">
 
-          {/* Sign In */}
+          {/* ── Sign In ── */}
           <form onSubmit={handleSignIn} className={`login-form ${!isSignUpMode ? "active" : ""}`}>
             <h2 className="login-title">Sign In</h2>
+
             {error && !isSignUpMode && (
-              <p style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "8px", textAlign: "center" }}>
-                {error}
-              </p>
+              <p style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "8px", textAlign: "center" }}>{error}</p>
             )}
-            <div className="login-input-field">
-              <Mail className="login-input-icon" size={20} />
-              <input type="email" placeholder="Email address" value={signInData.email}
-                onChange={e => setSignInData({ ...signInData, email: e.target.value })}
-                required autoComplete="email" />
+
+            {/* Toggle: email vs enrollment */}
+            <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+              <button type="button"
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: "40px", border: "2px solid",
+                  fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
+                  backgroundColor: !useEnrollment ? "#5995fd" : "transparent",
+                  borderColor: "#5995fd",
+                  color: !useEnrollment ? "#fff" : "#5995fd",
+                  transition: "all 0.2s",
+                }}
+                onClick={() => setUseEnrollment(false)}>
+                📧 Email Login
+              </button>
+              <button type="button"
+                style={{
+                  flex: 1, padding: "7px 0", borderRadius: "40px", border: "2px solid",
+                  fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
+                  backgroundColor: useEnrollment ? "#5995fd" : "transparent",
+                  borderColor: "#5995fd",
+                  color: useEnrollment ? "#fff" : "#5995fd",
+                  transition: "all 0.2s",
+                }}
+                onClick={() => setUseEnrollment(true)}>
+                🎓 Enrollment ID
+              </button>
             </div>
+
+            {useEnrollment ? (
+              <div className="login-input-field">
+                <Hash className="login-input-icon" size={20} />
+                <input
+                  type="text"
+                  placeholder="Enrollment Number"
+                  value={signInData.enrollmentNumber}
+                  onChange={e => setSignInData({ ...signInData, enrollmentNumber: e.target.value })}
+                  required
+                  autoComplete="username"
+                />
+              </div>
+            ) : (
+              <div className="login-input-field">
+                <Mail className="login-input-icon" size={20} />
+                <input
+                  type="email"
+                  placeholder="Email address"
+                  value={signInData.email}
+                  onChange={e => setSignInData({ ...signInData, email: e.target.value })}
+                  required
+                  autoComplete="email"
+                />
+              </div>
+            )}
+
             <div className="login-input-field">
               <Lock className="login-input-icon" size={20} />
-              <input type="password" placeholder="Password" value={signInData.password}
+              <input
+                type="password"
+                placeholder="Password"
+                value={signInData.password}
                 onChange={e => setSignInData({ ...signInData, password: e.target.value })}
-                required autoComplete="current-password" />
+                required
+                autoComplete="current-password"
+              />
             </div>
+
             <button type="submit" className="login-btn solid" disabled={loading}>
               {loading ? "Signing in…" : "Login"}
             </button>
+
+            {useEnrollment && (
+              <p style={{ fontSize: "0.72rem", color: "#aaa", textAlign: "center", marginTop: "8px" }}>
+                Students: use your enrollment number assigned by admin
+              </p>
+            )}
           </form>
 
-          {/* Sign Up */}
+          {/* ── Sign Up ── */}
           <form onSubmit={handleSignUp} className={`login-form ${isSignUpMode ? "active" : ""}`}>
             <h2 className="login-title">Sign Up</h2>
             {error && isSignUpMode && (
-              <p style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "8px", textAlign: "center" }}>
-                {error}
-              </p>
+              <p style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "8px", textAlign: "center" }}>{error}</p>
             )}
             <div className="login-input-field">
               <User className="login-input-icon" size={20} />
@@ -137,22 +219,15 @@ export function Login() {
                 onChange={e => setSignUpData({ ...signUpData, password: e.target.value })}
                 required autoComplete="new-password" />
             </div>
-
-            {/* Role picker — uses CSS class so themes can override it */}
-            <select
-              className="login-role-select"
-              value={signUpData.role}
-              onChange={e => setSignUpData({ ...signUpData, role: e.target.value as "student" | "instructor" })}
-            >
+            <select className="login-role-select" value={signUpData.role}
+              onChange={e => setSignUpData({ ...signUpData, role: e.target.value as "student" | "instructor" })}>
               <option value="student">👩‍🎓 Student</option>
               <option value="instructor">👨‍🏫 Instructor</option>
             </select>
-
             <button type="submit" className="login-btn" disabled={loading}>
               {loading ? "Creating account…" : "Sign Up"}
             </button>
           </form>
-
         </div>
       </section>
 
@@ -164,9 +239,7 @@ export function Login() {
             <p style={{ opacity: 0.88, fontSize: "0.9rem", marginBottom: "20px" }}>
               Create an account and start learning for free.
             </p>
-            <button className="login-btn transparent" onClick={() => switchMode(true)}>
-              Sign Up
-            </button>
+            <button className="login-btn transparent" onClick={() => switchMode(true)}>Sign Up</button>
           </div>
           <LoginIllustration />
         </div>
@@ -177,9 +250,7 @@ export function Login() {
             <p style={{ opacity: 0.88, fontSize: "0.9rem", marginBottom: "20px" }}>
               Sign in to continue your journey.
             </p>
-            <button className="login-btn transparent" onClick={() => switchMode(false)}>
-              Sign In
-            </button>
+            <button className="login-btn transparent" onClick={() => switchMode(false)}>Sign In</button>
           </div>
           <RegisterIllustration />
         </div>

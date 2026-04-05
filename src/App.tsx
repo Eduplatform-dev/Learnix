@@ -9,19 +9,19 @@ import { Header }  from "./app/components/Header";
 import { Login }   from "./app/components/Login";
 
 /* ================= STUDENT PAGES ================= */
-import { Dashboard }      from "./app/components/pages/student/Dashboard";
-import { Courses }        from "./app/components/pages/student/Courses";
-import { CourseViewer }   from "./app/components/pages/student/CourseViewer";
-import { Videos }         from "./app/components/pages/student/Videos";
-import { Progress }       from "./app/components/pages/student/Progress";
-import { Assignments }    from "./app/components/pages/student/Assignments";
-import { Submissions }    from "./app/components/pages/student/Submissions";
-import { Fees }           from "./app/components/pages/student/Fees";
-import { AIChat }         from "./app/components/pages/student/AIChat";
-import { ContentLibrary } from "./app/components/pages/student/ContentLibrary";
-import { Attendance }    from "./app/components/pages/student/Attendance";
-import { DocumentHub }   from "./app/components/pages/student/DocumentHub";
-import { TimetableView } from "./app/components/pages/student/TimetableView";
+import { Dashboard }         from "./app/components/pages/student/Dashboard";
+import { Courses }           from "./app/components/pages/student/Courses";
+import { CourseViewer }      from "./app/components/pages/student/CourseViewer";
+import { Videos }            from "./app/components/pages/student/Videos";
+import { Progress }          from "./app/components/pages/student/Progress";
+import { Assignments }       from "./app/components/pages/student/Assignments";
+import { Submissions }       from "./app/components/pages/student/Submissions";
+import { Fees }              from "./app/components/pages/student/Fees";
+import { AIChat }            from "./app/components/pages/student/AIChat";
+import { ContentLibrary }    from "./app/components/pages/student/ContentLibrary";
+import { StudentResults }    from "./app/components/pages/student/StudentResults";
+import { StudentCertificates } from "./app/components/pages/student/StudentCertificates";
+import { StudentExams }      from "./app/components/pages/student/StudentExams";
 
 /* ================= ADMIN PAGES ================= */
 import { AdminDashboard }   from "./app/components/pages/admin/AdminDashboard";
@@ -32,8 +32,9 @@ import { AdminContent }     from "./app/components/pages/admin/AdminContent";
 import { AdminFees }        from "./app/components/pages/admin/AdminFees";
 import { AdminSubmissions } from "./app/components/pages/admin/AdminSubmissions";
 import { AdminSettings }    from "./app/components/pages/admin/AdminSettings";
-import { AdminDocuments }  from "./app/components/pages/admin/AdminDocuments";
-import { AdminTimetable }  from "./app/components/pages/admin/AdminTimetable";
+import { AdminExams }       from "./app/components/pages/admin/AdminExams";
+import { AdminResults }     from "./app/components/pages/admin/AdminResults";
+import { AdminAuditLogs }   from "./app/components/pages/admin/AdminAuditLogs";
 
 /* ================= INSTRUCTOR PAGES ================= */
 import { InstructorDashboard }   from "./app/components/pages/instructor/InstructorDashboard";
@@ -42,7 +43,6 @@ import { InstructorAssignments } from "./app/components/pages/instructor/Instruc
 import { InstructorSubmissions } from "./app/components/pages/instructor/InstructorSubmissions";
 import { InstructorContent }     from "./app/components/pages/instructor/InstructorContent";
 import { InstructorStudents }    from "./app/components/pages/instructor/InstructorStudents";
-import { InstructorAttendance } from "./app/components/pages/instructor/InstructorAttendance";
 
 /* =========================================================
    🔐 PROTECTED ROUTE WRAPPER
@@ -87,7 +87,7 @@ function AppShell({ children }: { children: ReactNode }) {
 function UserRoutes() {
   return (
     <Routes>
-      <Route index           element={<Dashboard />} />
+      <Route index              element={<Dashboard />} />
       <Route path="courses"     element={<Courses />} />
       <Route path="videos"      element={<Videos />} />
       <Route path="library"     element={<ContentLibrary />} />
@@ -96,10 +96,10 @@ function UserRoutes() {
       <Route path="submissions" element={<Submissions />} />
       <Route path="fees"        element={<Fees />} />
       <Route path="ai-chat"     element={<AIChat />} />
+      <Route path="results"     element={<StudentResults />} />
+      <Route path="certificates" element={<StudentCertificates />} />
+      <Route path="exams"       element={<StudentExams />} />
       <Route path="*"           element={<Navigate to="/dashboard" replace />} />
-      <Route path="attendance"  element={<Attendance />} />
-      <Route path="documents"   element={<DocumentHub />} />
-      <Route path="timetable"   element={<TimetableView />} />
     </Routes>
   );
 }
@@ -118,9 +118,10 @@ function AdminRoutes() {
       <Route path="fees"        element={<AdminFees />} />
       <Route path="submissions" element={<AdminSubmissions />} />
       <Route path="settings"    element={<AdminSettings />} />
+      <Route path="exams"       element={<AdminExams />} />
+      <Route path="results"     element={<AdminResults />} />
+      <Route path="audit-logs"  element={<AdminAuditLogs />} />
       <Route path="*"           element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="documents"   element={<AdminDocuments />} />
-      <Route path="timetable"   element={<AdminTimetable />} />
     </Routes>
   );
 }
@@ -139,7 +140,6 @@ function InstructorRoutes() {
       <Route path="students"    element={<InstructorStudents />} />
       <Route path="ai-chat"     element={<AIChat />} />
       <Route path="*"           element={<Navigate to="/instructor/dashboard" replace />} />
-      <Route path="attendance"  element={<InstructorAttendance />} />
     </Routes>
   );
 }

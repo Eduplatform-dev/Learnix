@@ -1,10 +1,11 @@
-﻿﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
 import { Badge } from "../../ui/badge";
 import { Button } from "../../ui/button";
 import { Separator } from "../../ui/separator";
-import { CreditCard, DollarSign, Download, Calendar, CheckCircle, AlertCircle, Clock } from "lucide-react";
+import { CreditCard, DollarSign, Download, Calendar, CheckCircle, AlertCircle, Receipt } from "lucide-react";
 import { getMyFees, markFeePaid, type Fee, type MyFeesResponse } from "../../../services/feeService";
+import { generateFeeReceipt } from "../../../utils/feeReceiptGenerator";
 
 const statusColor = (s: string) => {
   if (s === "paid")    return "bg-green-100 text-green-700";
@@ -18,6 +19,9 @@ export function Fees() {
   const [loading,  setLoading]  = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
   const [error,    setError]    = useState("");
+
+  const userData = localStorage.getItem("user");
+  const userName = userData ? JSON.parse(userData).username : undefined;
 
   useEffect(() => {
     getMyFees()
@@ -45,9 +49,7 @@ export function Fees() {
     }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center p-12"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
-  }
+  if (loading) return <div className="flex items-center justify-center p-12"><div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>;
 
   if (error && !data) {
     return (
@@ -64,7 +66,7 @@ export function Fees() {
   }
 
   const fees     = data?.fees ?? [];
-  const upcoming = fees.filter((f) => f.status === "pending");
+  const upcoming = fees.filter((f) => f.status === "pending" || f.status === "overdue");
   const history  = fees.filter((f) => f.status === "paid");
 
   return (
@@ -121,10 +123,8 @@ export function Fees() {
           <CardHeader className="border-b pb-4"><CardTitle>Upcoming Payments</CardTitle></CardHeader>
           <CardContent className="p-5 space-y-3">
             {upcoming.map((fee) => (
-              <div
-                key={fee._id}
-                className={`flex items-center justify-between p-4 rounded-xl border ${fee.status === "overdue" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}
-              >
+              <div key={fee._id}
+                className={`flex items-center justify-between p-4 rounded-xl border ${fee.status === "overdue" ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
                 <div>
                   <p className="font-medium text-gray-900">{fee.description}</p>
                   <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
@@ -135,7 +135,8 @@ export function Fees() {
                 </div>
                 <div className="flex items-center gap-3">
                   <p className="text-xl font-bold text-gray-900">${fee.amount.toFixed(2)}</p>
-                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700" onClick={() => handlePay(fee)} disabled={payingId === fee._id}>
+                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700"
+                    onClick={() => handlePay(fee)} disabled={payingId === fee._id}>
                     {payingId === fee._id ? "Processing..." : "Pay Now"}
                   </Button>
                 </div>
@@ -171,7 +172,7 @@ export function Fees() {
         </Card>
       )}
 
-      {/* Transaction history */}
+      {/* Payment History with receipt download */}
       {history.length > 0 && (
         <Card>
           <CardHeader className="border-b pb-4"><CardTitle>Payment History</CardTitle></CardHeader>
@@ -180,7 +181,7 @@ export function Fees() {
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    {["Description", "Paid On", "Amount", "Status", "Invoice"].map((h) => (
+                    {["Description", "Paid On", "Amount", "Status", "Invoice", "Receipt"].map((h) => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
                     ))}
                   </tr>
@@ -191,8 +192,18 @@ export function Fees() {
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{fee.description}</td>
                       <td className="px-4 py-3 text-sm text-gray-500">{fee.paidAt ? new Date(fee.paidAt).toLocaleDateString() : "—"}</td>
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900">${fee.amount.toFixed(2)}</td>
-                      <td className="px-4 py-3"><span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${statusColor(fee.status)}`}><CheckCircle className="w-3 h-3" />{fee.status}</span></td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${statusColor(fee.status)}`}>
+                          <CheckCircle className="w-3 h-3" />{fee.status}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-400">{fee.invoice || "—"}</td>
+                      <td className="px-4 py-3">
+                        <Button size="sm" variant="outline" className="gap-1.5 text-xs h-7"
+                          onClick={() => generateFeeReceipt(fee, userName)}>
+                          <Receipt className="w-3.5 h-3.5" />Receipt
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -211,7 +222,6 @@ export function Fees() {
           </CardContent>
         </Card>
       )}
-
     </div>
   );
 }

@@ -4,12 +4,12 @@ import {
   Hash, HelpCircle, Megaphone, Link2, Send, AlertCircle,
   ChevronDown, ChevronRight, MoreHorizontal, Bookmark,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
-import { Button } from "../../ui/button";
-import { Input } from "../../ui/input";
-import { Textarea } from "../../ui/textarea";
-import { Badge } from "../../ui/badge";
-import { Avatar, AvatarFallback } from "../../ui/avatar";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { Badge } from "../ui/badge";
+import { Avatar, AvatarFallback } from "../ui/avatar";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -192,9 +192,9 @@ function DiscussionCard({
                     rows={2}
                     placeholder="Write a reply..."
                     value={replyText}
-                    onChange={e => setReplyText(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReplyText(e.target.value)}
                     className="flex-1 text-sm"
-                    onKeyDown={e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) sendReply(); }}
+                    onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) sendReply(); }}
                   />
                   <Button size="sm" onClick={sendReply} disabled={submitting || !replyText.trim()} className="self-end">
                     <Send className="w-4 h-4" />
@@ -297,9 +297,9 @@ export function DiscussionForum({ courseId, lessonId }: { courseId: string; less
                   );
                 })}
               </div>
-              <Input placeholder="Title *" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-              <Textarea rows={3} placeholder="Describe your question or discussion..." value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} />
-              <Input placeholder="Tags (comma-separated): algorithms, sorting, complexity" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} />
+              <Input placeholder="Title *" value={form.title} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, title: e.target.value }))} />
+              <Textarea rows={3} placeholder="Describe your question or discussion..." value={form.content} onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm(f => ({ ...f, content: e.target.value }))} />
+              <Input placeholder="Tags (comma-separated): algorithms, sorting, complexity" value={form.tags} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, tags: e.target.value }))} />
               {error && <div className="flex items-center gap-2 text-red-600 text-sm"><AlertCircle className="w-4 h-4" />{error}</div>}
               <div className="flex justify-end gap-2">
                 <Button variant="ghost" onClick={() => setShowNew(false)}>Cancel</Button>

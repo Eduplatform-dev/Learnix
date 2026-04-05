@@ -1,24 +1,45 @@
-﻿import {
+import {
   Home, BookOpen, PlayCircle, LineChart, FileText,
   Upload, DollarSign, MessageSquare, Users, Settings,
   BarChart3, FolderOpen, Shield, GraduationCap, CheckSquare,
+  Award, Calendar, ClipboardList, Sun, Moon,
 } from "lucide-react";
 import { Badge }    from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useAuth }  from "../providers/AuthProvider";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BookMarked, FolderCheck, Grid3X3 } from "lucide-react";
-
 
 type UserRole = "student" | "admin" | "instructor";
 type MenuItem  = { path: string; label: string; icon: LucideIcon; badge?: number; exact?: boolean; };
 interface SidebarProps { isOpen: boolean; onClose: () => void; }
 
+// ── Dark / Light mode toggle hook ──────────────────────────────
+function useDarkMode() {
+  const [dark, setDark] = useState(() => {
+    const saved = localStorage.getItem("learnix-dark-mode");
+    if (saved !== null) return saved === "true";
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+  });
+
+  useEffect(() => {
+    if (dark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+    localStorage.setItem("learnix-dark-mode", String(dark));
+  }, [dark]);
+
+  return { dark, toggle: () => setDark(d => !d) };
+}
+
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user }  = useAuth();
   const location  = useLocation();
   const navigate  = useNavigate();
+  const { dark, toggle } = useDarkMode();
 
   const userRole = user?.role as UserRole | undefined;
   if (!userRole) return null;
@@ -29,31 +50,32 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     : user?.email?.slice(0, 2).toUpperCase() || "U";
 
   const studentMenu: MenuItem[] = [
-    { path: "/dashboard",             label: "Home",          icon: Home,         exact: true },
-    { path: "/dashboard/courses",     label: "My Courses",    icon: BookOpen },
-    { path: "/dashboard/videos",      label: "Video Library", icon: PlayCircle },
-    { path: "/dashboard/library",     label: "Resources",     icon: FolderOpen },
-    { path: "/dashboard/progress",    label: "My Progress",   icon: LineChart },
-    { path: "/dashboard/assignments", label: "Assignments",   icon: FileText },
-    { path: "/dashboard/submissions", label: "Submissions",   icon: Upload },
-    { path: "/dashboard/fees",        label: "Fee Payment",   icon: DollarSign },
-    { path: "/dashboard/ai-chat",     label: "AI Assistant",  icon: MessageSquare },
-    { path: "/dashboard/attendance", label: "Attendance",  icon: BookMarked },
-    { path: "/dashboard/documents",  label: "Documents",   icon: FolderCheck },
-    { path: "/dashboard/timetable",  label: "Timetable",   icon: Grid3X3 },
+    { path: "/dashboard",              label: "Home",          icon: Home,         exact: true },
+    { path: "/dashboard/courses",      label: "My Courses",    icon: BookOpen },
+    { path: "/dashboard/videos",       label: "Video Library", icon: PlayCircle },
+    { path: "/dashboard/library",      label: "Resources",     icon: FolderOpen },
+    { path: "/dashboard/progress",     label: "My Progress",   icon: LineChart },
+    { path: "/dashboard/assignments",  label: "Assignments",   icon: FileText },
+    { path: "/dashboard/submissions",  label: "Submissions",   icon: Upload },
+    { path: "/dashboard/exams",        label: "Exam Schedule", icon: Calendar },
+    { path: "/dashboard/results",      label: "My Results",    icon: ClipboardList },
+    { path: "/dashboard/certificates", label: "Certificates",  icon: Award },
+    { path: "/dashboard/fees",         label: "Fee Payment",   icon: DollarSign },
+    { path: "/dashboard/ai-chat",      label: "AI Assistant",  icon: MessageSquare },
   ];
 
   const adminMenu: MenuItem[] = [
     { path: "/admin/dashboard",   label: "Dashboard",   icon: BarChart3, exact: true },
     { path: "/admin/users",       label: "Users",       icon: Users },
     { path: "/admin/courses",     label: "Courses",     icon: BookOpen },
+    { path: "/admin/exams",       label: "Exam Schedule", icon: Calendar },
+    { path: "/admin/results",     label: "Results",     icon: ClipboardList },
     { path: "/admin/analytics",   label: "Analytics",   icon: LineChart },
     { path: "/admin/content",     label: "Content",     icon: FolderOpen },
     { path: "/admin/fees",        label: "Fees",        icon: DollarSign },
     { path: "/admin/submissions", label: "Submissions", icon: Upload },
+    { path: "/admin/audit-logs",  label: "Audit Logs",  icon: Shield },
     { path: "/admin/settings",    label: "Settings",    icon: Settings },
-    { path: "/admin/documents",   label: "Documents",  icon: FolderCheck },
-    { path: "/admin/timetable",   label: "Timetable",  icon: Grid3X3 },
   ];
 
   const instructorMenu: MenuItem[] = [
@@ -64,8 +86,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/instructor/students",    label: "Students",     icon: Users },
     { path: "/instructor/content",     label: "Content",      icon: FolderOpen },
     { path: "/instructor/ai-chat",     label: "AI Assistant", icon: MessageSquare },
-    { path: "/instructor/attendance", label: "Attendance", icon: BookMarked },
-
   ];
 
   const menuItems =
@@ -92,7 +112,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <div
       className={[
         "w-64 flex flex-col h-screen fixed left-0 top-0 z-50",
-        "bg-white border-r border-slate-200",
+        "bg-white dark:bg-gray-900 border-r border-slate-200 dark:border-gray-800",
         "transition-transform duration-300 shadow-sm",
         "ae-sidebar dg-sidebar",
         isOpen ? "translate-x-0" : "-translate-x-full",
@@ -100,16 +120,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       ].join(" ")}
     >
       {/* Logo */}
-      <div className="p-5 border-b border-slate-200" style={{ borderColor: "inherit" }}>
+      <div className="p-5 border-b border-slate-200 dark:border-gray-800">
         <div className="flex items-center gap-3">
-          <div
-            className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-md bg-gradient-to-br ${accentGradient} dg-logo-box ae-logo-box flex-shrink-0`}
-          >
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-md bg-gradient-to-br ${accentGradient} dg-logo-box ae-logo-box flex-shrink-0`}>
             {logoIcon}
           </div>
           <div className="min-w-0 dg-logo-text">
-            <h1 className="font-bold text-slate-900 text-base truncate leading-tight">Learnix</h1>
-            <p className="text-xs text-slate-500 truncate">{portalLabel}</p>
+            <h1 className="font-bold text-slate-900 dark:text-white text-base truncate leading-tight">Learnix</h1>
+            <p className="text-xs text-slate-500 dark:text-gray-400 truncate">{portalLabel}</p>
           </div>
         </div>
       </div>
@@ -133,7 +151,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   "dg-nav-item ae-nav-item",
                   isActive
                     ? "active bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                    : "text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-white",
                 ].join(" ")}
               >
                 <Icon className="shrink-0" style={{ width: "1rem", height: "1rem" }} />
@@ -147,20 +165,39 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       </nav>
 
-      {/* User */}
-      <div className="p-4 border-t border-slate-200 bg-slate-50 dg-user-area ae-user-area">
-        <div className="flex items-center gap-3">
-          <Avatar className="w-9 h-9 flex-shrink-0">
-            <AvatarFallback
-              className={`text-xs font-bold bg-gradient-to-br ${accentGradient} text-white dg-avatar-fallback ae-avatar-fallback`}
-              style={{ borderRadius: "inherit" }}
-            >
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate text-slate-900">{user?.username || "User"}</p>
-            <p className="text-xs text-slate-500 truncate capitalize">{userRole}</p>
+      {/* Dark mode toggle + User footer */}
+      <div className="border-t border-slate-200 dark:border-gray-800">
+        {/* Dark / Light toggle */}
+        <div className="px-4 py-3 flex items-center justify-between">
+          <span className="text-xs text-slate-500 dark:text-gray-400 font-medium">Appearance</span>
+          <button
+            onClick={toggle}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 transition-all text-xs font-medium text-slate-600 dark:text-gray-300"
+            title={dark ? "Switch to Light mode" : "Switch to Dark mode"}
+          >
+            {dark ? (
+              <><Sun className="w-3.5 h-3.5 text-amber-500" />Light</>
+            ) : (
+              <><Moon className="w-3.5 h-3.5 text-indigo-500" />Dark</>
+            )}
+          </button>
+        </div>
+
+        {/* User info */}
+        <div className="p-4 pt-0 bg-slate-50 dark:bg-gray-900 dg-user-area ae-user-area">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-9 h-9 flex-shrink-0">
+              <AvatarFallback
+                className={`text-xs font-bold bg-gradient-to-br ${accentGradient} text-white dg-avatar-fallback ae-avatar-fallback`}
+                style={{ borderRadius: "inherit" }}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">{user?.username || "User"}</p>
+              <p className="text-xs text-slate-500 dark:text-gray-400 truncate capitalize">{userRole}</p>
+            </div>
           </div>
         </div>
       </div>
