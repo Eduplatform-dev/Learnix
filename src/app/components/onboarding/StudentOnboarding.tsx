@@ -48,7 +48,6 @@ export function StudentOnboarding({ onComplete }: Props) {
     "address.state":   "",
     "address.pincode": "",
     // Academic
-    // FIX: enrollmentNumber REMOVED — admin assigns this, not the student
     department:    "",
     year:          "",
     division:      "",
@@ -69,7 +68,10 @@ export function StudentOnboarding({ onComplete }: Props) {
     })
       .then((r) => r.json())
       .then((data) => setDepts(Array.isArray(data) ? data : []))
-      .catch(() => {});
+      .catch((err) => {
+        console.error("Failed to load departments:", err);
+        setError("Unable to load department options. Refresh the page.");
+      });
   }, []);
 
   const set = (k: string, v: string | File | null) =>
@@ -93,7 +95,6 @@ export function StudentOnboarding({ onComplete }: Props) {
       if (!form.gender)            return setError("Gender is required"), false;
     }
     if (step === 2) {
-      // FIX: no enrollment number validation — it's not in the form anymore
       if (!form.department)    return setError("Department is required"), false;
       if (!form.year)          return setError("Year is required"), false;
       if (!form.admissionYear) return setError("Admission year is required"), false;
