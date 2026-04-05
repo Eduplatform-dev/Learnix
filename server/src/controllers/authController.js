@@ -3,6 +3,8 @@ import jwt from "jsonwebtoken";
 import { z } from "zod";
 import User from "../models/User.js";
 import { env } from "../config/env.js";
+import AuditLog from "../models/AuditLog.js";
+import StudentProfile from "../models/StudentProfile.js";
 
 /* ── Optional Activity logging ── */
 let Activity = null;
@@ -30,8 +32,9 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email:    z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").optional(),
   password: z.string().min(1, "Password is required"),
+  enrollmentNumber: z.string().optional(),
 });
 
 /* ================= REGISTER ================= */
@@ -82,17 +85,49 @@ export const login = async (req, res) => {
       return res.status(400).json({ error: parsed.error.errors[0].message });
     }
 
-    const { email, password } = parsed.data;
-    const normalizedEmail = email.toLowerCase().trim();
+    const { email, password, enrollmentNumber } = parsed.data;
+    const normalizedEmail = email?.toLowerCase().trim();
 
-    const user = await User.findOne({ email: normalizedEmail }).select("+password");
+    let user;
+
+    if (enrollmentNumber) {
+      const profile = await StudentProfile
+        .findOne({ enrollmentNumber })
+        .populate("user");
+
+      user = profile?.user;
+
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      user = await User.findById(user._id).select("+password");
+    } else {
+      user = await User.findOne({ email: normalizedEmail }).select("+password");
+    }
+
     if (!user) return res.status(401).json({ error: "Invalid credentials" });
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ error: "Invalid credentials" });
 
     const token = jwt.sign({ id: user._id, role: user.role }, env.JWT_SECRET, { expiresIn: "7d" });
+
     await logActivity(user._id, "login", "User logged in");
+
+    // ✅ YOUR REQUIRED ADDITION (audit log)
+    await AuditLog.create({
+      actor: user._id,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: "LOGIN",
+      resource: "auth",
+      resourceId: String(user._id),
+      details: `User logged in from ${req.ip}`,
+      status: "success",
+      ip: req.ip,
+      userAgent: req.get("user-agent") || "",
+    }).catch(() => {});
 
     res.json({
       token,

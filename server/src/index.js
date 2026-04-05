@@ -23,6 +23,10 @@ import semesterRoutes       from "./routes/semesterRoutes.js";
 import attendanceRoutes     from "./routes/attendanceRoutes.js";
 import documentRoutes       from "./routes/documentRoutes.js";
 import timetableRoutes      from "./routes/timetableRoutes.js";
+import examRoutes           from "./routes/examRoutes.js";
+import resultRoutes         from "./routes/resultRoutes.js";
+import discussionRoutes     from "./routes/discussionRoutes.js";
+import { certRouter, auditRouter } from "./routes/certAndAuditRoutes.js";
 
 // ✅ correct import
 import profileRoutes        from "./routes/profileRoutes.js";
@@ -105,6 +109,11 @@ app.use("/api/timetable",     timetableRoutes);
 
 app.use("/api/profiles",      profileRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/exams",         examRoutes);
+app.use("/api/results",       resultRoutes);
+app.use("/api/discussions",   discussionRoutes);
+app.use("/api/certificates",  certRouter);
+app.use("/api/audit-logs",    auditRouter);
 
 /* ─── HEALTH ─────────────────────────────────────────── */
 app.get("/health", (_req, res) => {
