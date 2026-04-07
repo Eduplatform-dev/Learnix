@@ -97,13 +97,13 @@ const calcIsComplete = (data) =>
 /* ─── GET MY PROFILE (student) ────────────────────────────── */
 export const getMyProfile = async (req, res) => {
   try {
-    let profile = await StudentProfile.findOne({ userId: req.user._id })
+    let profile = await StudentProfile.findOne({ user: req.user._id })
       .populate("department", "name code")
       .populate("academicYear", "label");
 
     if (!profile) {
       // Auto-create empty profile on first access
-      profile = await StudentProfile.create({ userId: req.user._id });
+      profile = await StudentProfile.create({ user: req.user._id });
     }
 
     res.json(profile);
@@ -125,12 +125,12 @@ export const updateMyProfile = async (req, res) => {
     if (updates.dateOfBirth) updates.dateOfBirth = new Date(updates.dateOfBirth);
 
     // Determine profile completeness
-    const existing = await StudentProfile.findOne({ userId: req.user._id }).lean();
+    const existing = await StudentProfile.findOne({ user: req.user._id }).lean();
     const merged   = { ...existing, ...updates };
     updates.isProfileComplete = calcIsComplete(merged);
 
     const profile = await StudentProfile.findOneAndUpdate(
-      { userId: req.user._id },
+      { user: req.user._id },
       updates,
       { new: true, upsert: true, runValidators: true }
     )
@@ -165,8 +165,8 @@ export const getProfileByUserId = async (req, res) => {
       return res.status(400).json({ error: "Invalid user ID" });
     }
 
-    const profile = await StudentProfile.findOne({ userId })
-      .populate("userId", "username email role createdAt")
+    const profile = await StudentProfile.findOne({ user: userId })
+      .populate("user", "username email role createdAt")
       .populate("department", "name code")
       .populate("academicYear", "label startDate endDate");
 
@@ -194,7 +194,7 @@ export const getAllProfiles = async (req, res) => {
 
     const [profiles, total] = await Promise.all([
       StudentProfile.find(filter)
-        .populate("userId", "username email")
+        .populate("user", "username email")
         .populate("department", "name code")
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -221,7 +221,7 @@ export const verifyProfile = async (req, res) => {
     }
 
     const profile = await StudentProfile.findOneAndUpdate(
-      { userId },
+      { user: userId },
       {
         verificationStatus: status,
         verificationNote:   note || "",
@@ -255,11 +255,11 @@ export const adminUpdateProfile = async (req, res) => {
     if (updates.dateOfBirth) updates.dateOfBirth = new Date(updates.dateOfBirth);
 
     const profile = await StudentProfile.findOneAndUpdate(
-      { userId },
+      { user: userId },
       updates,
       { new: true, upsert: true, runValidators: true }
     )
-      .populate("userId", "username email")
+      .populate("user", "username email")
       .populate("department", "name code");
 
     // Sync User model

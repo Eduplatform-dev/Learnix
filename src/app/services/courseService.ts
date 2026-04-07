@@ -14,9 +14,10 @@ export type Course = {
   progress:         number;
   status:           CourseStatus;
   image:            string;
-  enrolledStudents?: string[];
+  // FIX: always preserve the full enrolledStudents array (not just .length)
+  // Used by InstructorAttendance and isEnrolled checks in Courses.tsx
+  enrolledStudents: string[];
   description?:     string;
-  // New fields
   courseType:       CourseType;
   isFree:           boolean;
   price:            number;
@@ -43,6 +44,13 @@ const normaliseCourse = (c: any): Course => ({
   progress:   c.progress    ?? 0,
   status:     c.status      || "active",
   image:      c.image       || "",
+  // FIX: preserve the full array so InstructorAttendance can iterate students
+  // and Courses.tsx can do proper enrollment checks
+  enrolledStudents: Array.isArray(c.enrolledStudents)
+    ? c.enrolledStudents.map((s: any) =>
+        typeof s === "object" && s !== null ? s._id || String(s) : String(s)
+      )
+    : [],
   description:     c.description     || "",
   courseType:      c.courseType      || "private",
   isFree:          c.isFree          ?? true,

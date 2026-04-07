@@ -1,7 +1,7 @@
 import { getAuthHeader } from "./authService";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-const API          = `${API_BASE_URL}/api/student-profiles`;
+const API          = `${API_BASE_URL}/api/profiles`;
 
 /* ── Types ─────────────────────────────────────────────────── */
 export type Address = {
@@ -90,15 +90,15 @@ const handle = async <T>(res: Response): Promise<T> => {
 
 /* ── Student: own profile ───────────────────────────────── */
 export const getMyProfile = async (): Promise<StudentProfile> => {
-  const res = await fetch(`${API}/me`, { headers: getAuthHeader() });
+  const res = await fetch(`${API}/student/me`, { headers: getAuthHeader() });
   return handle<StudentProfile>(res);
 };
 
 export const updateMyProfile = async (
   data: Partial<StudentProfile>
 ): Promise<StudentProfile> => {
-  const res = await fetch(`${API}/me`, {
-    method:  "PUT",
+  const res = await fetch(`${API}/student`, {
+    method:  "POST",
     headers: getAuthHeader(),
     body:    JSON.stringify(data),
   });
@@ -109,7 +109,7 @@ export const updateMyProfile = async (
 export const getProfileByUserId = async (
   userId: string
 ): Promise<StudentProfile> => {
-  const res = await fetch(`${API}/user/${userId}`, { headers: getAuthHeader() });
+  const res = await fetch(`${API}/students/${userId}`, { headers: getAuthHeader() });
   return handle<StudentProfile>(res);
 };
 
@@ -130,7 +130,7 @@ export const getAllProfiles = async (params?: {
   if (params?.status)     qs.set("status",     params.status);
   if (params?.division)   qs.set("division",   params.division);
 
-  const url = `${API}${qs.toString() ? "?" + qs : ""}`;
+  const url = `${API}/students${qs.toString() ? "?" + qs : ""}`;
   const res = await fetch(url, { headers: getAuthHeader() });
   return handle<ProfilesResponse>(res);
 };
@@ -141,8 +141,8 @@ export const verifyProfile = async (
   status: "verified" | "rejected" | "pending",
   note?:  string
 ): Promise<StudentProfile> => {
-  const res = await fetch(`${API}/user/${userId}/verify`, {
-    method:  "PATCH",
+  const res = await fetch(`${API}/students/${userId}`, {
+    method:  "PUT",
     headers: getAuthHeader(),
     body:    JSON.stringify({ status, note }),
   });
@@ -154,7 +154,7 @@ export const adminUpdateProfile = async (
   userId: string,
   data:   Partial<StudentProfile>
 ): Promise<StudentProfile> => {
-  const res = await fetch(`${API}/user/${userId}`, {
+  const res = await fetch(`${API}/students/${userId}`, {
     method:  "PUT",
     headers: getAuthHeader(),
     body:    JSON.stringify(data),

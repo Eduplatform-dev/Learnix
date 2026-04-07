@@ -25,12 +25,14 @@ import semesterRoutes       from "./routes/semesterRoutes.js";
 import profileRoutes        from "./routes/profileRoutes.js";
 import notificationRoutes   from "./routes/notificationRoutes.js";
 
-/* ── NEW routes (2025 feature additions) ── */
+/* ── NEW routes ── */
 import examRoutes           from "./routes/examRoutes.js";
 import resultRoutes         from "./routes/resultRoutes.js";
 import discussionRoutes     from "./routes/discussionRoutes.js";
+import attendanceRoutes     from "./routes/attendanceRoutes.js";
+import timetableRoutes      from "./routes/timetableRoutes.js";
+import documentRoutes       from "./routes/documentRoutes.js";
 import { certRouter, auditRouter } from "./routes/certAndAuditRoutes.js";
-
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 const app  = express();
@@ -43,7 +45,19 @@ if (env.NODE_ENV === "production") {
 app.disable("x-powered-by");
 
 /* ─── GLOBAL MIDDLEWARE ─────────────────────────────── */
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+
+/* ✅ FIXED HELMET CONFIG */
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    contentSecurityPolicy: {
+      directives: {
+        frameAncestors: ["'self'", "http://localhost:5173"],
+      },
+    },
+  })
+);
+
 app.use(morgan(env.NODE_ENV === "production" ? "combined" : "dev"));
 
 app.use(
@@ -104,10 +118,13 @@ app.use("/api/semesters",     semesterRoutes);
 app.use("/api/profiles",      profileRoutes);
 app.use("/api/notifications", notificationRoutes);
 
-/* ── NEW (Academic & Feature routes) ── */
+/* New */
 app.use("/api/exams",         examRoutes);
 app.use("/api/results",       resultRoutes);
 app.use("/api/discussions",   discussionRoutes);
+app.use("/api/attendance",    attendanceRoutes);
+app.use("/api/timetable",     timetableRoutes);
+app.use("/api/documents",     documentRoutes);
 app.use("/api/certificates",  certRouter);
 app.use("/api/audit-logs",    auditRouter);
 

@@ -13,24 +13,25 @@ import { useEffect, useState } from "react";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const TITLES: Record<string, string> = {
-  "/dashboard": "Home", "/dashboard/courses": "My Courses",
-  "/dashboard/videos": "Video Library", "/dashboard/library": "Resources",
-  "/dashboard/progress": "My Progress", "/dashboard/assignments": "Assignments",
-  "/dashboard/submissions": "Submissions", "/dashboard/fees": "Fee Payment",
-  "/dashboard/ai-chat": "AI Assistant", "/admin/dashboard": "Admin Dashboard",
-  "/admin/users": "User Management", "/admin/courses": "Course Management",
-  "/admin/analytics": "Analytics", "/admin/content": "Content Library",
-  "/admin/fees": "Fee Management", "/admin/submissions": "Submissions Review",
-  "/admin/settings": "System Settings", "/instructor/dashboard": "Instructor Dashboard",
-  "/instructor/courses": "My Courses", "/instructor/assignments": "Assignments",
+  "/dashboard": "Home",      "/dashboard/courses": "My Courses",
+  "/dashboard/videos":       "Video Library", "/dashboard/library": "Resources",
+  "/dashboard/progress":     "My Progress", "/dashboard/assignments": "Assignments",
+  "/dashboard/submissions":  "Submissions", "/dashboard/fees": "Fee Payment",
+  "/dashboard/ai-chat":      "AI Assistant", "/admin/dashboard": "Admin Dashboard",
+  "/admin/users":            "User Management", "/admin/courses": "Course Management",
+  "/admin/analytics":        "Analytics", "/admin/content": "Content Library",
+  "/admin/fees":             "Fee Management", "/admin/submissions": "Submissions Review",
+  "/admin/settings":         "System Settings", "/instructor/dashboard": "Instructor Dashboard",
+  "/instructor/courses":     "My Courses", "/instructor/assignments": "Assignments",
   "/instructor/submissions": "Grade Submissions", "/instructor/students": "My Students",
-  "/instructor/content": "Content Library", "/instructor/ai-chat": "AI Assistant",
+  "/instructor/content":     "Content Library", "/instructor/ai-chat": "AI Assistant",
   "/dashboard/attendance":   "My Attendance",
   "/dashboard/documents":    "Document Hub",
   "/dashboard/timetable":    "Timetable",
   "/instructor/attendance":  "Attendance",
   "/admin/documents":        "Document Verification",
   "/admin/timetable":        "Timetable Management",
+  "/admin/departments":      "Departments",
 };
 
 type ThemeKey = "default" | "aesthetic" | "dark-glass";

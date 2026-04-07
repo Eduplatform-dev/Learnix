@@ -22,9 +22,14 @@ import { ContentLibrary }    from "./app/components/pages/student/ContentLibrary
 import { StudentResults }    from "./app/components/pages/student/StudentResults";
 import { StudentCertificates } from "./app/components/pages/student/StudentCertificates";
 import { StudentExams }      from "./app/components/pages/student/StudentExams";
+import { Attendance }        from "./app/components/pages/student/Attendance";
+import { DocumentHub }       from "./app/components/pages/student/DocumentHub";
+import { TimetableView }     from "./app/components/pages/student/TimetableView";
 
 /* ================= ADMIN PAGES ================= */
 import { AdminDashboard }   from "./app/components/pages/admin/AdminDashboard";
+import { AdminDocuments }   from "./app/components/pages/admin/AdminDocuments";
+import { AdminTimetable }   from "./app/components/pages/admin/AdminTimetable";
 import { AdminUsers }       from "./app/components/pages/admin/AdminUsers";
 import { AdminCourses }     from "./app/components/pages/admin/AdminCourses";
 import { AdminAnalytics }   from "./app/components/pages/admin/AdminAnalytics";
@@ -35,6 +40,7 @@ import { AdminSettings }    from "./app/components/pages/admin/AdminSettings";
 import { AdminExams }       from "./app/components/pages/admin/AdminExams";
 import { AdminResults }     from "./app/components/pages/admin/AdminResults";
 import { AdminAuditLogs }   from "./app/components/pages/admin/AdminAuditLogs";
+import { AdminDepartments } from "./app/components/pages/admin/AdminDepartments";
 
 /* ================= INSTRUCTOR PAGES ================= */
 import { InstructorDashboard }   from "./app/components/pages/instructor/InstructorDashboard";
@@ -43,6 +49,7 @@ import { InstructorAssignments } from "./app/components/pages/instructor/Instruc
 import { InstructorSubmissions } from "./app/components/pages/instructor/InstructorSubmissions";
 import { InstructorContent }     from "./app/components/pages/instructor/InstructorContent";
 import { InstructorStudents }    from "./app/components/pages/instructor/InstructorStudents";
+import { InstructorAttendance }  from "./app/components/pages/instructor/InstructorAttendance";
 
 /* =========================================================
    🔐 PROTECTED ROUTE WRAPPER
@@ -99,6 +106,9 @@ function UserRoutes() {
       <Route path="results"     element={<StudentResults />} />
       <Route path="certificates" element={<StudentCertificates />} />
       <Route path="exams"       element={<StudentExams />} />
+      <Route path="attendance"   element={<Attendance />} />
+      <Route path="documents"    element={<DocumentHub />} />
+      <Route path="timetable"    element={<TimetableView />} />
       <Route path="*"           element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
@@ -121,6 +131,9 @@ function AdminRoutes() {
       <Route path="exams"       element={<AdminExams />} />
       <Route path="results"     element={<AdminResults />} />
       <Route path="audit-logs"  element={<AdminAuditLogs />} />
+      <Route path="documents"   element={<AdminDocuments />} />
+      <Route path="timetable"   element={<AdminTimetable />} />
+      <Route path="departments" element={<AdminDepartments />} />
       <Route path="*"           element={<Navigate to="/admin/dashboard" replace />} />
     </Routes>
   );
@@ -139,6 +152,7 @@ function InstructorRoutes() {
       <Route path="content"     element={<InstructorContent />} />
       <Route path="students"    element={<InstructorStudents />} />
       <Route path="ai-chat"     element={<AIChat />} />
+      <Route path="attendance"   element={<InstructorAttendance />} />
       <Route path="*"           element={<Navigate to="/instructor/dashboard" replace />} />
     </Routes>
   );

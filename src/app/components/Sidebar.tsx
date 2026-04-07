@@ -1,8 +1,8 @@
-import {
+﻿import {
   Home, BookOpen, PlayCircle, LineChart, FileText,
   Upload, DollarSign, MessageSquare, Users, Settings,
   BarChart3, FolderOpen, Shield, GraduationCap, CheckSquare,
-  Award, Calendar, ClipboardList, Sun, Moon,
+  Award, Calendar, ClipboardList, Building2
 } from "lucide-react";
 import { Badge }    from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -15,31 +15,10 @@ type UserRole = "student" | "admin" | "instructor";
 type MenuItem  = { path: string; label: string; icon: LucideIcon; badge?: number; exact?: boolean; };
 interface SidebarProps { isOpen: boolean; onClose: () => void; }
 
-// ── Dark / Light mode toggle hook ──────────────────────────────
-function useDarkMode() {
-  const [dark, setDark] = useState(() => {
-    const saved = localStorage.getItem("learnix-dark-mode");
-    if (saved !== null) return saved === "true";
-    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
-  });
-
-  useEffect(() => {
-    if (dark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-    localStorage.setItem("learnix-dark-mode", String(dark));
-  }, [dark]);
-
-  return { dark, toggle: () => setDark(d => !d) };
-}
-
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user }  = useAuth();
   const location  = useLocation();
   const navigate  = useNavigate();
-  const { dark, toggle } = useDarkMode();
 
   const userRole = user?.role as UserRole | undefined;
   if (!userRole) return null;
@@ -57,6 +36,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/dashboard/progress",     label: "My Progress",   icon: LineChart },
     { path: "/dashboard/assignments",  label: "Assignments",   icon: FileText },
     { path: "/dashboard/submissions",  label: "Submissions",   icon: Upload },
+    { path: "/dashboard/attendance",   label: "Attendance",    icon: CheckSquare },
     { path: "/dashboard/exams",        label: "Exam Schedule", icon: Calendar },
     { path: "/dashboard/results",      label: "My Results",    icon: ClipboardList },
     { path: "/dashboard/certificates", label: "Certificates",  icon: Award },
@@ -76,6 +56,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/admin/submissions", label: "Submissions", icon: Upload },
     { path: "/admin/audit-logs",  label: "Audit Logs",  icon: Shield },
     { path: "/admin/settings",    label: "Settings",    icon: Settings },
+    { path: "/admin/departments", label: "Departments", icon: Building2 },
   ];
 
   const instructorMenu: MenuItem[] = [
@@ -86,6 +67,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/instructor/students",    label: "Students",     icon: Users },
     { path: "/instructor/content",     label: "Content",      icon: FolderOpen },
     { path: "/instructor/ai-chat",     label: "AI Assistant", icon: MessageSquare },
+    { path: "/instructor/attendance",  label: "Attendance",   icon: CheckSquare },
   ];
 
   const menuItems =
@@ -165,39 +147,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
       </nav>
 
-      {/* Dark mode toggle + User footer */}
-      <div className="border-t border-slate-200 dark:border-gray-800">
-        {/* Dark / Light toggle */}
-        <div className="px-4 py-3 flex items-center justify-between">
-          <span className="text-xs text-slate-500 dark:text-gray-400 font-medium">Appearance</span>
-          <button
-            onClick={toggle}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-gray-800 hover:bg-slate-200 dark:hover:bg-gray-700 transition-all text-xs font-medium text-slate-600 dark:text-gray-300"
-            title={dark ? "Switch to Light mode" : "Switch to Dark mode"}
-          >
-            {dark ? (
-              <><Sun className="w-3.5 h-3.5 text-amber-500" />Light</>
-            ) : (
-              <><Moon className="w-3.5 h-3.5 text-indigo-500" />Dark</>
-            )}
-          </button>
-        </div>
-
-        {/* User info */}
-        <div className="p-4 pt-0 bg-slate-50 dark:bg-gray-900 dg-user-area ae-user-area">
-          <div className="flex items-center gap-3">
-            <Avatar className="w-9 h-9 flex-shrink-0">
-              <AvatarFallback
-                className={`text-xs font-bold bg-gradient-to-br ${accentGradient} text-white dg-avatar-fallback ae-avatar-fallback`}
-                style={{ borderRadius: "inherit" }}
-              >
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">{user?.username || "User"}</p>
-              <p className="text-xs text-slate-500 dark:text-gray-400 truncate capitalize">{userRole}</p>
-            </div>
+      {/* User footer */}
+      <div className="border-t border-slate-200 dark:border-gray-800 p-4 bg-slate-50 dark:bg-gray-900 dg-user-area ae-user-area">
+        <div className="flex items-center gap-3">
+          <Avatar className="w-9 h-9 flex-shrink-0">
+            <AvatarFallback
+              className={`text-xs font-bold bg-gradient-to-br ${accentGradient} text-white dg-avatar-fallback ae-avatar-fallback`}
+              style={{ borderRadius: "inherit" }}
+            >
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">{user?.username || "User"}</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400 truncate capitalize">{userRole}</p>
           </div>
         </div>
       </div>
