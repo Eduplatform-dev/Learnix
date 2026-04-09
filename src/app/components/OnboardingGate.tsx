@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "../providers/AuthProvider";
+import { getAuthHeader } from "../services/authService";
 import { StudentOnboarding } from "./onboarding/StudentOnboarding";
 import { InstructorOnboarding } from "./onboarding/InstructorOnboarding";
 
@@ -12,56 +13,30 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<ProfileStatus>("loading");
 
   useEffect(() => {
-    if (!user) {
-      setStatus("done");
-      return;
-    }
-    // Admin doesn't need onboarding
-    if (user.role === "admin") {
-      setStatus("done");
-      return;
-    }
+    if (!user) { setStatus("done"); return; }
+    if (user.role === "admin") { setStatus("done"); return; }
     checkProfile();
   }, [user]);
 
   const checkProfile = async () => {
     try {
-      const token = localStorage.getItem("token");
-
-      // FIX: endpoints now match the unified profileRoutes.js
-      // /api/profiles/student/me  (was /api/profiles/student/me — same, but now consistent)
-      // /api/profiles/instructor/me
       const endpoint =
         user!.role === "student"
           ? "/api/profiles/student/me"
           : "/api/profiles/instructor/me";
 
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers:     getAuthHeader(),
+        credentials: "include",
       });
 
-      if (!res.ok) {
-        // 404 or error means no profile yet → show onboarding
-        setStatus("needs_onboarding");
-        return;
-      }
+      if (!res.ok) { setStatus("needs_onboarding"); return; }
 
       const data = await res.json();
-
-      // null response or not yet submitted → show onboarding
-      if (!data || !data.isSubmitted) {
-        setStatus("needs_onboarding");
-      } else {
-        setStatus("done");
-      }
+      setStatus(!data || !data.isSubmitted ? "needs_onboarding" : "done");
     } catch {
-      // On network error, let them through rather than blocking forever
       setStatus("done");
     }
-  };
-
-  const handleOnboardingComplete = () => {
-    setStatus("done");
   };
 
   if (status === "loading") {
@@ -76,12 +51,8 @@ export function OnboardingGate({ children }: { children: ReactNode }) {
   }
 
   if (status === "needs_onboarding") {
-    if (user?.role === "student") {
-      return <StudentOnboarding onComplete={handleOnboardingComplete} />;
-    }
-    if (user?.role === "instructor") {
-      return <InstructorOnboarding onComplete={handleOnboardingComplete} />;
-    }
+    if (user?.role === "student")    return <StudentOnboarding    onComplete={() => setStatus("done")} />;
+    if (user?.role === "instructor") return <InstructorOnboarding onComplete={() => setStatus("done")} />;
   }
 
   return <>{children}</>;

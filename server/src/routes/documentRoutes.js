@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import Document from "../models/Document.js";
 import Notification from "../models/Notification.js";
+import User from "../models/User.js";
 import { authenticateToken, authorize } from "../middleware/auth.js";
 import { upload } from "../middleware/uploadMiddleware.js";
 import { env } from "../config/env.js";
@@ -79,8 +80,8 @@ router.post("/", authenticateToken, upload.single("file"), async (req, res) => {
       status:   "pending",
     });
 
-    // Notify admin
-    const adminUsers = await (await import("../models/User.js")).default.find({ role: "admin" }).select("_id");
+    // Notify admins
+    const adminUsers = await User.find({ role: "admin" }).select("_id");
     for (const admin of adminUsers) {
       await Notification.create({
         recipient: admin._id,
@@ -119,7 +120,6 @@ router.patch("/:id/verify", authenticateToken, authorize(["admin"]), async (req,
 
     if (!doc) return res.status(404).json({ error: "Document not found" });
 
-    // Notify student
     await Notification.create({
       recipient: doc.student._id,
       title:     status === "verified" ? "Document Verified ✅" : "Document Rejected ❌",
@@ -149,7 +149,6 @@ router.delete("/:id", authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "Cannot delete a verified document" });
     }
 
-    // Delete file from disk
     const filename = doc.fileUrl.split("/uploads/")[1];
     if (filename) {
       const fullPath = path.resolve(process.cwd(), "uploads", filename);

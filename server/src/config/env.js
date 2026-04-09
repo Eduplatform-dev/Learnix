@@ -20,17 +20,19 @@ const envSchema = z.object({
     .string()
     .min(16, "JWT_SECRET must be at least 16 characters — set it in server/.env"),
 
+  // Separate secret for signing refresh tokens so a leaked access-token
+  // secret cannot be used to forge refresh tokens and vice-versa.
+  JWT_REFRESH_SECRET: z
+    .string()
+    .min(16, "JWT_REFRESH_SECRET must be at least 16 characters — set it in server/.env")
+    .optional(),
+
   CORS_ORIGIN: z.string().default("http://localhost:5173"),
 
   PUBLIC_BASE_URL: z.string().optional(),
 
-  // AI Options — at least one should be set for AI chat to work
-  // Option 1: Google Gemini (FREE — 1500 requests/day)
-  // Get key at: https://aistudio.google.com/app/apikey
-  GEMINI_API_KEY: z.string().optional(),
-
-  // Option 2: Anthropic Claude (paid but higher quality)
-  // If both set, Anthropic takes priority
+  // AI Options
+  GEMINI_API_KEY:    z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
 });
 
@@ -51,6 +53,11 @@ if (!parsed.success) {
 /* ================= EXPORT ================= */
 
 export const env = parsed.data;
+
+// Fall back to JWT_SECRET with a suffix so existing deployments work without
+// setting a new env var, while still keeping the two secrets distinct.
+export const jwtRefreshSecret =
+  env.JWT_REFRESH_SECRET ?? env.JWT_SECRET + "_refresh";
 
 export const corsOrigins = env.CORS_ORIGIN.split(",")
   .map((o) => o.trim())

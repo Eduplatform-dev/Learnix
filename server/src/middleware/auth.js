@@ -5,11 +5,16 @@ import { env } from "../config/env.js";
 /* ================= AUTHENTICATE ================= */
 export const authenticateToken = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    // 1. Prefer httpOnly cookie (primary, XSS-safe)
+    // 2. Fall back to Authorization header (for API clients / backward compat)
+    let token = req.cookies?.access_token ?? null;
 
-    const token = authHeader?.startsWith("Bearer ")
-      ? authHeader.slice(7)
-      : null;
+    if (!token) {
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith("Bearer ")) {
+        token = authHeader.slice(7);
+      }
+    }
 
     if (!token) {
       return res.status(401).json({ error: "Access token required" });
@@ -20,13 +25,12 @@ export const authenticateToken = async (req, res, next) => {
       decoded = jwt.verify(token, env.JWT_SECRET);
     } catch (jwtErr) {
       if (jwtErr.name === "TokenExpiredError") {
-        return res.status(401).json({ error: "Token expired — please log in again" });
+        return res.status(401).json({ error: "Token expired" });
       }
       return res.status(401).json({ error: "Invalid token" });
     }
 
     const user = await User.findById(decoded.id).select("-password");
-
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }
@@ -45,13 +49,11 @@ export const authorize = (roles = []) => {
     if (!req.user) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-
     if (roles.length > 0 && !roles.includes(req.user.role)) {
       return res.status(403).json({
         error: `Access denied — requires role: ${roles.join(" or ")}`,
       });
     }
-
     next();
   };
 };

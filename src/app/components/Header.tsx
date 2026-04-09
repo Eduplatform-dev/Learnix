@@ -8,30 +8,30 @@ import {
 } from "./ui/dropdown-menu";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../providers/AuthProvider";
+import { getAuthHeader } from "../services/authService";
 import { useEffect, useState } from "react";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const TITLES: Record<string, string> = {
-  "/dashboard": "Home",      "/dashboard/courses": "My Courses",
-  "/dashboard/videos":       "Video Library", "/dashboard/library": "Resources",
-  "/dashboard/progress":     "My Progress", "/dashboard/assignments": "Assignments",
-  "/dashboard/submissions":  "Submissions", "/dashboard/fees": "Fee Payment",
-  "/dashboard/ai-chat":      "AI Assistant", "/admin/dashboard": "Admin Dashboard",
-  "/admin/users":            "User Management", "/admin/courses": "Course Management",
-  "/admin/analytics":        "Analytics", "/admin/content": "Content Library",
-  "/admin/fees":             "Fee Management", "/admin/submissions": "Submissions Review",
-  "/admin/settings":         "System Settings", "/instructor/dashboard": "Instructor Dashboard",
-  "/instructor/courses":     "My Courses", "/instructor/assignments": "Assignments",
+  "/dashboard": "Home", "/dashboard/courses": "My Courses",
+  "/dashboard/videos": "Video Library", "/dashboard/library": "Resources",
+  "/dashboard/progress": "My Progress", "/dashboard/assignments": "Assignments",
+  "/dashboard/submissions": "Submissions", "/dashboard/fees": "Fee Payment",
+  "/dashboard/ai-chat": "AI Assistant", "/admin/dashboard": "Admin Dashboard",
+  "/admin/users": "User Management", "/admin/courses": "Course Management",
+  "/admin/analytics": "Analytics", "/admin/content": "Content Library",
+  "/admin/fees": "Fee Management", "/admin/submissions": "Submissions Review",
+  "/admin/settings": "System Settings", "/instructor/dashboard": "Instructor Dashboard",
+  "/instructor/courses": "My Courses", "/instructor/assignments": "Assignments",
   "/instructor/submissions": "Grade Submissions", "/instructor/students": "My Students",
-  "/instructor/content":     "Content Library", "/instructor/ai-chat": "AI Assistant",
+  "/instructor/content": "Content Library", "/instructor/ai-chat": "AI Assistant",
   "/dashboard/attendance":   "My Attendance",
   "/dashboard/documents":    "Document Hub",
   "/dashboard/timetable":    "Timetable",
   "/instructor/attendance":  "Attendance",
   "/admin/documents":        "Document Verification",
   "/admin/timetable":        "Timetable Management",
-  "/admin/departments":      "Departments",
 };
 
 type ThemeKey = "default" | "aesthetic" | "dark-glass";
@@ -76,9 +76,9 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
   const fetchNotifications = async () => {
     try {
-      const token = localStorage.getItem("token");
       const res = await fetch(`${API_BASE_URL}/api/notifications?limit=10`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers:     getAuthHeader(),
+        credentials: "include",
       });
       if (!res.ok) return;
       const data = await res.json();
@@ -97,9 +97,10 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
   const markRead = async (id: string) => {
     try {
-      const token = localStorage.getItem("token");
       await fetch(`${API_BASE_URL}/api/notifications/${id}/read`, {
-        method: "PATCH", headers: { Authorization: `Bearer ${token}` },
+        method:      "PATCH",
+        headers:     getAuthHeader(),
+        credentials: "include",
       });
       setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
       setUnreadCount(c => Math.max(0, c - 1));
@@ -108,9 +109,10 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
   const markAllRead = async () => {
     try {
-      const token = localStorage.getItem("token");
       await fetch(`${API_BASE_URL}/api/notifications/read-all`, {
-        method: "PATCH", headers: { Authorization: `Bearer ${token}` },
+        method:      "PATCH",
+        headers:     getAuthHeader(),
+        credentials: "include",
       });
       setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
       setUnreadCount(0);
@@ -124,6 +126,11 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
   }[type] || "Notice");
 
   const currentTheme = THEMES.find(t => t.key === theme)!;
+
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
+  };
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-10 ae-header dg-header">
@@ -238,7 +245,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-red-600 font-medium cursor-pointer"
-                onClick={() => { logout(); navigate("/login"); }}
+                onClick={handleLogout}
               >
                 Sign Out
               </DropdownMenuItem>

@@ -27,7 +27,7 @@ const timetableSchema = z.object({
   isPublished:  z.boolean().optional().default(false),
 });
 
-/* ── GET timetable (student/instructor) ───────────────── */
+/* ── GET timetable ────────────────────────────────────── */
 router.get("/", authenticateToken, async (req, res) => {
   try {
     const filter = {};
@@ -37,7 +37,6 @@ router.get("/", authenticateToken, async (req, res) => {
     if (req.query.academicYear) filter.academicYear = req.query.academicYear;
     if (req.query.semester)     filter.semester     = Number(req.query.semester);
 
-    // Students/instructors only see published ones
     if (req.user.role === "student") filter.isPublished = true;
 
     const timetables = await Timetable.find(filter)

@@ -2,41 +2,74 @@ export type UserRole = "student" | "admin" | "instructor";
 
 export type User = {
   _id:      string;
+  id:       string;
   email:    string;
   username: string;
   role:     UserRole;
 };
 
 export type AuthResponse = {
-  user:  User;
-  token: string;
+  user:        User;
+  accessToken: string;
 };
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-const API = `${API_BASE_URL}/api/auth`;
 
-/* ─── TOKEN HELPERS ─────────────────────────────────────── */
-export const getToken = (): string | null => localStorage.getItem("token");
+/* ─────────────────────────────────────────────────────────
+   IN-MEMORY ACCESS TOKEN STORE
+   The access token is kept only in this module-level variable.
+   It is never written to localStorage or sessionStorage, which
+   eliminates the XSS read vector for the short-lived token.
+   ───────────────────────────────────────────────────────── */
+let _accessToken: string | null = null;
+let _currentUser: User | null   = null;
 
-/** Returns auth + JSON content-type headers */
+export const getToken       = (): string | null => _accessToken;
+export const getCurrentUser = (): User | null   => _currentUser;
+
+export const setMemoryAuth = (token: string, user: User): void => {
+  _accessToken  = token;
+  _currentUser  = user;
+  // Store only non-sensitive user metadata in localStorage so the UI can
+  // repopulate before the silent-refresh completes (avoids flash of logged-out state).
+  localStorage.setItem("user_meta", JSON.stringify(user));
+};
+
+export const clearMemoryAuth = (): void => {
+  _accessToken = null;
+  _currentUser = null;
+  localStorage.removeItem("user_meta");
+};
+
+/** Returns the last-known user from localStorage (used on initial render only) */
+export const getStoredUserMeta = (): User | null => {
+  try {
+    const raw = localStorage.getItem("user_meta");
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+};
+
+/* ─────────────────────────────────────────────────────────
+   AUTH HEADER HELPERS
+   ───────────────────────────────────────────────────────── */
 export const getAuthHeader = (): Record<string, string> => {
-  const token = getToken();
+  const token = _accessToken;
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 };
 
-/**
- * Auth header WITHOUT Content-Type.
- * Use when sending FormData — browser sets the multipart boundary automatically.
- */
 export const getAuthHeaderNoContentType = (): Record<string, string> => {
-  const token = getToken();
+  const token = _accessToken;
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-/* ─── RESPONSE HANDLER ─────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────
+   RESPONSE HANDLER
+   ───────────────────────────────────────────────────────── */
 const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
   let data: Record<string, unknown>;
   try {
@@ -47,54 +80,105 @@ const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
   if (!res.ok) {
     throw new Error((data.error as string) || `Request failed (${res.status})`);
   }
-  if (data.token && data.user) {
-    localStorage.setItem("token", data.token as string);
-    localStorage.setItem("user",  JSON.stringify(data.user));
-  }
-  return { user: data.user as User, token: data.token as string };
+  const token = data.accessToken as string;
+  const user  = data.user as User;
+  setMemoryAuth(token, user);
+  return { accessToken: token, user };
 };
 
-/* ─── REGISTER ─────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────
+   PUBLIC API
+   ───────────────────────────────────────────────────────── */
+
 export const registerUser = async (
-  email:    string,
-  password: string,
-  username: string,
-  role:     UserRole = "student"
+  email: string, password: string, username: string, role: UserRole = "student",
 ): Promise<AuthResponse> => {
-  const res = await fetch(`${API}/register`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ email, password, username, role }),
+  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+    method:      "POST",
+    headers:     { "Content-Type": "application/json" },
+    credentials: "include",   // send/receive httpOnly cookies
+    body:        JSON.stringify({ email, password, username, role }),
   });
   return handleAuthResponse(res);
 };
 
-/* ─── LOGIN ────────────────────────────────────────────── */
 export const loginUser = async (
-  email:    string,
-  password: string
+  email: string, password: string,
 ): Promise<AuthResponse> => {
-  const res = await fetch(`${API}/login`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ email, password }),
+  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method:      "POST",
+    headers:     { "Content-Type": "application/json" },
+    credentials: "include",
+    body:        JSON.stringify({ email, password }),
   });
   return handleAuthResponse(res);
 };
 
-/* ─── CURRENT USER ─────────────────────────────────────── */
-export const getCurrentUser = (): User | null => {
-  const stored = localStorage.getItem("user");
-  if (!stored) return null;
+export const loginWithEnrollment = async (
+  enrollmentNumber: string, password: string,
+): Promise<AuthResponse> => {
+  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method:      "POST",
+    headers:     { "Content-Type": "application/json" },
+    credentials: "include",
+    body:        JSON.stringify({ enrollmentNumber, password }),
+  });
+  return handleAuthResponse(res);
+};
+
+/**
+ * Exchange the httpOnly refresh-token cookie for a new access token.
+ * Called on app mount and transparently by the fetch interceptor.
+ * Returns null if there is no valid session (user is logged out).
+ */
+export const silentRefresh = async (): Promise<AuthResponse | null> => {
   try {
-    return JSON.parse(stored) as User;
+    const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+      method:      "POST",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      clearMemoryAuth();
+      return null;
+    }
+    return handleAuthResponse(res);
   } catch {
+    clearMemoryAuth();
     return null;
   }
 };
 
-/* ─── LOGOUT ───────────────────────────────────────────── */
-export const logoutUser = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
+/**
+ * Revokes the current session's refresh token (server-side) and clears
+ * the in-memory access token.  The httpOnly cookie is cleared by the server.
+ */
+export const logoutUser = async (): Promise<void> => {
+  try {
+    await fetch(`${API_BASE_URL}/api/auth/logout`, {
+      method:      "POST",
+      headers:     getAuthHeader(),
+      credentials: "include",
+    });
+  } catch {
+    // Even if the network call fails, clear the in-memory state
+  } finally {
+    clearMemoryAuth();
+  }
+};
+
+/**
+ * Revokes ALL sessions for the current user across all devices.
+ */
+export const logoutAllDevices = async (): Promise<void> => {
+  try {
+    await fetch(`${API_BASE_URL}/api/auth/logout-all`, {
+      method:      "POST",
+      headers:     getAuthHeader(),
+      credentials: "include",
+    });
+  } catch {
+    // Ignore network errors — still clear local state
+  } finally {
+    clearMemoryAuth();
+  }
 };

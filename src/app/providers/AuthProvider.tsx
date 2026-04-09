@@ -6,97 +6,149 @@ import {
   useCallback,
   useRef,
 } from "react";
+import {
+  silentRefresh,
+  logoutUser,
+  setMemoryAuth,
+  clearMemoryAuth,
+  getStoredUserMeta,
+  getToken,
+  type User,
+} from "../services/authService";
 
-export type UserRole = "student" | "admin" | "instructor";
-
-export type User = {
-  _id:      string;
-  email:    string;
-  username: string;
-  role:     UserRole;
-};
+export type { UserRole } from "../services/authService";
+export type { User } from "../services/authService";
 
 type AuthContextType = {
-  user:        User | null;
-  token:       string | null;
-  loading:     boolean;
-  setAuthUser: (user: User, token: string) => void;
-  logout:      () => void;
+  user: User | null;
+  loading: boolean;
+  setAuthUser: (user: User, accessToken: string) => void;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-/** Client-side JWT expiry check (does NOT verify signature) */
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000 < Date.now() + 10_000;
-  } catch {
-    return true;
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user,    setUser]    = useState<User | null>(null);
-  const [token,   setToken]   = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(getStoredUserMeta);
   const [loading, setLoading] = useState(true);
-  const originalFetchRef      = useRef<typeof fetch | null>(null);
 
-  /* ─── LOGOUT ─────────────────────────────────────────── */
-  const logout = useCallback(() => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
+  /* ── LOGOUT ───────────────── */
+  const logout = useCallback(async () => {
+    await logoutUser();
+    clearMemoryAuth();
     setUser(null);
-    setToken(null);
   }, []);
 
-  /* ─── RESTORE SESSION ────────────────────────────────── */
+  /* ── INITIAL SILENT REFRESH ───────────────── */
   useEffect(() => {
-    try {
-      const storedToken = localStorage.getItem("token");
-      const storedUser  = localStorage.getItem("user");
+    let cancelled = false;
 
-      if (storedToken && storedUser) {
-        if (isTokenExpired(storedToken)) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("user");
-        } else {
-          const parsedUser: User = JSON.parse(storedUser);
-          setUser(parsedUser);
-          setToken(storedToken);
-        }
+    const bootstrap = async () => {
+      const result = await silentRefresh();
+
+      if (cancelled) return;
+
+      if (result) {
+        setUser(result.user);
+      } else {
+        clearMemoryAuth();
+        setUser(null);
       }
-    } catch {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-    } finally {
+
       setLoading(false);
-    }
+    };
+
+    bootstrap();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  /* ─── GLOBAL 401 INTERCEPTOR ─────────────────────────── */
+  /* ── PROACTIVE REFRESH (every 13 min) ───────────────── */
+  useEffect(() => {
+    if (!user) return;
+
+    const id = setInterval(async () => {
+      const result = await silentRefresh();
+
+      if (result) {
+        setUser(result.user);
+      } else {
+        clearMemoryAuth();
+        setUser(null);
+      }
+    }, 13 * 60 * 1000);
+
+    return () => clearInterval(id);
+  }, [user]);
+
+  /* ── FETCH INTERCEPTOR (FIXED) ───────────────── */
+  const originalFetchRef = useRef<typeof fetch | null>(null);
+
   useEffect(() => {
     originalFetchRef.current = window.fetch.bind(window);
 
-    const intercepted: typeof fetch = async (...args) => {
-      const response = await originalFetchRef.current!(...args);
+    let isRefreshing = false;
+    let waiters: Array<(token: string | null) => void> = [];
 
-      if (response.status === 401) {
-        const url = args[0]?.toString() ?? "";
-        const isApiCall = url.includes("/api/");
-        if (isApiCall) {
-          setUser((currentUser) => {
-            if (currentUser) {
-              localStorage.removeItem("token");
-              localStorage.removeItem("user");
-              return null;
-            }
-            return currentUser;
-          });
-          setToken(null);
-        }
+    const notifyWaiters = (token: string | null) => {
+      waiters.forEach((cb) => cb(token));
+      waiters = [];
+    };
+
+    const intercepted: typeof fetch = async (input, init) => {
+      // ✅ ALWAYS attach token BEFORE request
+      const token = getToken();
+      const firstInit = token ? injectToken(init, token) : init;
+
+      const response = await originalFetchRef.current!(input, firstInit);
+
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+          ? input.toString()
+          : input.url ?? "";
+
+      // only handle API 401
+      if (response.status !== 401 || !url.includes("/api/")) {
+        return response;
       }
-      return response;
+
+      // skip auth endpoints
+      if (url.includes("/api/auth/")) return response;
+
+      // if already refreshing → wait
+      if (isRefreshing) {
+        const newToken = await new Promise<string | null>((resolve) => {
+          waiters.push(resolve);
+        });
+
+        if (!newToken) return response;
+
+        const retryInit = injectToken(init, newToken);
+        return originalFetchRef.current!(input, retryInit);
+      }
+
+      // start refresh
+      isRefreshing = true;
+      const result = await silentRefresh();
+      isRefreshing = false;
+
+      if (!result) {
+        notifyWaiters(null);
+        clearMemoryAuth();
+        setUser(null);
+        return response;
+      }
+
+      setUser(result.user);
+      notifyWaiters(result.accessToken);
+
+      // retry original request
+      const retryInit = injectToken(init, result.accessToken);
+      return originalFetchRef.current!(input, retryInit);
     };
 
     window.fetch = intercepted;
@@ -108,16 +160,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  /* ─── SET AUTH USER ──────────────────────────────────── */
-  const setAuthUser = useCallback((user: User, token: string) => {
-    localStorage.setItem("user",  JSON.stringify(user));
-    localStorage.setItem("token", token);
-    setUser(user);
-    setToken(token);
-  }, []);
+  /* ── SET AUTH USER ───────────────── */
+  const setAuthUser = useCallback(
+    (user: User, accessToken: string) => {
+      setMemoryAuth(accessToken, user);
+      setUser(user);
+    },
+    []
+  );
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, setAuthUser, logout }}>
+    <AuthContext.Provider value={{ user, loading, setAuthUser, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -127,4 +180,11 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
+}
+
+/* ── HELPER ───────────────── */
+function injectToken(init: RequestInit | undefined, token: string): RequestInit {
+  const headers = new Headers(init?.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  return { ...init, headers };
 }

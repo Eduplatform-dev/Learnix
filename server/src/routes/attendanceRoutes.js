@@ -1,7 +1,5 @@
 import express from "express";
-import { z } from "zod";
 import Attendance from "../models/Attendance.js";
-import User from "../models/User.js";
 import Course from "../models/Course.js";
 import Notification from "../models/Notification.js";
 import { authenticateToken, authorize } from "../middleware/auth.js";
@@ -13,13 +11,11 @@ router.get("/my", authenticateToken, async (req, res) => {
   try {
     const studentId = req.user._id;
 
-    // Find all attendance records for this student
     const records = await Attendance.find({ "records.student": studentId })
       .populate("course", "title subjectCode")
       .sort({ date: -1 })
       .lean();
 
-    // Build per-subject summary
     const subjectMap = new Map();
     for (const session of records) {
       const key = String(session.course?._id || session.subject || "Unknown");
@@ -30,7 +26,7 @@ router.get("/my", authenticateToken, async (req, res) => {
 
       if (!subjectMap.has(key)) {
         subjectMap.set(key, {
-          courseId: session.course?._id,
+          courseId: session.course?._id ? String(session.course._id) : null,
           name: label,
           code,
           total: 0, present: 0, absent: 0, late: 0,
@@ -113,7 +109,6 @@ router.post("/", authenticateToken, authorize(["admin", "instructor"]), async (r
       return res.status(400).json({ error: "courseId, date, and records are required" });
     }
 
-    // Upsert: if session already marked for this course+date, update it
     const sessionDate = new Date(date);
     const startOfDay  = new Date(sessionDate); startOfDay.setHours(0,0,0,0);
     const endOfDay    = new Date(sessionDate); endOfDay.setHours(23,59,59,999);
@@ -150,7 +145,6 @@ router.post("/", authenticateToken, authorize(["admin", "instructor"]), async (r
       .map(r => r.student);
 
     for (const studentId of absentStudentIds) {
-      // Count attendance for this course
       const allSessions = await Attendance.find({ course: courseId, "records.student": studentId });
       let present = 0, total = 0;
       for (const s of allSessions) {

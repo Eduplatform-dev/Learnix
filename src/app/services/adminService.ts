@@ -1,27 +1,7 @@
-import { getAuthHeader } from "./authService";
+import { apiFetch } from "../lib/apiFetch";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
-const API          = `${API_BASE_URL}/api/admin`;
-
-const handle = async <T>(res: Response): Promise<T> => {
-  let data: Record<string, unknown>;
-  try {
-    data = await res.json();
-  } catch {
-    throw new Error(`Server error (${res.status})`);
-  }
-  if (!res.ok) throw new Error((data.error as string) || `Request failed (${res.status})`);
-  return data as T;
-};
-
-/* ─── TYPES ──────────────────────────────────────────── */
 export type DashboardData = {
-  stats: {
-    students:       number;  // only role=student, no admins
-    courses:        number;
-    revenue:        number;
-    completionRate: number;
-  };
+  stats: { students: number; courses: number; revenue: number; completionRate: number };
   enrollmentData: { month: string; students: number }[];
 };
 
@@ -32,13 +12,7 @@ export type AnalyticsData = {
   completionRates: { name: string; value: number }[];
   trafficSources:  { source: string; visits: number }[];
   kpiMetrics:      { label: string; value: number }[];
-  counts?: {
-    students:    number;
-    instructors: number;
-    totalUsers:  number;
-    courses:     number;
-    submissions: number;
-  };
+  counts?: { students: number; instructors: number; totalUsers: number; courses: number; submissions: number };
 };
 
 export type Settings = {
@@ -50,41 +24,19 @@ export type Settings = {
   backup:        { autoBackup: boolean; retentionDays: string; backupWindow: string };
 };
 
-/* ─── DASHBOARD ──────────────────────────────────────── */
-export const getDashboardData = async (): Promise<DashboardData> => {
-  const res = await fetch(`${API}/dashboard`, { headers: getAuthHeader() });
-  return handle<DashboardData>(res);
+const handle = async <T>(res: Response): Promise<T> => {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as any).error || `Request failed (${res.status})`);
+  return data as T;
 };
 
-/* ─── ANALYTICS ──────────────────────────────────────── */
-export const getAnalyticsData = async (): Promise<AnalyticsData> => {
-  const res = await fetch(`${API}/analytics`, { headers: getAuthHeader() });
-  return handle<AnalyticsData>(res);
-};
-
-/* ─── STATS ──────────────────────────────────────────── */
-export const getAdminStats = async () => {
-  const res = await fetch(`${API}/stats`, { headers: getAuthHeader() });
-  return handle<Record<string, number>>(res);
-};
-
-/* ─── FEES STATS ─────────────────────────────────────── */
-export const getFeesStats = async () => {
-  const res = await fetch(`${API}/fees-stats`, { headers: getAuthHeader() });
-  return handle<{ totalRevenue: number; pendingPayments: number; paidStudents: number; growthRate: number }>(res);
-};
-
-/* ─── SETTINGS ───────────────────────────────────────── */
-export const getSettings = async (): Promise<Settings> => {
-  const res = await fetch(`${API}/settings`, { headers: getAuthHeader() });
-  return handle<Settings>(res);
-};
-
-export const saveSettings = async (data: Settings): Promise<Settings> => {
-  const res = await fetch(`${API}/settings`, {
-    method:  "POST",
-    headers: getAuthHeader(),
-    body:    JSON.stringify(data),
-  });
-  return handle<Settings>(res);
-};
+export const getDashboardData  = async () => handle<DashboardData>(await apiFetch("/api/admin/dashboard"));
+export const getAnalyticsData  = async () => handle<AnalyticsData>(await apiFetch("/api/admin/analytics"));
+export const getAdminStats     = async () => handle<Record<string, number>>(await apiFetch("/api/admin/stats"));
+export const getFeesStats      = async () =>
+  handle<{ totalRevenue: number; pendingPayments: number; paidStudents: number; growthRate: number }>(
+    await apiFetch("/api/admin/fees-stats")
+  );
+export const getSettings       = async () => handle<Settings>(await apiFetch("/api/admin/settings"));
+export const saveSettings      = async (data: Settings) =>
+  handle<Settings>(await apiFetch("/api/admin/settings", { method: "POST", body: JSON.stringify(data) }));

@@ -2,13 +2,12 @@
   Home, BookOpen, PlayCircle, LineChart, FileText,
   Upload, DollarSign, MessageSquare, Users, Settings,
   BarChart3, FolderOpen, Shield, GraduationCap, CheckSquare,
-  Award, Calendar, ClipboardList, Building2
+  Award, Calendar, ClipboardList,
 } from "lucide-react";
 import { Badge }    from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useAuth }  from "../providers/AuthProvider";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 import type { LucideIcon } from "lucide-react";
 
 type UserRole = "student" | "admin" | "instructor";
@@ -36,7 +35,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/dashboard/progress",     label: "My Progress",   icon: LineChart },
     { path: "/dashboard/assignments",  label: "Assignments",   icon: FileText },
     { path: "/dashboard/submissions",  label: "Submissions",   icon: Upload },
-    { path: "/dashboard/attendance",   label: "Attendance",    icon: CheckSquare },
     { path: "/dashboard/exams",        label: "Exam Schedule", icon: Calendar },
     { path: "/dashboard/results",      label: "My Results",    icon: ClipboardList },
     { path: "/dashboard/certificates", label: "Certificates",  icon: Award },
@@ -56,7 +54,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/admin/submissions", label: "Submissions", icon: Upload },
     { path: "/admin/audit-logs",  label: "Audit Logs",  icon: Shield },
     { path: "/admin/settings",    label: "Settings",    icon: Settings },
-    { path: "/admin/departments", label: "Departments", icon: Building2 },
   ];
 
   const instructorMenu: MenuItem[] = [
@@ -67,7 +64,6 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/instructor/students",    label: "Students",     icon: Users },
     { path: "/instructor/content",     label: "Content",      icon: FolderOpen },
     { path: "/instructor/ai-chat",     label: "AI Assistant", icon: MessageSquare },
-    { path: "/instructor/attendance",  label: "Attendance",   icon: CheckSquare },
   ];
 
   const menuItems =
@@ -94,7 +90,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <div
       className={[
         "w-64 flex flex-col h-screen fixed left-0 top-0 z-50",
-        "bg-white dark:bg-gray-900 border-r border-slate-200 dark:border-gray-800",
+        "bg-white border-r border-slate-200",
         "transition-transform duration-300 shadow-sm",
         "ae-sidebar dg-sidebar",
         isOpen ? "translate-x-0" : "-translate-x-full",
@@ -102,14 +98,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       ].join(" ")}
     >
       {/* Logo */}
-      <div className="p-5 border-b border-slate-200 dark:border-gray-800">
+      <div className="p-5 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-md bg-gradient-to-br ${accentGradient} dg-logo-box ae-logo-box flex-shrink-0`}>
             {logoIcon}
           </div>
           <div className="min-w-0 dg-logo-text">
-            <h1 className="font-bold text-slate-900 dark:text-white text-base truncate leading-tight">Learnix</h1>
-            <p className="text-xs text-slate-500 dark:text-gray-400 truncate">{portalLabel}</p>
+            <h1 className="font-bold text-slate-900 text-base truncate leading-tight">Learnix</h1>
+            <p className="text-xs text-slate-500 truncate">{portalLabel}</p>
           </div>
         </div>
       </div>
@@ -133,7 +129,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   "dg-nav-item ae-nav-item",
                   isActive
                     ? "active bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-white",
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
                 ].join(" ")}
               >
                 <Icon className="shrink-0" style={{ width: "1rem", height: "1rem" }} />
@@ -148,19 +144,21 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </nav>
 
       {/* User footer */}
-      <div className="border-t border-slate-200 dark:border-gray-800 p-4 bg-slate-50 dark:bg-gray-900 dg-user-area ae-user-area">
-        <div className="flex items-center gap-3">
-          <Avatar className="w-9 h-9 flex-shrink-0">
-            <AvatarFallback
-              className={`text-xs font-bold bg-gradient-to-br ${accentGradient} text-white dg-avatar-fallback ae-avatar-fallback`}
-              style={{ borderRadius: "inherit" }}
-            >
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">{user?.username || "User"}</p>
-            <p className="text-xs text-slate-500 dark:text-gray-400 truncate capitalize">{userRole}</p>
+      <div className="border-t border-slate-200">
+        <div className="p-4 bg-slate-50 dg-user-area ae-user-area">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-9 h-9 flex-shrink-0">
+              <AvatarFallback
+                className={`text-xs font-bold bg-gradient-to-br ${accentGradient} text-white dg-avatar-fallback ae-avatar-fallback`}
+                style={{ borderRadius: "inherit" }}
+              >
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate text-slate-900">{user?.username || "User"}</p>
+              <p className="text-xs text-slate-500 truncate capitalize">{userRole}</p>
+            </div>
           </div>
         </div>
       </div>

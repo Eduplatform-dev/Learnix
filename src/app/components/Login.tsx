@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
-import { loginUser, registerUser } from "../../app/services/authService";
+import { loginUser, registerUser, loginWithEnrollment } from "../../app/services/authService";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../app/providers/AuthProvider";
 import { User, Lock, Mail, Hash } from "lucide-react";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 /* ── Inline SVG illustrations ── */
 const LoginIllustration = () => (
@@ -31,37 +29,24 @@ const RegisterIllustration = () => (
   </svg>
 );
 
-// Login with enrollment number — calls a custom endpoint
-async function loginWithEnrollment(enrollmentNumber: string, password: string) {
-  const res  = await fetch(`${API_BASE_URL}/api/auth/login`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ enrollmentNumber, password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Invalid credentials");
-  if (data.token) {
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user",  JSON.stringify(data.user));
-  }
-  return { user: data.user, token: data.token };
-}
-
 export function Login() {
   const navigate = useNavigate();
   const { setAuthUser, user, loading: authLoading } = useAuth();
 
-  const [isSignUpMode,    setIsSignUpMode]    = useState(false);
-  const [loading,         setLoading]         = useState(false);
-  const [error,           setError]           = useState<string | null>(null);
-  const [useEnrollment,   setUseEnrollment]   = useState(false);  // ← NEW
+  const [isSignUpMode,  setIsSignUpMode]  = useState(false);
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [useEnrollment, setUseEnrollment] = useState(false);
 
-  const [signInData, setSignInData] = useState({ email: "", enrollmentNumber: "", password: "" });
+  const [signInData, setSignInData] = useState({
+    email: "", enrollmentNumber: "", password: "",
+  });
   const [signUpData, setSignUpData] = useState({
     username: "", email: "", password: "",
     role: "student" as "student" | "instructor",
   });
 
+  // Redirect once auth resolves
   useEffect(() => {
     if (authLoading || !user) return;
     if      (user.role === "admin")      navigate("/admin/dashboard",     { replace: true });
@@ -72,33 +57,46 @@ export function Login() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       let result;
       if (useEnrollment && signInData.enrollmentNumber) {
-        result = await loginWithEnrollment(signInData.enrollmentNumber.trim(), signInData.password);
+        result = await loginWithEnrollment(
+          signInData.enrollmentNumber.trim(),
+          signInData.password,
+        );
       } else {
         result = await loginUser(signInData.email, signInData.password);
       }
-      setAuthUser(result.user, result.token);
+      setAuthUser(result.user, result.accessToken);
     } catch (err: any) {
       setError(err?.message || "Invalid credentials.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    if (signUpData.password.length < 6) { setError("Password must be at least 6 characters"); return; }
-    setLoading(true); setError(null);
+    if (signUpData.password.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    setLoading(true);
+    setError(null);
     try {
-      const { user, token } = await registerUser(
-        signUpData.email, signUpData.password, signUpData.username, signUpData.role
+      const result = await registerUser(
+        signUpData.email, signUpData.password,
+        signUpData.username, signUpData.role,
       );
-      setAuthUser(user, token);
+      setAuthUser(result.user, result.accessToken);
     } catch (err: any) {
       setError(err?.message || "Registration failed.");
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const switchMode = (signUp: boolean) => { setIsSignUpMode(signUp); setError(null); };
@@ -115,12 +113,15 @@ export function Login() {
             <h2 className="login-title">Sign In</h2>
 
             {error && !isSignUpMode && (
-              <p style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "8px", textAlign: "center" }}>{error}</p>
+              <p style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "8px", textAlign: "center" }}>
+                {error}
+              </p>
             )}
 
             {/* Toggle: email vs enrollment */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-              <button type="button"
+              <button
+                type="button"
                 style={{
                   flex: 1, padding: "7px 0", borderRadius: "40px", border: "2px solid",
                   fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
@@ -129,10 +130,12 @@ export function Login() {
                   color: !useEnrollment ? "#fff" : "#5995fd",
                   transition: "all 0.2s",
                 }}
-                onClick={() => setUseEnrollment(false)}>
+                onClick={() => setUseEnrollment(false)}
+              >
                 📧 Email Login
               </button>
-              <button type="button"
+              <button
+                type="button"
                 style={{
                   flex: 1, padding: "7px 0", borderRadius: "40px", border: "2px solid",
                   fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
@@ -141,7 +144,8 @@ export function Login() {
                   color: useEnrollment ? "#fff" : "#5995fd",
                   transition: "all 0.2s",
                 }}
-                onClick={() => setUseEnrollment(true)}>
+                onClick={() => setUseEnrollment(true)}
+              >
                 🎓 Enrollment ID
               </button>
             </div>
@@ -199,28 +203,42 @@ export function Login() {
           <form onSubmit={handleSignUp} className={`login-form ${isSignUpMode ? "active" : ""}`}>
             <h2 className="login-title">Sign Up</h2>
             {error && isSignUpMode && (
-              <p style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "8px", textAlign: "center" }}>{error}</p>
+              <p style={{ color: "#ef4444", fontSize: "0.85rem", marginBottom: "8px", textAlign: "center" }}>
+                {error}
+              </p>
             )}
             <div className="login-input-field">
               <User className="login-input-icon" size={20} />
-              <input type="text" placeholder="Username" value={signUpData.username}
+              <input
+                type="text" placeholder="Username"
+                value={signUpData.username}
                 onChange={e => setSignUpData({ ...signUpData, username: e.target.value })}
-                required autoComplete="username" />
+                required autoComplete="username"
+              />
             </div>
             <div className="login-input-field">
               <Mail className="login-input-icon" size={20} />
-              <input type="email" placeholder="Email address" value={signUpData.email}
+              <input
+                type="email" placeholder="Email address"
+                value={signUpData.email}
                 onChange={e => setSignUpData({ ...signUpData, email: e.target.value })}
-                required autoComplete="email" />
+                required autoComplete="email"
+              />
             </div>
             <div className="login-input-field">
               <Lock className="login-input-icon" size={20} />
-              <input type="password" placeholder="Password (min. 6 chars)" value={signUpData.password}
+              <input
+                type="password" placeholder="Password (min. 6 chars)"
+                value={signUpData.password}
                 onChange={e => setSignUpData({ ...signUpData, password: e.target.value })}
-                required autoComplete="new-password" />
+                required autoComplete="new-password"
+              />
             </div>
-            <select className="login-role-select" value={signUpData.role}
-              onChange={e => setSignUpData({ ...signUpData, role: e.target.value as "student" | "instructor" })}>
+            <select
+              className="login-role-select"
+              value={signUpData.role}
+              onChange={e => setSignUpData({ ...signUpData, role: e.target.value as "student" | "instructor" })}
+            >
               <option value="student">👩‍🎓 Student</option>
               <option value="instructor">👨‍🏫 Instructor</option>
             </select>
