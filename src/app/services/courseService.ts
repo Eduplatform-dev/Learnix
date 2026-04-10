@@ -14,8 +14,8 @@ export type Course = {
   progress:         number;
   status:           CourseStatus;
   image:            string;
-  // FIX: always preserve the full enrolledStudents array (not just .length)
-  // Used by InstructorAttendance and isEnrolled checks in Courses.tsx
+  // FIX: always an array of plain string IDs after normalisation
+  // so Courses.tsx `isEnrolled` check (.includes(currentUserId)) works correctly
   enrolledStudents: string[];
   description?:     string;
   courseType:       CourseType;
@@ -32,6 +32,11 @@ export type Course = {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 const API          = `${API_BASE_URL}/api/courses`;
 
+/**
+ * FIX: normalise enrolledStudents to plain string IDs regardless of whether
+ * the server returned them as populated objects or bare ObjectId strings.
+ * This ensures Courses.tsx `isEnrolled` check works with .includes().
+ */
 const normaliseCourse = (c: any): Course => ({
   _id:        c._id,
   title:      c.title       || "",
@@ -44,23 +49,23 @@ const normaliseCourse = (c: any): Course => ({
   progress:   c.progress    ?? 0,
   status:     c.status      || "active",
   image:      c.image       || "",
-  // FIX: preserve the full array so InstructorAttendance can iterate students
-  // and Courses.tsx can do proper enrollment checks
+  // Always extract to string _id — handles both ObjectId strings and populated objects
   enrolledStudents: Array.isArray(c.enrolledStudents)
     ? c.enrolledStudents.map((s: any) =>
-        typeof s === "object" && s !== null ? s._id || String(s) : String(s)
+        typeof s === "string" ? s :
+        (s?._id ? String(s._id) : String(s))
       )
     : [],
-  description:     c.description     || "",
-  courseType:      c.courseType      || "private",
-  isFree:          c.isFree          ?? true,
-  price:           c.price           ?? 0,
-  approvalStatus:  c.approvalStatus  || "pending_approval",
-  rejectionNote:   c.rejectionNote   || "",
-  department:      c.department      ?? null,
-  semesterNumber:  c.semesterNumber  ?? null,
-  subjectCode:     c.subjectCode     || "",
-  credits:         c.credits         ?? 0,
+  description:    c.description     || "",
+  courseType:     c.courseType      || "private",
+  isFree:         c.isFree          ?? true,
+  price:          c.price           ?? 0,
+  approvalStatus: c.approvalStatus  || "pending_approval",
+  rejectionNote:  c.rejectionNote   || "",
+  department:     c.department      ?? null,
+  semesterNumber: c.semesterNumber  ?? null,
+  subjectCode:    c.subjectCode     || "",
+  credits:        c.credits         ?? 0,
 });
 
 export const getCourses = async (): Promise<Course[]> => {
@@ -84,16 +89,16 @@ export const getCourseById = async (id: string): Promise<Course> => {
 };
 
 export const createCourse = async (data: {
-  title:          string;
-  duration:       string;
-  description?:   string;
-  courseType?:    CourseType;
-  isFree?:        boolean;
-  price?:         number;
-  department?:    string | null;
+  title:           string;
+  duration:        string;
+  description?:    string;
+  courseType?:     CourseType;
+  isFree?:         boolean;
+  price?:          number;
+  department?:     string | null;
   semesterNumber?: number | null;
-  subjectCode?:   string;
-  credits?:       number;
+  subjectCode?:    string;
+  credits?:        number;
 }): Promise<Course> => {
   const res = await fetch(API, {
     method:  "POST",

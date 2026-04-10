@@ -230,19 +230,32 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
                 </span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>
-                <p className="font-semibold">{displayName}</p>
-                <p className="text-xs text-slate-400 font-normal capitalize">{user?.role}</p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-red-600 font-medium cursor-pointer"
-                onClick={() => { logout(); navigate("/login"); }}
-              >
-                Sign Out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+           <DropdownMenuContent align="end" className="w-48">
+  <DropdownMenuLabel>
+    <p className="font-semibold">{displayName}</p>
+    <p className="text-xs text-slate-400 font-normal capitalize">{user?.role}</p>
+  </DropdownMenuLabel>
+
+  <DropdownMenuSeparator />
+
+  {/* 👤 PROFILE BUTTON */}
+  <DropdownMenuItem
+    className="cursor-pointer"
+    onClick={() => navigate("/dashboard/profile")}
+  >
+    Profile
+  </DropdownMenuItem>
+
+  <DropdownMenuSeparator />
+
+  {/* 🚪 LOGOUT */}
+  <DropdownMenuItem
+    className="text-red-600 font-medium cursor-pointer"
+    onClick={() => { logout(); navigate("/login"); }}
+  >
+    Sign Out
+  </DropdownMenuItem>
+</DropdownMenuContent>
           </DropdownMenu>
         </div>
       </div>

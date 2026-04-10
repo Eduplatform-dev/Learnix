@@ -32,6 +32,7 @@ import discussionRoutes     from "./routes/discussionRoutes.js";
 import attendanceRoutes     from "./routes/attendanceRoutes.js";
 import timetableRoutes      from "./routes/timetableRoutes.js";
 import documentRoutes       from "./routes/documentRoutes.js";
+import academicYearRoutes   from "./routes/academicYearRoutes.js"; // FIX: was missing
 import { certRouter, auditRouter } from "./routes/certAndAuditRoutes.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
@@ -45,8 +46,6 @@ if (env.NODE_ENV === "production") {
 app.disable("x-powered-by");
 
 /* ─── GLOBAL MIDDLEWARE ─────────────────────────────── */
-
-/* ✅ FIXED HELMET CONFIG */
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -101,32 +100,31 @@ if (!fs.existsSync(uploadDir)) {
 app.use("/uploads", express.static(uploadDir));
 
 /* ─── ROUTES ─────────────────────────────────────────── */
-
-/* Existing */
-app.use("/api/auth",          authLimiter, authRoutes);
-app.use("/api/users",         userRoutes);
-app.use("/api/admin",         adminRoutes);
-app.use("/api/courses",       courseRoutes);
-app.use("/api/assignments",   assignmentRoutes);
-app.use("/api/content",       contentRoutes);
-app.use("/api/submissions",   submissionRoutes);
-app.use("/api/fees",          feeRoutes);
-app.use("/api/ai",            aiRoutes);
-app.use("/api/lessons",       lessonRoutes);
-app.use("/api/departments",   departmentRoutes);
-app.use("/api/semesters",     semesterRoutes);
-app.use("/api/profiles",      profileRoutes);
-app.use("/api/notifications", notificationRoutes);
+app.use("/api/auth",           authLimiter, authRoutes);
+app.use("/api/users",          userRoutes);
+app.use("/api/admin",          adminRoutes);
+app.use("/api/courses",        courseRoutes);
+app.use("/api/assignments",    assignmentRoutes);
+app.use("/api/content",        contentRoutes);
+app.use("/api/submissions",    submissionRoutes);
+app.use("/api/fees",           feeRoutes);
+app.use("/api/ai",             aiRoutes);
+app.use("/api/lessons",        lessonRoutes);
+app.use("/api/departments",    departmentRoutes);
+app.use("/api/semesters",      semesterRoutes);
+app.use("/api/profiles",       profileRoutes);
+app.use("/api/notifications",  notificationRoutes);
 
 /* New */
-app.use("/api/exams",         examRoutes);
-app.use("/api/results",       resultRoutes);
-app.use("/api/discussions",   discussionRoutes);
-app.use("/api/attendance",    attendanceRoutes);
-app.use("/api/timetable",     timetableRoutes);
-app.use("/api/documents",     documentRoutes);
-app.use("/api/certificates",  certRouter);
-app.use("/api/audit-logs",    auditRouter);
+app.use("/api/exams",          examRoutes);
+app.use("/api/results",        resultRoutes);
+app.use("/api/discussions",    discussionRoutes);
+app.use("/api/attendance",     attendanceRoutes);
+app.use("/api/timetable",      timetableRoutes);
+app.use("/api/documents",      documentRoutes);
+app.use("/api/academic-years", academicYearRoutes); // FIX: was missing
+app.use("/api/certificates",   certRouter);
+app.use("/api/audit-logs",     auditRouter);
 
 /* ─── HEALTH ─────────────────────────────────────────── */
 app.get("/health", (_req, res) => {
@@ -142,13 +140,14 @@ app.get("/health", (_req, res) => {
     ai_provider: aiProvider,
     timestamp:   new Date().toISOString(),
     features: {
-      exams:        true,
-      results:      true,
-      discussions:  true,
-      certificates: true,
-      auditLogs:    true,
-      darkMode:     true,
+      exams:           true,
+      results:         true,
+      discussions:     true,
+      certificates:    true,
+      auditLogs:       true,
+      darkMode:        true,
       enrollmentLogin: true,
+      academicYears:   true,
     },
   });
 });
@@ -172,13 +171,14 @@ async function start() {
       console.log(`   Mode:  ${env.NODE_ENV}`);
       console.log(`   CORS:  ${corsOrigins.join(", ")}`);
       console.log(`   AI:    ${aiStatus}`);
-      console.log(`\n   New features:`);
-      console.log(`   ✓ Exam scheduling     → /api/exams`);
-      console.log(`   ✓ Results/Marksheets  → /api/results`);
-      console.log(`   ✓ Discussion forums   → /api/discussions`);
-      console.log(`   ✓ Certificates        → /api/certificates`);
-      console.log(`   ✓ Audit logs          → /api/audit-logs`);
-      console.log(`   ✓ Enrollment login    → /api/auth/login (enrollmentNumber)\n`);
+      console.log(`\n   Routes:`);
+      console.log(`   ✓ Academic Years     → /api/academic-years`);
+      console.log(`   ✓ Exam scheduling    → /api/exams`);
+      console.log(`   ✓ Results/Marksheets → /api/results`);
+      console.log(`   ✓ Discussion forums  → /api/discussions`);
+      console.log(`   ✓ Certificates       → /api/certificates`);
+      console.log(`   ✓ Audit logs         → /api/audit-logs`);
+      console.log(`   ✓ Enrollment login   → /api/auth/login (enrollmentNumber)\n`);
     });
   } catch (err) {
     console.error("Failed to start server:", err);

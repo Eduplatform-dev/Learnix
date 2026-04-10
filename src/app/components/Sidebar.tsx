@@ -8,7 +8,6 @@ import { Badge }    from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import { useAuth }  from "../providers/AuthProvider";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 import type { LucideIcon } from "lucide-react";
 
 type UserRole = "student" | "admin" | "instructor";
@@ -29,7 +28,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     : user?.email?.slice(0, 2).toUpperCase() || "U";
 
   const studentMenu: MenuItem[] = [
-    { path: "/dashboard",              label: "Home",          icon: Home,         exact: true },
+    { path: "/dashboard",              label: "Home",          icon: Home, exact: true },
     { path: "/dashboard/courses",      label: "My Courses",    icon: BookOpen },
     { path: "/dashboard/videos",       label: "Video Library", icon: PlayCircle },
     { path: "/dashboard/library",      label: "Resources",     icon: FolderOpen },
@@ -42,6 +41,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/dashboard/certificates", label: "Certificates",  icon: Award },
     { path: "/dashboard/fees",         label: "Fee Payment",   icon: DollarSign },
     { path: "/dashboard/ai-chat",      label: "AI Assistant",  icon: MessageSquare },
+
+    // Remaining valid pages
+    { path: "/dashboard/documents",    label: "Documents",     icon: FolderOpen },
+    { path: "/dashboard/timetable",    label: "Timetable",     icon: Calendar },
   ];
 
   const adminMenu: MenuItem[] = [
@@ -60,7 +63,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   ];
 
   const instructorMenu: MenuItem[] = [
-    { path: "/instructor/dashboard",   label: "Dashboard",    icon: Home,        exact: true },
+    { path: "/instructor/dashboard",   label: "Dashboard",    icon: Home, exact: true },
     { path: "/instructor/courses",     label: "My Courses",   icon: BookOpen },
     { path: "/instructor/assignments", label: "Assignments",  icon: FileText },
     { path: "/instructor/submissions", label: "Grade Work",   icon: CheckSquare },
@@ -81,7 +84,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     "Student Portal";
 
   const logoIcon =
-    userRole === "admin"      ? <Shield        className="w-5 h-5 text-white" /> :
+    userRole === "admin"      ? <Shield className="w-5 h-5 text-white" /> :
     userRole === "instructor" ? <GraduationCap className="w-5 h-5 text-white" /> :
     <BookOpen className="w-5 h-5 text-white" />;
 
@@ -91,24 +94,22 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     "from-indigo-600 to-blue-600";
 
   return (
-    <div
-      className={[
-        "w-64 flex flex-col h-screen fixed left-0 top-0 z-50",
-        "bg-white dark:bg-gray-900 border-r border-slate-200 dark:border-gray-800",
-        "transition-transform duration-300 shadow-sm",
-        "ae-sidebar dg-sidebar",
-        isOpen ? "translate-x-0" : "-translate-x-full",
-        "lg:translate-x-0",
-      ].join(" ")}
-    >
+    <div className={[
+      "w-64 flex flex-col h-screen fixed left-0 top-0 z-50",
+      "bg-white dark:bg-gray-900 border-r border-slate-200 dark:border-gray-800",
+      "transition-transform duration-300 shadow-sm",
+      isOpen ? "translate-x-0" : "-translate-x-full",
+      "lg:translate-x-0",
+    ].join(" ")}>
+      
       {/* Logo */}
       <div className="p-5 border-b border-slate-200 dark:border-gray-800">
         <div className="flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-md bg-gradient-to-br ${accentGradient} dg-logo-box ae-logo-box flex-shrink-0`}>
+          <div className={`w-11 h-11 rounded-xl flex items-center justify-center shadow-md bg-gradient-to-br ${accentGradient}`}>
             {logoIcon}
           </div>
-          <div className="min-w-0 dg-logo-text">
-            <h1 className="font-bold text-slate-900 dark:text-white text-base truncate leading-tight">Learnix</h1>
+          <div className="min-w-0">
+            <h1 className="font-bold text-slate-900 dark:text-white text-base truncate">Learnix</h1>
             <p className="text-xs text-slate-500 dark:text-gray-400 truncate">{portalLabel}</p>
           </div>
         </div>
@@ -116,51 +117,41 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 overflow-y-auto">
-        <div className="space-y-0.5">
-          {menuItems.map(item => {
-            const Icon = item.icon;
-            const isActive = item.exact
-              ? activePath === item.path
-              : activePath === item.path || activePath.startsWith(item.path + "/");
+        {menuItems.map(item => {
+          const Icon = item.icon;
+          const isActive = item.exact
+            ? activePath === item.path
+            : activePath === item.path || activePath.startsWith(item.path + "/");
 
-            return (
-              <button
-                key={item.path}
-                onClick={() => { navigate(item.path); onClose(); }}
-                className={[
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg",
-                  "text-sm font-medium text-left transition-all duration-150",
-                  "dg-nav-item ae-nav-item",
-                  isActive
-                    ? "active bg-indigo-600 text-white shadow-sm"
-                    : "text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800 hover:text-slate-900 dark:hover:text-white",
-                ].join(" ")}
-              >
-                <Icon className="shrink-0" style={{ width: "1rem", height: "1rem" }} />
-                <span className="truncate">{item.label}</span>
-                {item.badge !== undefined && (
-                  <Badge className="ml-auto bg-red-500 text-white text-xs px-1.5">{item.badge}</Badge>
-                )}
-              </button>
-            );
-          })}
-        </div>
+          return (
+            <button
+              key={item.path}
+              onClick={() => { navigate(item.path); onClose(); }}
+              className={[
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                isActive
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800",
+              ].join(" ")}
+            >
+              <Icon className="w-4 h-4" />
+              {item.label}
+            </button>
+          );
+        })}
       </nav>
 
-      {/* User footer */}
-      <div className="border-t border-slate-200 dark:border-gray-800 p-4 bg-slate-50 dark:bg-gray-900 dg-user-area ae-user-area">
+      {/* Footer */}
+      <div className="p-4 border-t">
         <div className="flex items-center gap-3">
-          <Avatar className="w-9 h-9 flex-shrink-0">
-            <AvatarFallback
-              className={`text-xs font-bold bg-gradient-to-br ${accentGradient} text-white dg-avatar-fallback ae-avatar-fallback`}
-              style={{ borderRadius: "inherit" }}
-            >
+          <Avatar className="w-9 h-9">
+            <AvatarFallback className={`bg-gradient-to-br ${accentGradient} text-white text-xs font-bold`}>
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate text-slate-900 dark:text-white">{user?.username || "User"}</p>
-            <p className="text-xs text-slate-500 dark:text-gray-400 truncate capitalize">{userRole}</p>
+          <div>
+            <p className="text-sm font-semibold">{user?.username || "User"}</p>
+            <p className="text-xs text-gray-500 capitalize">{userRole}</p>
           </div>
         </div>
       </div>

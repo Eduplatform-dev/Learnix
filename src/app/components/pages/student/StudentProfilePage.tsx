@@ -9,39 +9,35 @@ import {
   User, MapPin, Users, GraduationCap, BookOpen,
   CheckCircle, AlertCircle, Save,
 } from "lucide-react";
-import { getMyProfile, updateMyProfile, type StudentProfile } from "../../../services/studentProfileService";
+// FIX: import updated service functions with correct signatures
+import { getMyProfile, updateMyProfile } from "../../../services/studentProfileService";
 import { getDepartments, type Department } from "../../../services/departmentService";
-import { getAcademicYears, type AcademicYear } from "../../../services/academicYearService";
+import { useAuth } from "../../../providers/AuthProvider";
 
-const BLOOD_GROUPS  = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
-const GENDERS       = ["", "male", "female", "other", "prefer_not_to_say"];
-const CATEGORIES    = ["", "general", "obc", "sc", "st", "nt", "ewS", "other"];
-const ADMISSION_TYPES = ["regular", "lateral"];
+const BLOOD_GROUPS = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+const GENDERS      = ["", "male", "female", "other"];
+const CATEGORIES   = ["", "general", "obc", "sc", "st", "nt", "other"];
 
 export function StudentProfilePage() {
-  const [profile,      setProfile]      = useState<StudentProfile | null>(null);
-  const [departments,  setDepartments]  = useState<Department[]>([]);
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [saving,       setSaving]       = useState(false);
-  const [success,      setSuccess]      = useState(false);
-  const [error,        setError]        = useState("");
-
-  // Local form state — mirrors profile shape
-  const [form, setForm] = useState<Partial<StudentProfile>>({});
+  const { user } = useAuth();
+  const [profile,     setProfile]     = useState<any>(null);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [saving,      setSaving]      = useState(false);
+  const [success,     setSuccess]     = useState(false);
+  const [error,       setError]       = useState("");
+  const [form,        setForm]        = useState<Record<string, any>>({});
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [p, depts, years] = await Promise.all([
+        const [p, depts] = await Promise.all([
           getMyProfile(),
           getDepartments(),
-          getAcademicYears(),
         ]);
         setProfile(p);
-        setForm(p);
+        setForm(p ?? {});
         setDepartments(depts);
-        setAcademicYears(years);
       } catch (e: any) {
         setError(e.message || "Failed to load profile");
       } finally {
@@ -53,23 +49,21 @@ export function StudentProfilePage() {
 
   const set = (path: string, value: any) => {
     setForm((prev) => {
-      const parts  = path.split(".");
+      const parts = path.split(".");
       if (parts.length === 1) return { ...prev, [path]: value };
-      // nested e.g. "father.name"
       const [top, sub] = parts;
-      return {
-        ...prev,
-        [top]: { ...(prev as any)[top], [sub]: value },
-      };
+      return { ...prev, [top]: { ...(prev[top] || {}), [sub]: value } };
     });
   };
 
   const handleSave = async () => {
+    if (!user?._id) return;
     setSaving(true);
     setError("");
     setSuccess(false);
     try {
-      const updated = await updateMyProfile(form);
+      // FIX: pass userId as first argument — updateMyProfile(userId, data)
+      const updated = await updateMyProfile(user._id, form);
       setProfile(updated);
       setForm(updated);
       setSuccess(true);
@@ -81,11 +75,6 @@ export function StudentProfilePage() {
     }
   };
 
-  // Helper to get currently selected academic year's semesters
-  const selectedYear = academicYears.find(
-    (y) => y._id === (form.academicYear as any)?._id || y._id === form.academicYear
-  );
-
   if (loading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -94,33 +83,18 @@ export function StudentProfilePage() {
     );
   }
 
-  const completionStatus = profile?.isProfileComplete
-    ? { label: "Complete", color: "bg-green-100 text-green-700" }
-    : { label: "Incomplete", color: "bg-amber-100 text-amber-700" };
-
-  const verificationBadge = {
-    verified: "bg-green-100 text-green-700",
-    rejected: "bg-red-100 text-red-700",
-    pending:  "bg-gray-100 text-gray-600",
-  }[profile?.verificationStatus || "pending"];
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
           <p className="text-gray-500 text-sm mt-1">
-            Keep your personal and academic details up to date. Admin and instructors
-            can view this profile without contacting you directly.
+            Update your personal and academic details.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge className={completionStatus.color}>{completionStatus.label}</Badge>
-          <Badge className={verificationBadge} variant="outline">
-            {profile?.verificationStatus || "pending"}
-          </Badge>
-        </div>
+        {profile?.isSubmitted && (
+          <Badge className="bg-green-100 text-green-700">Profile Submitted</Badge>
+        )}
       </div>
 
       {success && (
@@ -135,11 +109,6 @@ export function StudentProfilePage() {
           {error}
         </div>
       )}
-      {profile?.verificationNote && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-4 py-3 text-sm">
-          <strong>Admin note:</strong> {profile.verificationNote}
-        </div>
-      )}
 
       <Tabs defaultValue="personal">
         <TabsList className="flex-wrap h-auto gap-1">
@@ -147,7 +116,6 @@ export function StudentProfilePage() {
           <TabsTrigger value="address"><MapPin className="w-4 h-4 mr-1" />Address</TabsTrigger>
           <TabsTrigger value="guardian"><Users className="w-4 h-4 mr-1" />Guardian</TabsTrigger>
           <TabsTrigger value="academic"><GraduationCap className="w-4 h-4 mr-1" />Academic</TabsTrigger>
-          <TabsTrigger value="education"><BookOpen className="w-4 h-4 mr-1" />Education</TabsTrigger>
         </TabsList>
 
         {/* ─── PERSONAL ──────────────────────────────────────── */}
@@ -156,44 +124,32 @@ export function StudentProfilePage() {
             <CardHeader><CardTitle>Personal Information</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Full Name *</Label>
-                  <Input className="mt-1" placeholder="As per official documents"
-                    value={(form as any).fullName || ""}
+                <div className="md:col-span-2">
+                  <Label>Full Name</Label>
+                  {/* FIX: field is 'fullName' in both model and service */}
+                  <Input className="mt-1" value={form.fullName || ""}
                     onChange={(e) => set("fullName", e.target.value)} />
                 </div>
                 <div>
-                  <Label>Enrollment Number *</Label>
-                  <Input className="mt-1" placeholder="e.g. ENGG/2022/001"
-                    value={(form as any).enrollmentNumber || ""}
-                    onChange={(e) => set("enrollmentNumber", e.target.value)} />
-                </div>
-                <div>
-                  <Label>Date of Birth *</Label>
+                  <Label>Date of Birth</Label>
                   <Input type="date" className="mt-1"
-                    value={(form as any).dateOfBirth ? new Date((form as any).dateOfBirth).toISOString().split("T")[0] : ""}
+                    value={form.dateOfBirth ? new Date(form.dateOfBirth).toISOString().split("T")[0] : ""}
                     onChange={(e) => set("dateOfBirth", e.target.value)} />
                 </div>
                 <div>
-                  <Label>Phone Number *</Label>
-                  <Input className="mt-1" placeholder="10-digit mobile number"
-                    value={(form as any).phone || ""}
-                    onChange={(e) => set("phone", e.target.value)} />
-                </div>
-                <div>
                   <Label>Gender</Label>
-                  <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={(form as any).gender || ""}
+                  <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+                    value={form.gender || ""}
                     onChange={(e) => set("gender", e.target.value)}>
                     {GENDERS.map((g) => (
-                      <option key={g} value={g}>{g ? g.charAt(0).toUpperCase() + g.slice(1).replace("_", " ") : "— Select —"}</option>
+                      <option key={g} value={g}>{g ? g.charAt(0).toUpperCase() + g.slice(1) : "— Select —"}</option>
                     ))}
                   </select>
                 </div>
                 <div>
                   <Label>Blood Group</Label>
-                  <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={(form as any).bloodGroup || ""}
+                  <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+                    value={form.bloodGroup || ""}
                     onChange={(e) => set("bloodGroup", e.target.value)}>
                     {BLOOD_GROUPS.map((g) => (
                       <option key={g} value={g}>{g || "— Select —"}</option>
@@ -201,32 +157,20 @@ export function StudentProfilePage() {
                   </select>
                 </div>
                 <div>
-                  <Label>Nationality</Label>
-                  <Input className="mt-1"
-                    value={(form as any).nationality || "Indian"}
-                    onChange={(e) => set("nationality", e.target.value)} />
+                  {/* FIX: model field is 'phoneNumber', not 'phone' */}
+                  <Label>Phone Number</Label>
+                  <Input className="mt-1" value={form.phoneNumber || ""}
+                    onChange={(e) => set("phoneNumber", e.target.value)} />
                 </div>
                 <div>
-                  <Label>Religion</Label>
-                  <Input className="mt-1" placeholder="Optional"
-                    value={(form as any).religion || ""}
-                    onChange={(e) => set("religion", e.target.value)} />
-                </div>
-                <div>
-                  <Label>Category (Reservation)</Label>
-                  <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={(form as any).category || ""}
+                  <Label>Category</Label>
+                  <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+                    value={form.category || ""}
                     onChange={(e) => set("category", e.target.value)}>
                     {CATEGORIES.map((c) => (
                       <option key={c} value={c}>{c ? c.toUpperCase() : "— Select —"}</option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <Label>Photo URL</Label>
-                  <Input className="mt-1" placeholder="Link to your photo (optional)"
-                    value={(form as any).photoUrl || ""}
-                    onChange={(e) => set("photoUrl", e.target.value)} />
                 </div>
               </div>
             </CardContent>
@@ -235,138 +179,65 @@ export function StudentProfilePage() {
 
         {/* ─── ADDRESS ───────────────────────────────────────── */}
         <TabsContent value="address">
-          <div className="space-y-4">
-            <Card>
-              <CardHeader><CardTitle>Permanent Address</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
+          <Card>
+            <CardHeader><CardTitle>Address</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              {/* FIX: model uses 'address.street/city/state/pincode' (single address object) */}
+              <div>
+                <Label>Street / House No.</Label>
+                <Input className="mt-1" value={form.address?.street || ""}
+                  onChange={(e) => set("address.street", e.target.value)} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Street / House No.</Label>
-                  <Input className="mt-1"
-                    value={(form as any).permanentAddress?.street || ""}
-                    onChange={(e) => set("permanentAddress.street", e.target.value)} />
+                  <Label>City</Label>
+                  <Input className="mt-1" value={form.address?.city || ""}
+                    onChange={(e) => set("address.city", e.target.value)} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>City</Label>
-                    <Input className="mt-1"
-                      value={(form as any).permanentAddress?.city || ""}
-                      onChange={(e) => set("permanentAddress.city", e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>State</Label>
-                    <Input className="mt-1"
-                      value={(form as any).permanentAddress?.state || ""}
-                      onChange={(e) => set("permanentAddress.state", e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>PIN Code</Label>
-                    <Input className="mt-1"
-                      value={(form as any).permanentAddress?.pinCode || ""}
-                      onChange={(e) => set("permanentAddress.pinCode", e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>Country</Label>
-                    <Input className="mt-1"
-                      value={(form as any).permanentAddress?.country || "India"}
-                      onChange={(e) => set("permanentAddress.country", e.target.value)} />
-                  </div>
+                <div>
+                  <Label>State</Label>
+                  <Input className="mt-1" value={form.address?.state || ""}
+                    onChange={(e) => set("address.state", e.target.value)} />
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>Correspondence Address</CardTitle>
-                  <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                    <input type="checkbox"
-                      checked={(form as any).correspondenceAddress?.sameAsPermanent ?? true}
-                      onChange={(e) => set("correspondenceAddress.sameAsPermanent", e.target.checked)} />
-                    Same as permanent
-                  </label>
+                <div>
+                  {/* FIX: model field is 'pincode' (lowercase), not 'pinCode' */}
+                  <Label>PIN Code</Label>
+                  <Input className="mt-1" value={form.address?.pincode || ""}
+                    onChange={(e) => set("address.pincode", e.target.value)} />
                 </div>
-              </CardHeader>
-              {!(form as any).correspondenceAddress?.sameAsPermanent && (
-                <CardContent className="space-y-3">
-                  <div>
-                    <Label>Street / House No.</Label>
-                    <Input className="mt-1"
-                      value={(form as any).correspondenceAddress?.street || ""}
-                      onChange={(e) => set("correspondenceAddress.street", e.target.value)} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label>City</Label>
-                      <Input className="mt-1"
-                        value={(form as any).correspondenceAddress?.city || ""}
-                        onChange={(e) => set("correspondenceAddress.city", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>State</Label>
-                      <Input className="mt-1"
-                        value={(form as any).correspondenceAddress?.state || ""}
-                        onChange={(e) => set("correspondenceAddress.state", e.target.value)} />
-                    </div>
-                    <div>
-                      <Label>PIN Code</Label>
-                      <Input className="mt-1"
-                        value={(form as any).correspondenceAddress?.pinCode || ""}
-                        onChange={(e) => set("correspondenceAddress.pinCode", e.target.value)} />
-                    </div>
-                  </div>
-                </CardContent>
-              )}
-            </Card>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ─── GUARDIAN ──────────────────────────────────────── */}
         <TabsContent value="guardian">
-          <div className="space-y-4">
-            {/* Father */}
-            <Card>
-              <CardHeader><CardTitle>Father's Information</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label>Full Name *</Label>
-                  <Input className="mt-1" value={(form as any).father?.name || ""} onChange={(e) => set("father.name", e.target.value)} /></div>
-                <div><Label>Occupation</Label>
-                  <Input className="mt-1" value={(form as any).father?.occupation || ""} onChange={(e) => set("father.occupation", e.target.value)} /></div>
-                <div><Label>Phone</Label>
-                  <Input className="mt-1" value={(form as any).father?.phone || ""} onChange={(e) => set("father.phone", e.target.value)} /></div>
-                <div><Label>Email</Label>
-                  <Input type="email" className="mt-1" value={(form as any).father?.email || ""} onChange={(e) => set("father.email", e.target.value)} /></div>
-                <div><Label>Annual Income (₹)</Label>
-                  <Input type="number" className="mt-1" value={(form as any).father?.annualIncome || 0} onChange={(e) => set("father.annualIncome", Number(e.target.value))} /></div>
-              </CardContent>
-            </Card>
-            {/* Mother */}
-            <Card>
-              <CardHeader><CardTitle>Mother's Information</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label>Full Name</Label>
-                  <Input className="mt-1" value={(form as any).mother?.name || ""} onChange={(e) => set("mother.name", e.target.value)} /></div>
-                <div><Label>Occupation</Label>
-                  <Input className="mt-1" value={(form as any).mother?.occupation || ""} onChange={(e) => set("mother.occupation", e.target.value)} /></div>
-                <div><Label>Phone</Label>
-                  <Input className="mt-1" value={(form as any).mother?.phone || ""} onChange={(e) => set("mother.phone", e.target.value)} /></div>
-                <div><Label>Email</Label>
-                  <Input type="email" className="mt-1" value={(form as any).mother?.email || ""} onChange={(e) => set("mother.email", e.target.value)} /></div>
-              </CardContent>
-            </Card>
-            {/* Local Guardian */}
-            <Card>
-              <CardHeader><CardTitle>Local Guardian (if applicable)</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><Label>Name</Label>
-                  <Input className="mt-1" value={(form as any).localGuardian?.name || ""} onChange={(e) => set("localGuardian.name", e.target.value)} /></div>
-                <div><Label>Relation</Label>
-                  <Input className="mt-1" placeholder="e.g. Uncle, Aunt" value={(form as any).localGuardian?.relation || ""} onChange={(e) => set("localGuardian.relation", e.target.value)} /></div>
-                <div><Label>Phone</Label>
-                  <Input className="mt-1" value={(form as any).localGuardian?.phone || ""} onChange={(e) => set("localGuardian.phone", e.target.value)} /></div>
-                <div><Label>Address</Label>
-                  <Input className="mt-1" value={(form as any).localGuardian?.address || ""} onChange={(e) => set("localGuardian.address", e.target.value)} /></div>
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader><CardTitle>Parent / Guardian Details</CardTitle></CardHeader>
+            {/* FIX: model uses flat parentName/parentPhone/parentEmail/parentOccupation fields */}
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label>Parent / Guardian Name</Label>
+                <Input className="mt-1" value={form.parentName || ""}
+                  onChange={(e) => set("parentName", e.target.value)} />
+              </div>
+              <div>
+                <Label>Parent Phone</Label>
+                <Input className="mt-1" value={form.parentPhone || ""}
+                  onChange={(e) => set("parentPhone", e.target.value)} />
+              </div>
+              <div>
+                <Label>Parent Email</Label>
+                <Input type="email" className="mt-1" value={form.parentEmail || ""}
+                  onChange={(e) => set("parentEmail", e.target.value)} />
+              </div>
+              <div>
+                <Label>Parent Occupation</Label>
+                <Input className="mt-1" value={form.parentOccupation || ""}
+                  onChange={(e) => set("parentOccupation", e.target.value)} />
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* ─── ACADEMIC ──────────────────────────────────────── */}
@@ -375,9 +246,9 @@ export function StudentProfilePage() {
             <CardHeader><CardTitle>Academic Details</CardTitle></CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Department *</Label>
-                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={(form as any).department?._id || (form as any).department || ""}
+                <Label>Department</Label>
+                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+                  value={form.department?._id || form.department || ""}
                   onChange={(e) => set("department", e.target.value)}>
                   <option value="">— Select Department —</option>
                   {departments.map((d) => (
@@ -386,92 +257,48 @@ export function StudentProfilePage() {
                 </select>
               </div>
               <div>
-                <Label>Academic Year *</Label>
-                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={(form as any).academicYear?._id || (form as any).academicYear || ""}
-                  onChange={(e) => set("academicYear", e.target.value)}>
+                <Label>Year</Label>
+                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm"
+                  value={form.year || ""}
+                  onChange={(e) => set("year", Number(e.target.value))}>
                   <option value="">— Select Year —</option>
-                  {academicYears.map((y) => (
-                    <option key={y._id} value={y._id}>{y.label}{y.isCurrent ? " (Current)" : ""}</option>
+                  {[1,2,3,4,5,6].map((y) => (
+                    <option key={y} value={y}>Year {y}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <Label>Current Semester *</Label>
-                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={(form as any).currentSemesterNumber || ""}
-                  onChange={(e) => set("currentSemesterNumber", Number(e.target.value))}>
-                  <option value="">— Select Semester —</option>
-                  {selectedYear?.semesters.map((s) => (
-                    <option key={s._id} value={s.number}>{s.label}</option>
-                  ))}
-                  {!selectedYear && [1,2,3,4,5,6,7,8].map((n) => (
-                    <option key={n} value={n}>Semester {n}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label>Admission Year</Label>
-                <Input type="number" className="mt-1" placeholder="e.g. 2022"
-                  value={(form as any).admissionYear || ""}
-                  onChange={(e) => set("admissionYear", Number(e.target.value))} />
-              </div>
-              <div>
-                <Label>Admission Type</Label>
-                <select className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={(form as any).admissionType || "regular"}
-                  onChange={(e) => set("admissionType", e.target.value)}>
-                  {ADMISSION_TYPES.map((t) => (
-                    <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <Label>Roll Number</Label>
-                <Input className="mt-1" placeholder="Class roll number"
-                  value={(form as any).rollNumber || ""}
-                  onChange={(e) => set("rollNumber", e.target.value)} />
               </div>
               <div>
                 <Label>Division</Label>
-                <Input className="mt-1" placeholder="e.g. A, B, C"
-                  value={(form as any).division || ""}
+                <Input className="mt-1" value={form.division || ""}
                   onChange={(e) => set("division", e.target.value)} />
               </div>
               <div>
-                <Label>Batch</Label>
-                <Input className="mt-1" placeholder="e.g. 2022-2026"
-                  value={(form as any).batch || ""}
-                  onChange={(e) => set("batch", e.target.value)} />
+                <Label>Roll Number</Label>
+                <Input className="mt-1" value={form.rollNumber || ""}
+                  onChange={(e) => set("rollNumber", e.target.value)} />
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* ─── PREVIOUS EDUCATION ────────────────────────────── */}
-        <TabsContent value="education">
-          <Card>
-            <CardHeader><CardTitle>Previous Education (HSC / Diploma)</CardTitle></CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><Label>Institution Name</Label>
-                <Input className="mt-1" value={(form as any).previousEducation?.institution || ""} onChange={(e) => set("previousEducation.institution", e.target.value)} /></div>
-              <div><Label>Board / University</Label>
-                <Input className="mt-1" placeholder="e.g. Maharashtra Board" value={(form as any).previousEducation?.board || ""} onChange={(e) => set("previousEducation.board", e.target.value)} /></div>
-              <div><Label>Percentage / CGPA</Label>
-                <Input type="number" className="mt-1" value={(form as any).previousEducation?.percentage || ""} onChange={(e) => set("previousEducation.percentage", Number(e.target.value))} /></div>
-              <div><Label>Passing Year</Label>
-                <Input type="number" className="mt-1" placeholder="e.g. 2022" value={(form as any).previousEducation?.passingYear || ""} onChange={(e) => set("previousEducation.passingYear", Number(e.target.value))} /></div>
+              <div>
+                <Label>Admission Year</Label>
+                <Input type="number" className="mt-1" value={form.admissionYear || ""}
+                  onChange={(e) => set("admissionYear", Number(e.target.value))} />
+              </div>
+              <div>
+                <Label>Enrollment Number</Label>
+                <Input className="mt-1 bg-gray-50 cursor-not-allowed" readOnly value={form.enrollmentNumber || ""}
+                  placeholder="Assigned by admin" />
+                <p className="text-xs text-gray-400 mt-1">Set by administrator only</p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Save Button */}
       <div className="flex justify-end pt-2">
         <Button
           className="bg-indigo-600 hover:bg-indigo-700 gap-2 px-8"
           onClick={handleSave}
-          disabled={saving}>
+          disabled={saving}
+        >
           <Save className="w-4 h-4" />
           {saving ? "Saving..." : "Save Profile"}
         </Button>

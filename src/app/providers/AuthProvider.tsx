@@ -26,7 +26,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-/** Client-side JWT expiry check (does NOT verify signature) */
+/** Client-side JWT expiry check */
 function isTokenExpired(token: string): boolean {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const originalFetchRef      = useRef<typeof fetch | null>(null);
 
-  /* ─── LOGOUT ─────────────────────────────────────────── */
+  /* ─── LOGOUT ─────────────────────────── */
   const logout = useCallback(() => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
   }, []);
 
-  /* ─── RESTORE SESSION ────────────────────────────────── */
+  /* ─── RESTORE SESSION ────────────────── */
   useEffect(() => {
     try {
       const storedToken = localStorage.getItem("token");
@@ -74,15 +74,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  /* ─── GLOBAL 401 INTERCEPTOR ─────────────────────────── */
+  /* ─── GLOBAL 401 INTERCEPTOR + TOKEN ATTACH ───────────────── */
   useEffect(() => {
     originalFetchRef.current = window.fetch.bind(window);
 
-    const intercepted: typeof fetch = async (...args) => {
-      const response = await originalFetchRef.current!(...args);
+    const intercepted: typeof fetch = async (input, init = {}) => {
+      const storedToken = localStorage.getItem("token");
 
+      // ✅ Attach token WITHOUT changing logic
+      const updatedInit = {
+        ...init,
+        headers: {
+          ...(init.headers || {}),
+          ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+        },
+      };
+
+      const response = await originalFetchRef.current!(input, updatedInit);
+
+      // ❗ Your original 401 logic (unchanged)
       if (response.status === 401) {
-        const url = args[0]?.toString() ?? "";
+        const url = input?.toString() ?? "";
         const isApiCall = url.includes("/api/");
         if (isApiCall) {
           setUser((currentUser) => {
@@ -96,6 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setToken(null);
         }
       }
+
       return response;
     };
 
@@ -108,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  /* ─── SET AUTH USER ──────────────────────────────────── */
+  /* ─── SET AUTH USER ──────────────────── */
   const setAuthUser = useCallback((user: User, token: string) => {
     localStorage.setItem("user",  JSON.stringify(user));
     localStorage.setItem("token", token);

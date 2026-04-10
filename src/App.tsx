@@ -7,6 +7,7 @@ import type { UserRole } from "./app/services/authService";
 import { Sidebar } from "./app/components/Sidebar";
 import { Header }  from "./app/components/Header";
 import { Login }   from "./app/components/Login";
+import { OnboardingGate } from "./app/components/OnboardingGate"; // FIX: import was missing from usage
 
 /* ================= STUDENT PAGES ================= */
 import { Dashboard }         from "./app/components/pages/student/Dashboard";
@@ -25,6 +26,7 @@ import { StudentExams }      from "./app/components/pages/student/StudentExams";
 import { Attendance }        from "./app/components/pages/student/Attendance";
 import { DocumentHub }       from "./app/components/pages/student/DocumentHub";
 import { TimetableView }     from "./app/components/pages/student/TimetableView";
+import { StudentProfilePage } from "./app/components/pages/student/StudentProfilePage";
 
 /* ================= ADMIN PAGES ================= */
 import { AdminDashboard }   from "./app/components/pages/admin/AdminDashboard";
@@ -106,9 +108,10 @@ function UserRoutes() {
       <Route path="results"     element={<StudentResults />} />
       <Route path="certificates" element={<StudentCertificates />} />
       <Route path="exams"       element={<StudentExams />} />
-      <Route path="attendance"   element={<Attendance />} />
-      <Route path="documents"    element={<DocumentHub />} />
-      <Route path="timetable"    element={<TimetableView />} />
+      <Route path="attendance"  element={<Attendance />} />
+      <Route path="documents"   element={<DocumentHub />} />
+      <Route path="timetable"   element={<TimetableView />} />
+      <Route path="profile"     element={<StudentProfilePage />} />
       <Route path="*"           element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
@@ -152,7 +155,7 @@ function InstructorRoutes() {
       <Route path="content"     element={<InstructorContent />} />
       <Route path="students"    element={<InstructorStudents />} />
       <Route path="ai-chat"     element={<AIChat />} />
-      <Route path="attendance"   element={<InstructorAttendance />} />
+      <Route path="attendance"  element={<InstructorAttendance />} />
       <Route path="*"           element={<Navigate to="/instructor/dashboard" replace />} />
     </Routes>
   );
@@ -190,7 +193,7 @@ export default function App() {
         element={userRole ? <Navigate to={redirectPath} replace /> : <Login />}
       />
 
-      {/* COURSE VIEWER — full screen, no sidebar */}
+      {/* COURSE VIEWER — full screen, no sidebar, no onboarding gate needed */}
       <Route
         path="/dashboard/courses/:courseId"
         element={
@@ -200,17 +203,19 @@ export default function App() {
         }
       />
 
-      {/* STUDENT */}
+      {/* STUDENT — FIX: wrap with OnboardingGate so students complete profile first */}
       <Route
         path="/dashboard/*"
         element={
           <ProtectedLayout roles={["student"]} userRole={userRole}>
-            <AppShell><UserRoutes /></AppShell>
+            <OnboardingGate>
+              <AppShell><UserRoutes /></AppShell>
+            </OnboardingGate>
           </ProtectedLayout>
         }
       />
 
-      {/* ADMIN */}
+      {/* ADMIN — admins skip onboarding */}
       <Route
         path="/admin/*"
         element={
@@ -220,12 +225,14 @@ export default function App() {
         }
       />
 
-      {/* INSTRUCTOR */}
+      {/* INSTRUCTOR — FIX: wrap with OnboardingGate so instructors complete profile first */}
       <Route
         path="/instructor/*"
         element={
           <ProtectedLayout roles={["instructor"]} userRole={userRole}>
-            <AppShell><InstructorRoutes /></AppShell>
+            <OnboardingGate>
+              <AppShell><InstructorRoutes /></AppShell>
+            </OnboardingGate>
           </ProtectedLayout>
         }
       />

@@ -18,19 +18,21 @@ try {
   AuditLog = mod.default;
 } catch { /* skip */ }
 
+// FIX: guard against null userId — AuditLog.actor is required
 const logAudit = async (req, userId, email, role, action, details, status = "success") => {
   if (!AuditLog) return;
+  if (!userId) return; // cannot log without a valid actor
   try {
     await AuditLog.create({
-      actor:     userId,
+      actor:      userId,
       actorEmail: email,
       actorRole:  role,
       action,
-      resource:  "auth",
+      resource:   "auth",
       resourceId: String(userId),
       details,
-      ip:        req.ip || req.connection?.remoteAddress || "",
-      userAgent: req.get("user-agent") || "",
+      ip:         req.ip || req.connection?.remoteAddress || "",
+      userAgent:  req.get("user-agent") || "",
       status,
     });
   } catch { /* never crash auth */ }
@@ -44,7 +46,6 @@ const registerSchema = z.object({
   role:     z.enum(["student", "instructor", "admin"]).optional().default("student"),
 });
 
-// LOGIN: supports email OR enrollmentNumber
 const loginSchema = z.object({
   email:            z.string().email().optional(),
   enrollmentNumber: z.string().optional(),
@@ -112,8 +113,7 @@ export const login = async (req, res) => {
       });
 
       if (!profile) {
-        await logAudit(req, null, enrollmentNumber, "student", "LOGIN_FAILED",
-          `Failed login attempt with enrollment: ${enrollmentNumber}`, "failure");
+        // FIX: don't call logAudit with null userId — just return 401
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
