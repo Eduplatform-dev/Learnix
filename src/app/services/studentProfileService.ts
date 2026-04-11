@@ -8,8 +8,9 @@ export type Address = {
   street:  string;
   city:    string;
   state:   string;
-  pinCode: string;
-  country: string;
+  // FIX: model uses 'pincode' (lowercase), not 'pinCode'
+  pincode: string;
+  country?: string;
 };
 
 export type Guardian = {
@@ -20,63 +21,51 @@ export type Guardian = {
   annualIncome?: number;
 };
 
+// FIX: field names now match StudentProfile Mongoose model exactly
 export type StudentProfile = {
-  _id:              string;
-  userId:           { _id: string; username: string; email: string } | string;
+  _id:    string;
+  user:   { _id: string; username: string; email: string } | string;
 
-  // Personal
-  fullName:          string;
-  enrollmentNumber:  string | null;
-  dateOfBirth:       string | null;
-  gender:            string;
-  bloodGroup:        string;
-  nationality:       string;
-  religion:          string;
-  category:          string;
-  photoUrl:          string;
-  phone:             string;
+  // Personal — matches model field names
+  fullName:     string;
+  enrollmentNumber: string | null;
+  dateOfBirth:  Date | string | null;
+  gender:       string;
+  bloodGroup:   string;
+  // FIX: model uses 'phoneNumber', not 'phone'
+  phoneNumber:  string;
+  // FIX: model uses 'photo', not 'photoUrl'
+  photo:        string;
 
-  // Address
-  permanentAddress:      Address;
-  correspondenceAddress: Address & { sameAsPermanent: boolean };
+  // Address — model uses nested { street, city, state, pincode }
+  address: Address;
 
-  // Guardian
-  father:        Guardian;
-  mother:        Omit<Guardian, "annualIncome">;
-  localGuardian: { name: string; relation: string; phone: string; address: string };
+  // Parent / Guardian — model uses flat fields, not father/mother objects
+  parentName:       string;
+  parentPhone:      string;
+  parentEmail:      string;
+  parentOccupation: string;
 
   // Academic
-  department:            { _id: string; name: string; code: string } | null;
-  academicYear:          { _id: string; label: string } | null;
-  currentSemesterId:     string | null;
-  currentSemesterNumber: number | null;
-  admissionYear:         number | null;
-  admissionType:         string;
-  rollNumber:            string;
-  division:              string;
-  batch:                 string;
-
-  // Previous education
-  previousEducation: {
-    institution:  string;
-    board:        string;
-    percentage:   number;
-    passingYear:  number | null;
-  };
+  department:    { _id: string; name: string; code: string } | null;
+  semester:      { _id: string; name: string; academicYear: string } | null;
+  year:          number | null;
+  division:      string;
+  rollNumber:    string;
+  admissionYear: number | null;
+  category:      string;
 
   // Status
-  isProfileComplete:  boolean;
-  verificationStatus: "pending" | "verified" | "rejected";
-  verificationNote:   string;
-  createdAt:          string;
-  updatedAt:          string;
+  isSubmitted:  boolean;
+  submittedAt:  string | null;
+  createdAt:    string;
+  updatedAt:    string;
 };
 
 export type ProfilesResponse = {
   profiles: StudentProfile[];
   total:    number;
   page:     number;
-  pages:    number;
 };
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -89,16 +78,39 @@ const handle = async <T>(res: Response): Promise<T> => {
 };
 
 /* ── Student: own profile ───────────────────────────────── */
-export const getMyProfile = async (): Promise<StudentProfile> => {
+export const getMyProfile = async (): Promise<StudentProfile | null> => {
   const res = await fetch(`${API}/student/me`, { headers: getAuthHeader() });
+  if (res.status === 404) return null;
   return handle<StudentProfile>(res);
 };
 
-export const updateMyProfile = async (
+/**
+ * FIX: Submission (POST /api/profiles/student) locks the profile permanently.
+ * This function is for the one-time onboarding form only.
+ * For subsequent updates, use updateMyProfile (PUT via admin endpoint).
+ */
+export const submitOnboardingProfile = async (
   data: Partial<StudentProfile>
 ): Promise<StudentProfile> => {
   const res = await fetch(`${API}/student`, {
     method:  "POST",
+    headers: getAuthHeader(),
+    body:    JSON.stringify(data),
+  });
+  return handle<StudentProfile>(res);
+};
+
+/**
+ * FIX: updateMyProfile now calls PUT /api/profiles/students/:userId
+ * instead of re-POSTing to the submission endpoint (which locks the profile).
+ * Requires the user's own _id.
+ */
+export const updateMyProfile = async (
+  userId: string,
+  data: Partial<StudentProfile>
+): Promise<StudentProfile> => {
+  const res = await fetch(`${API}/students/${userId}`, {
+    method:  "PUT",
     headers: getAuthHeader(),
     body:    JSON.stringify(data),
   });
@@ -118,35 +130,17 @@ export const getAllProfiles = async (params?: {
   page?:       number;
   limit?:      number;
   department?: string;
-  semester?:   number;
-  status?:     string;
-  division?:   string;
+  year?:       number;
 }): Promise<ProfilesResponse> => {
   const qs = new URLSearchParams();
   if (params?.page)       qs.set("page",       String(params.page));
   if (params?.limit)      qs.set("limit",      String(params.limit));
   if (params?.department) qs.set("department", params.department);
-  if (params?.semester)   qs.set("semester",   String(params.semester));
-  if (params?.status)     qs.set("status",     params.status);
-  if (params?.division)   qs.set("division",   params.division);
+  if (params?.year)       qs.set("year",       String(params.year));
 
   const url = `${API}/students${qs.toString() ? "?" + qs : ""}`;
   const res = await fetch(url, { headers: getAuthHeader() });
   return handle<ProfilesResponse>(res);
-};
-
-/* ── Admin: verify profile ───────────────────────────────── */
-export const verifyProfile = async (
-  userId: string,
-  status: "verified" | "rejected" | "pending",
-  note?:  string
-): Promise<StudentProfile> => {
-  const res = await fetch(`${API}/students/${userId}`, {
-    method:  "PUT",
-    headers: getAuthHeader(),
-    body:    JSON.stringify({ status, note }),
-  });
-  return handle<StudentProfile>(res);
 };
 
 /* ── Admin: update a student's profile ──────────────────── */

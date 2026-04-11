@@ -27,6 +27,21 @@ router.get("/", authenticateToken, async (req, res) => {
   }
 });
 
+// FIX: /read-all MUST be registered before /:id/read
+// Otherwise Express matches "read-all" as an :id param
+/* ─── MARK ALL AS READ ────────────────────────────────── */
+router.patch("/read-all", authenticateToken, async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { recipient: req.user._id, isRead: false },
+      { isRead: true, readAt: new Date() }
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* ─── MARK AS READ ────────────────────────────────────── */
 router.patch("/:id/read", authenticateToken, async (req, res) => {
   try {
@@ -37,19 +52,6 @@ router.patch("/:id/read", authenticateToken, async (req, res) => {
     );
     if (!notif) return res.status(404).json({ error: "Notification not found" });
     res.json(notif);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/* ─── MARK ALL AS READ ────────────────────────────────── */
-router.patch("/read-all", authenticateToken, async (req, res) => {
-  try {
-    await Notification.updateMany(
-      { recipient: req.user._id, isRead: false },
-      { isRead: true, readAt: new Date() }
-    );
-    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

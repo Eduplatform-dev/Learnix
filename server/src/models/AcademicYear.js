@@ -10,7 +10,12 @@ const semesterSchema = new mongoose.Schema({
 
 const academicYearSchema = new mongoose.Schema(
   {
-    label:     { type: String, required: true, unique: true, trim: true },
+    label: {
+      type:     String,
+      required: true,
+      trim:     true,
+      unique:   true,
+    },
     startDate: { type: Date, required: true },
     endDate:   { type: Date, required: true },
     isCurrent: { type: Boolean, default: false },
@@ -19,9 +24,9 @@ const academicYearSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Ensure only one current academic year at a time
+// Ensure only one academic year can be "current" at a time
 academicYearSchema.pre("save", async function (next) {
-  if (this.isModified("isCurrent") && this.isCurrent) {
+  if (this.isCurrent && this.isModified("isCurrent")) {
     await this.constructor.updateMany(
       { _id: { $ne: this._id } },
       { $set: { isCurrent: false } }
@@ -29,5 +34,7 @@ academicYearSchema.pre("save", async function (next) {
   }
   next();
 });
+
+academicYearSchema.index({ isCurrent: 1 });
 
 export default mongoose.model("AcademicYear", academicYearSchema);

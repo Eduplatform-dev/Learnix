@@ -36,7 +36,7 @@ export function Submissions() {
   const [saving,           setSaving]           = useState(false);
   const [submitError,      setSubmitError]      = useState("");
   const [successMsg,       setSuccessMsg]       = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef                            = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;

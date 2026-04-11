@@ -1,229 +1,366 @@
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "../../ui/card";
-import { Badge } from "../../ui/badge";
-import { Progress } from "../../ui/progress";
-import { AlertTriangle, CheckCircle, TrendingUp, Calendar, BookOpen, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { getMyAttendance, type SubjectSummary, type MyAttendance } from "../../../services/attendanceService";
 
-const pctColor = (pct: number) => {
-  if (pct >= 85) return "text-green-600";
-  if (pct >= 75) return "text-amber-600";
-  return "text-red-600";
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+const SUBJECT_COLORS = [
+  "#378ADD", "#1D9E75", "#D85A30", "#7F77DD",
+  "#E6874A", "#2BA8A8", "#C4548A", "#5B9E44",
+];
+
+/* ── calendar status → cell style ── */
+const STATUS_STYLES: Record<string, { bg: string; border: string; tagColor: string; tag: string }> = {
+  present: { bg: "bg-[#EAF3DE]", border: "border-[#97C459]", tagColor: "text-[#3B6D11]", tag: "PRES" },
+  absent: { bg: "bg-[#FCEBEB]", border: "border-[#F09595]", tagColor: "text-[#A32D2D]", tag: "ABS" },
+  holiday: { bg: "bg-[#E6F1FB]", border: "border-[#85B7EB]", tagColor: "text-[#185FA5]", tag: "HOL" },
+  late: { bg: "bg-[#FAEEDA]", border: "border-[#FAC775]", tagColor: "text-[#854F0B]", tag: "LATE" },
 };
 
-const pctBg = (pct: number) => {
-  if (pct >= 85) return "bg-green-500";
-  if (pct >= 75) return "bg-amber-500";
-  return "bg-red-500";
-};
-
-const lecturesNeeded = (present: number, total: number): number => {
-  // How many consecutive lectures need to be attended to reach 75%
-  // (present + x) / (total + x) >= 0.75
-  let x = 0;
-  while (((present + x) / (total + x)) < 0.75 && x < 100) x++;
-  return x;
-};
-
-const canAffordAbsences = (present: number, total: number): number => {
-  // How many more absences allowed before going below 75%
-  let x = 0;
-  while (((present) / (total + x + 1)) >= 0.75 && x < 100) x++;
-  return x;
-};
-
-function SubjectCard({ subject, expanded, onToggle }: {
-  subject: SubjectSummary;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const needed   = subject.shortage ? lecturesNeeded(subject.present, subject.total) : 0;
-  const canMiss  = !subject.shortage ? canAffordAbsences(subject.present, subject.total) : 0;
-
-  return (
-    <Card className={`border ${subject.shortage ? "border-red-200 bg-red-50/30" : "border-gray-200"} transition-all`}>
-      <div className="p-4 cursor-pointer" onClick={onToggle}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {subject.shortage
-              ? <AlertTriangle className="w-5 h-5 text-red-500 shrink-0" />
-              : <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
-            }
-            <div className="min-w-0">
-              <p className="font-semibold text-gray-900 truncate">{subject.name}</p>
-              {subject.code && <p className="text-xs text-gray-400 font-mono">{subject.code}</p>}
-            </div>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="text-right">
-              <p className={`text-2xl font-bold ${pctColor(subject.percentage)}`}>{subject.percentage}%</p>
-              <p className="text-xs text-gray-400">{subject.present}/{subject.total} classes</p>
-            </div>
-            {expanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all ${pctBg(subject.percentage)}`}
-            style={{ width: `${Math.min(subject.percentage, 100)}%` }}
-          />
-          {/* 75% marker */}
-          <div className="absolute top-0 h-full w-0.5 bg-gray-600 opacity-40" style={{ left: "75%" }} />
-        </div>
-        <div className="flex justify-between mt-1">
-          <span className="text-xs text-gray-400">0%</span>
-          <span className="text-xs text-gray-500 font-medium" style={{ position: "relative", left: "calc(75% - 1rem)" }}>75% min</span>
-          <span className="text-xs text-gray-400">100%</span>
-        </div>
-
-        {/* Warning/tip */}
-        {subject.shortage ? (
-          <div className="mt-3 flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-200">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            Attend next <strong className="mx-0.5">{needed}</strong> consecutive classes to reach 75%
-          </div>
-        ) : (
-          <div className="mt-3 flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-200">
-            <CheckCircle className="w-3.5 h-3.5 shrink-0" />
-            {canMiss > 0
-              ? <>You can miss up to <strong className="mx-0.5">{canMiss}</strong> more class{canMiss > 1 ? "es" : ""} safely</>
-              : <>You're at the minimum threshold — don't miss any classes!</>
-            }
-          </div>
-        )}
-      </div>
-
-      {/* Expandable session log */}
-      {expanded && subject.sessions.length > 0 && (
-        <div className="border-t mx-4 mb-4">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-3 mb-2">Session History</p>
-          <div className="max-h-48 overflow-y-auto space-y-1">
-            {[...subject.sessions].reverse().map((s, i) => (
-              <div key={i} className="flex items-center justify-between text-xs py-1.5 border-b border-gray-100 last:border-0">
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${
-                    s.status === "present" ? "bg-green-500" :
-                    s.status === "late"    ? "bg-amber-500" :
-                    s.status === "excused" ? "bg-blue-400"  : "bg-red-500"
-                  }`} />
-                  <span className="text-gray-600">{new Date(s.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}</span>
-                  {s.topic && <span className="text-gray-400 truncate max-w-[120px]">— {s.topic}</span>}
-                </div>
-                <Badge className={`text-xs capitalize ${
-                  s.status === "present" ? "bg-green-100 text-green-700" :
-                  s.status === "late"    ? "bg-amber-100 text-amber-700" :
-                  s.status === "excused" ? "bg-blue-100 text-blue-700"  :
-                  "bg-red-100 text-red-700"
-                }`}>{s.status}</Badge>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </Card>
-  );
+/* Build a map of {day: status} from SubjectSummary sessions for the visible month */
+function buildDayMap(
+  sessions: SubjectSummary["sessions"],
+  year: number,
+  month: number
+): Record<number, string> {
+  const map: Record<number, string> = {};
+  sessions.forEach(s => {
+    const d = new Date(s.date);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      map[d.getDate()] = s.status === "late" ? "late" : s.status;
+    }
+  });
+  return map;
 }
 
 export function Attendance() {
-  const [data,     setData]     = useState<MyAttendance | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [data, setData] = useState<MyAttendance | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedSubject, setSelectedSubject] = useState(0);
+  const [month, setMonth] = useState(() => {
+    const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1);
+  });
+
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     getMyAttendance()
       .then(setData)
-      .catch(console.error)
+      .catch(err => {
+        console.error(err);
+        setError("Failed to load attendance");
+      })
       .finally(() => setLoading(false));
   }, []);
+  const subjects = data?.subjects ?? [];
+  const current = subjects[selectedSubject] ?? null;
 
-  const toggle = (id: string) =>
-    setExpanded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const pct = current?.percentage ?? 0;
 
+  const yr = month.getFullYear();
+  const mo = month.getMonth();
+  const today = useMemo(() => new Date(), []);
+
+  const dayMap = useMemo(() => {
+    return current
+      ? buildDayMap(current.sessions, yr, mo)
+      : {};
+  }, [current, yr, mo]);
+
+  /* calendar grid helpers */
+  const firstDow = new Date(yr, mo, 1).getDay();
+  const daysInMonth = new Date(yr, mo + 1, 0).getDate();
+  const prevDays = new Date(yr, mo, 0).getDate();
+
+  if (error) {
+    return (
+      <div className="text-center text-red-500 py-10">
+        {error}
+      </div>
+    );
+  }
   if (loading) return (
     <div className="flex items-center justify-center p-16">
       <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
-  if (!data || data.subjects.length === 0) return (
+  if (!data || subjects.length === 0) return (
     <div className="text-center py-20 text-gray-400">
-      <Calendar className="w-14 h-14 mx-auto mb-3 opacity-30" />
+      <div className="text-5xl mb-3">📅</div>
       <p className="font-medium">No attendance records yet.</p>
       <p className="text-sm mt-1">Your attendance will appear here once instructors start marking.</p>
     </div>
   );
 
-  const shortageCount = data.subjects.filter(s => s.shortage).length;
-  const okCount       = data.subjects.filter(s => !s.shortage).length;
+  const shortageCount = subjects.filter(s => s.shortage).length;
 
   return (
-    <div className="space-y-6 max-w-3xl mx-auto">
+    <div className="space-y-5 max-w-3xl mx-auto">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">My Attendance</h1>
-        <p className="text-gray-500 mt-1">Subject-wise attendance tracking · 75% minimum required</p>
+        <p className="text-gray-500 text-sm mt-0.5">Subject-wise · 75% minimum required</p>
       </div>
 
-      {/* Overall stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-5 text-center">
-            <div className={`text-4xl font-bold mb-1 ${pctColor(data.overallPercentage)}`}>
-              {data.overallPercentage}%
-            </div>
-            <p className="text-sm text-gray-500">Overall</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-5 text-center">
-            <div className="text-4xl font-bold text-gray-900 mb-1">{data.subjects.length}</div>
-            <p className="text-sm text-gray-500">Subjects</p>
-          </CardContent>
-        </Card>
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-5 text-center">
-            <div className="text-4xl font-bold text-red-600 mb-1">{shortageCount}</div>
-            <p className="text-sm text-red-500">Shortage</p>
-          </CardContent>
-        </Card>
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="p-5 text-center">
-            <div className="text-4xl font-bold text-green-600 mb-1">{okCount}</div>
-            <p className="text-sm text-green-500">On Track</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Shortage warning banner */}
+      {/* Shortage banner */}
       {shortageCount > 0 && (
-        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-          <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-semibold text-red-800">Attendance Shortage Warning</p>
-            <p className="text-xs text-red-600 mt-0.5">
-              You have attendance shortage in {shortageCount} subject{shortageCount > 1 ? "s" : ""}. 
-              Students with &lt;75% may be detained from exams.
-            </p>
-          </div>
+        <div className="flex items-start gap-3 bg-[#FCEBEB] border border-[#F09595] rounded-xl px-4 py-3">
+          <AlertTriangle className="w-4 h-4 text-[#A32D2D] mt-0.5 shrink-0" />
+          <p className="text-sm text-[#A32D2D] font-medium">
+            Attendance shortage in {shortageCount} subject{shortageCount > 1 ? "s" : ""}. Students below 75% may be detained.
+          </p>
         </div>
       )}
 
-      {/* Sort: shortage first */}
-      <div className="space-y-3">
-        {[...data.subjects]
-          .sort((a, b) => (a.shortage ? -1 : 1) - (b.shortage ? -1 : 1) || a.percentage - b.percentage)
-          .map(subject => (
-            <SubjectCard
-              key={subject.courseId || subject.name}
-              subject={subject}
-              expanded={expanded.has(subject.courseId || subject.name)}
-              onToggle={() => toggle(subject.courseId || subject.name)}
-            />
-          ))
-        }
+      {/* Subject pills */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">My subjects</p>
+        <div className="flex flex-wrap gap-2">
+          {subjects.map((s, i) => {
+            const color = SUBJECT_COLORS[i % SUBJECT_COLORS.length];
+            const active = i === selectedSubject;
+            return (
+              <button
+                key={s.courseId || s.name}
+                onClick={() => setSelectedSubject(i)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${active
+                  ? "bg-[#E6F1FB] text-[#0C447C] border-[#85B7EB]"
+                  : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                  }`}
+              >
+                <span
+                  className="inline-block w-2 h-2 rounded-full shrink-0"
+                  style={{ background: color }}
+                />
+                {s.name}
+                {s.code && <span className="opacity-60">({s.code})</span>}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Stats row */}
+      {current && (
+        <div className="grid grid-cols-4 gap-2.5">
+          {[
+            { label: "Present", value: current.present, color: "#3B6D11", bg: "#EAF3DE" },
+            { label: "Absent", value: current.absent, color: "#A32D2D", bg: "#FCEBEB" },
+            { label: "Late", value: current.late, color: "#854F0B", bg: "#FAEEDA" },
+            { label: "Attendance", value: `${pct}%`, color: pct >= 75 ? "#3B6D11" : "#A32D2D", bg: pct >= 75 ? "#EAF3DE" : "#FCEBEB", isBar: true, pct },
+          ].map(s => (
+            <div key={s.label}
+              className="rounded-xl p-3 text-center"
+              style={{ background: s.bg }}>
+              <div className="text-xl font-semibold" style={{ color: s.color }}>{s.value}</div>
+              <div className="text-xs mt-0.5" style={{ color: s.color, opacity: 0.7 }}>{s.label}</div>
+              {(s as any).isBar && (
+                <div className="mt-1.5 h-1.5 bg-white/60 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${(s as any).pct}%`, background: s.color }}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Status message */}
+      {current && (() => {
+        if (current.total === 0) {
+          return (
+            <div className="bg-gray-100 border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-gray-600">
+              No classes conducted yet.
+            </div>
+          );
+        }
+
+        const requiredClasses = Math.max(
+          0,
+          Math.ceil(
+            (0.75 * current.total - (current.present + current.late * 0.5)) / 0.75
+          )
+        );
+
+        const canMiss = Math.max(
+          0,
+          Math.floor(
+            (current.present + current.late * 0.5 - 0.75 * current.total) / 0.75
+          )
+        );
+
+        return pct < 75 ? (
+          <div className="bg-[#FCEBEB] border border-[#F09595] rounded-xl px-4 py-2.5 text-sm text-[#A32D2D]">
+            ⚠️ Attendance {pct}% — below minimum. Attend{" "}
+            <strong>
+              {requiredClasses} more class
+              {requiredClasses !== 1 ? "es" : ""}
+            </strong>{" "}
+            to reach 75%.
+          </div>
+        ) : (
+          <div className="bg-[#EAF3DE] border border-[#97C459] rounded-xl px-4 py-2.5 text-sm text-[#3B6D11]">
+            ✓ Attendance {pct}% — on track. You can miss up to{" "}
+            <strong>
+              {canMiss} more class
+              {canMiss !== 1 ? "es" : ""}
+            </strong>{" "}
+            safely.
+          </div>
+        );
+      })()}
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3">
+        {[
+          { color: "#C0DD97", label: "Present" },
+          { color: "#F09595", label: "Absent" },
+          { color: "#85B7EB", label: "Holiday" },
+          { color: "#FAC775", label: "Late" },
+          { color: "#F0F0F0", label: "No class" },
+        ].map(l => (
+          <div key={l.label} className="flex items-center gap-1.5 text-xs text-gray-500">
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: l.color }} />
+            {l.label}
+          </div>
+        ))}
+        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+          <span className="w-2.5 h-2.5 rounded-sm inline-block border-[1.5px] border-[#378ADD] bg-transparent" />
+          Today
+        </div>
+      </div>
+
+      {/* Calendar card */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+        {/* Month nav */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={() =>
+              setMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+            }
+            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-base font-medium text-gray-900">{MONTHS[mo]} {yr}</span>
+          <button
+            onClick={() =>
+              setMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+            }
+            className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 text-gray-600 transition-colors"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Day name headers */}
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {DAYS.map(d => (
+            <div key={d} className="text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider py-1">
+              {d.slice(0, 2)}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar cells */}
+        <div className="grid grid-cols-7 gap-1">
+          {/* Prev month filler */}
+          {Array.from({ length: firstDow }).map((_, i) => (
+            <div key={`prev-${i}`} className="aspect-square rounded-lg flex items-center justify-center opacity-25">
+              <span className="text-xs text-gray-400">{prevDays - firstDow + 1 + i}</span>
+            </div>
+          ))}
+
+          {/* Current month days */}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const day = i + 1;
+            const dt = new Date(yr, mo, day);
+            const isSun = dt.getDay() === 0;
+            const isToday = dt.toDateString() === today.toDateString();
+            const status = dayMap[day];
+            const s = status ? STATUS_STYLES[status] : null;
+            const isHol = status === "holiday";
+            return (
+              <div
+                key={day}
+                className={`
+                  aspect-square rounded-lg flex flex-col items-center justify-center
+                  relative border transition-all select-none min-h-[44px] p-0.5
+                  ${isToday ? "border-[#378ADD] border-[1.5px]" : s ? `${s.bg} ${s.border} border` : isHol ? "bg-[#E6F1FB] border-[#85B7EB] border" : "bg-gray-50 border-transparent"}
+                `}
+              >
+                <span className="text-xs font-medium leading-none text-gray-800">{day}</span>
+                {s && (
+                  <span className={`text-[8px] font-semibold mt-0.5 leading-none ${s.tagColor}`}>
+                    {s.tag}
+                  </span>
+                )}
+                {isHol && (
+                  <span className="text-[8px] font-semibold mt-0.5 leading-none text-[#185FA5]">
+                    HOL
+                  </span>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Next month filler */}
+          {(() => {
+            const total = firstDow + daysInMonth;
+            const rem = 7 - (total % 7);
+            if (rem === 7) return null;
+            return Array.from({ length: rem }).map((_, i) => (
+              <div key={`next-${i}`} className="aspect-square rounded-lg flex items-center justify-center opacity-25">
+                <span className="text-xs text-gray-400">{i + 1}</span>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
+
+      {/* Session log for selected subject */}
+      {current && current.sessions.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-5 py-3 border-b border-gray-100">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Recent sessions — {current.name}
+            </p>
+          </div>
+          <div className="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+            {[...current.sessions].reverse().slice(0, 12).map((s, i) => {
+              const st = s.status === "late" ? STATUS_STYLES.late : STATUS_STYLES[s.status] ?? STATUS_STYLES.present;
+              return (
+                <div key={s.date} className="flex items-center justify-between px-5 py-2.5">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${s.status === "present" ? "bg-[#97C459]" :
+                        s.status === "absent" ? "bg-[#F09595]" :
+                          s.status === "late" ? "bg-[#FAC775]" : "bg-[#85B7EB]"
+                        }`}
+                    />
+                    <span className="text-sm text-gray-600">
+                      {new Date(s.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    </span>
+                    {s.topic && (
+                      <span className="text-xs text-gray-400 truncate max-w-[140px]">— {s.topic}</span>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${st.bg} ${st.tagColor} capitalize`}>
+                    {s.status}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

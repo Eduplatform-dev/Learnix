@@ -28,18 +28,29 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+/** Client-side JWT expiry check */
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.exp * 1000 < Date.now() + 10_000;
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(getStoredUserMeta);
   const [loading, setLoading] = useState(true);
+  const originalFetchRef = useRef<typeof fetch | null>(null);
 
-  /* ── LOGOUT ───────────────── */
+  /* ─── LOGOUT ─────────────────────────── */
   const logout = useCallback(async () => {
-    await logoutUser();
-    clearMemoryAuth();
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
     setUser(null);
   }, []);
 
-  /* ── INITIAL SILENT REFRESH ───────────────── */
+  /* ─── RESTORE SESSION ────────────────── */
   useEffect(() => {
     let cancelled = false;
 
@@ -65,90 +76,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  /* ── PROACTIVE REFRESH (every 13 min) ───────────────── */
-  useEffect(() => {
-    if (!user) return;
-
-    const id = setInterval(async () => {
-      const result = await silentRefresh();
-
-      if (result) {
-        setUser(result.user);
-      } else {
-        clearMemoryAuth();
-        setUser(null);
-      }
-    }, 13 * 60 * 1000);
-
-    return () => clearInterval(id);
-  }, [user]);
-
-  /* ── FETCH INTERCEPTOR (FIXED) ───────────────── */
-  const originalFetchRef = useRef<typeof fetch | null>(null);
-
+  /* ─── GLOBAL 401 INTERCEPTOR + TOKEN ATTACH ───────────────── */
   useEffect(() => {
     originalFetchRef.current = window.fetch.bind(window);
 
-    let isRefreshing = false;
-    let waiters: Array<(token: string | null) => void> = [];
+    const intercepted: typeof fetch = async (input, init = {}) => {
+      const storedToken = localStorage.getItem("token");
 
-    const notifyWaiters = (token: string | null) => {
-      waiters.forEach((cb) => cb(token));
-      waiters = [];
-    };
+      // ✅ Attach token WITHOUT changing logic
+      const updatedInit = {
+        ...init,
+        headers: {
+          ...(init.headers || {}),
+          ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+        },
+      };
 
-    const intercepted: typeof fetch = async (input, init) => {
-      // ✅ ALWAYS attach token BEFORE request
-      const token = getToken();
-      const firstInit = token ? injectToken(init, token) : init;
+      const response = await originalFetchRef.current!(input, updatedInit);
 
-      const response = await originalFetchRef.current!(input, firstInit);
-
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-          ? input.toString()
-          : input.url ?? "";
-
-      // only handle API 401
-      if (response.status !== 401 || !url.includes("/api/")) {
-        return response;
+      if (response.status === 401) {
+        const url = input?.toString() ?? "";
+        const isApiCall = url.includes("/api/");
+        if (isApiCall) {
+          setUser((currentUser) => {
+            if (currentUser) {
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              return null;
+            }
+            return currentUser;
+          });
+        }
       }
-
-      // skip auth endpoints
-      if (url.includes("/api/auth/")) return response;
-
-      // if already refreshing → wait
-      if (isRefreshing) {
-        const newToken = await new Promise<string | null>((resolve) => {
-          waiters.push(resolve);
-        });
-
-        if (!newToken) return response;
-
-        const retryInit = injectToken(init, newToken);
-        return originalFetchRef.current!(input, retryInit);
-      }
-
-      // start refresh
-      isRefreshing = true;
-      const result = await silentRefresh();
-      isRefreshing = false;
-
-      if (!result) {
-        notifyWaiters(null);
-        clearMemoryAuth();
-        setUser(null);
-        return response;
-      }
-
-      setUser(result.user);
-      notifyWaiters(result.accessToken);
-
-      // retry original request
-      const retryInit = injectToken(init, result.accessToken);
-      return originalFetchRef.current!(input, retryInit);
+      return response;
     };
 
     window.fetch = intercepted;
@@ -160,14 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  /* ── SET AUTH USER ───────────────── */
-  const setAuthUser = useCallback(
-    (user: User, accessToken: string) => {
-      setMemoryAuth(accessToken, user);
-      setUser(user);
-    },
-    []
-  );
+  /* ─── SET AUTH USER ──────────────────────────────────── */
+  const setAuthUser = useCallback((user: User, token: string) => {
+    localStorage.setItem("user",  JSON.stringify(user));
+    localStorage.setItem("token", token);
+    setUser(user);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, setAuthUser, logout }}>

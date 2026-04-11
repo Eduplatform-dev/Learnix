@@ -13,15 +13,21 @@ try {
   AuditLog = mod.default;
 } catch { /* skip */ }
 
+// FIX: guard against null userId — AuditLog.actor is required
 const logAudit = async (req, userId, email, role, action, details, status = "success") => {
   if (!AuditLog) return;
+  if (!userId) return; // cannot log without a valid actor
   try {
     await AuditLog.create({
-      actor: userId, actorEmail: email, actorRole: role,
-      action, resource: "auth", resourceId: String(userId),
+      actor:      userId,
+      actorEmail: email,
+      actorRole:  role,
+      action,
+      resource:   "auth",
+      resourceId: String(userId),
       details,
-      ip:        req.ip || req.connection?.remoteAddress || "",
-      userAgent: req.get("user-agent") || "",
+      ip:         req.ip || req.connection?.remoteAddress || "",
+      userAgent:  req.get("user-agent") || "",
       status,
     });
   } catch { /* never crash auth */ }
@@ -150,8 +156,7 @@ export const login = async (req, res) => {
         enrollmentNumber: enrollmentNumber.trim(),
       });
       if (!profile) {
-        await logAudit(req, null, enrollmentNumber, "student", "LOGIN_FAILED",
-          `Failed login with enrollment: ${enrollmentNumber}`, "failure");
+        // FIX: don't call logAudit with null userId — just return 401
         return res.status(401).json({ error: "Invalid credentials" });
       }
       user = await User.findById(profile.user).select("+password");

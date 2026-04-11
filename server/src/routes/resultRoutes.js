@@ -1,10 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import Result from "../models/Result.js";
-import Certificate from "../models/Certificate.js";
 import AuditLog from "../models/AuditLog.js";
-import User from "../models/User.js";
-import StudentProfile from "../models/StudentProfile.js";
 import { authenticateToken, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -38,7 +35,6 @@ const resultSchema = z.object({
   isPublished:        z.boolean().optional().default(false),
 });
 
-// Calculate aggregates helper
 function computeAggregates(subjects) {
   const totalObtained = subjects.reduce((s, sub) => s + (sub.totalMarks || 0), 0);
   const totalMax      = subjects.reduce((s, sub) => s + (sub.maxMarks  || 100), 0);
@@ -50,6 +46,7 @@ function computeAggregates(subjects) {
   return { totalMarksObtained: totalObtained, totalMaxMarks: totalMax, percentage, totalCredits, earnedCredits };
 }
 
+// FIX: /my MUST come before /:id — otherwise "my" is treated as an id
 // GET my results (student)
 router.get("/my", authenticateToken, async (req, res) => {
   try {
@@ -62,27 +59,7 @@ router.get("/my", authenticateToken, async (req, res) => {
   }
 });
 
-// GET single result by ID (student can view own, admin can view all)
-router.get("/:id", authenticateToken, async (req, res) => {
-  try {
-    const result = await Result.findById(req.params.id)
-      .populate("student", "username email")
-      .populate("department", "name code");
-    if (!result) return res.status(404).json({ error: "Result not found" });
-
-    if (req.user.role === "student" && String(result.student._id) !== String(req.user._id)) {
-      return res.status(403).json({ error: "Access denied" });
-    }
-    if (req.user.role === "student" && !result.isPublished) {
-      return res.status(404).json({ error: "Result not published yet" });
-    }
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET all results (admin)
+// GET all results (admin/instructor) — also before /:id
 router.get("/", authenticateToken, authorize(["admin", "instructor"]), async (req, res) => {
   try {
     const filter = {};
@@ -97,6 +74,26 @@ router.get("/", authenticateToken, authorize(["admin", "instructor"]), async (re
       .populate("department", "name code")
       .sort({ semesterNumber: 1, createdAt: -1 });
     res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET single result by ID — after /my and /
+router.get("/:id", authenticateToken, async (req, res) => {
+  try {
+    const result = await Result.findById(req.params.id)
+      .populate("student", "username email")
+      .populate("department", "name code");
+    if (!result) return res.status(404).json({ error: "Result not found" });
+
+    if (req.user.role === "student" && String(result.student._id) !== String(req.user._id)) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    if (req.user.role === "student" && !result.isPublished) {
+      return res.status(404).json({ error: "Result not published yet" });
+    }
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

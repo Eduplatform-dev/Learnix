@@ -5,25 +5,67 @@ export type CourseType     = "academic" | "private";
 export type ApprovalStatus = "pending_approval" | "approved" | "rejected";
 
 export type Course = {
-  _id: string; title: string;
-  instructor: string | { _id: string; username: string; email: string };
-  duration: string; students: number; rating: number; progress: number;
-  status: CourseStatus; image: string; enrolledStudents?: string[]; description?: string;
-  courseType: CourseType; isFree: boolean; price: number;
-  approvalStatus: ApprovalStatus; rejectionNote?: string;
-  department?: any; semesterNumber?: number | null; subjectCode?: string; credits?: number;
+  _id:              string;
+  title:            string;
+  instructor:       string | { _id: string; username: string; email: string };
+  duration:         string;
+  students:         number;
+  rating:           number;
+  progress:         number;
+  status:           CourseStatus;
+  image:            string;
+  // FIX: always an array of plain string IDs after normalisation
+  // so Courses.tsx `isEnrolled` check (.includes(currentUserId)) works correctly
+  enrolledStudents: string[];
+  description?:     string;
+  courseType:       CourseType;
+  isFree:           boolean;
+  price:            number;
+  approvalStatus:   ApprovalStatus;
+  rejectionNote?:   string;
+  department?:      any;
+  semesterNumber?:  number | null;
+  subjectCode?:     string;
+  credits?:         number;
 };
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API          = `${API_BASE_URL}/api/courses`;
+
+/**
+ * FIX: normalise enrolledStudents to plain string IDs regardless of whether
+ * the server returned them as populated objects or bare ObjectId strings.
+ * This ensures Courses.tsx `isEnrolled` check works with .includes().
+ */
 const normaliseCourse = (c: any): Course => ({
-  _id: c._id, title: c.title || "",
-  instructor: typeof c.instructor === "object" && c.instructor !== null ? c.instructor : (c.instructor || ""),
-  duration: c.duration || "", students: c.enrolledStudents?.length ?? c.students ?? 0,
-  rating: c.rating ?? 4.5, progress: c.progress ?? 0, status: c.status || "active", image: c.image || "",
-  description: c.description || "", courseType: c.courseType || "private",
-  isFree: c.isFree ?? true, price: c.price ?? 0,
-  approvalStatus: c.approvalStatus || "pending_approval", rejectionNote: c.rejectionNote || "",
-  department: c.department ?? null, semesterNumber: c.semesterNumber ?? null,
-  subjectCode: c.subjectCode || "", credits: c.credits ?? 0,
+  _id:        c._id,
+  title:      c.title       || "",
+  instructor: typeof c.instructor === "object" && c.instructor !== null
+    ? c.instructor
+    : (c.instructor || ""),
+  duration:   c.duration    || "",
+  students:   c.enrolledStudents?.length ?? c.students ?? 0,
+  rating:     c.rating      ?? 4.5,
+  progress:   c.progress    ?? 0,
+  status:     c.status      || "active",
+  image:      c.image       || "",
+  // Always extract to string _id — handles both ObjectId strings and populated objects
+  enrolledStudents: Array.isArray(c.enrolledStudents)
+    ? c.enrolledStudents.map((s: any) =>
+        typeof s === "string" ? s :
+        (s?._id ? String(s._id) : String(s))
+      )
+    : [],
+  description:    c.description     || "",
+  courseType:     c.courseType      || "private",
+  isFree:         c.isFree          ?? true,
+  price:          c.price           ?? 0,
+  approvalStatus: c.approvalStatus  || "pending_approval",
+  rejectionNote:  c.rejectionNote   || "",
+  department:     c.department      ?? null,
+  semesterNumber: c.semesterNumber  ?? null,
+  subjectCode:    c.subjectCode     || "",
+  credits:        c.credits         ?? 0,
 });
 
 const handle = async <T>(res: Response): Promise<T> => {
@@ -41,9 +83,16 @@ export const getCourseById = async (id: string): Promise<Course> =>
   normaliseCourse(await handle<any>(await apiFetch(`/api/courses/${id}`)));
 
 export const createCourse = async (data: {
-  title: string; duration: string; description?: string; courseType?: CourseType;
-  isFree?: boolean; price?: number; department?: string | null;
-  semesterNumber?: number | null; subjectCode?: string; credits?: number;
+  title:           string;
+  duration:        string;
+  description?:    string;
+  courseType?:     CourseType;
+  isFree?:         boolean;
+  price?:          number;
+  department?:     string | null;
+  semesterNumber?: number | null;
+  subjectCode?:    string;
+  credits?:        number;
 }): Promise<Course> =>
   normaliseCourse(await handle<any>(await apiFetch("/api/courses", { method: "POST", body: JSON.stringify(data) })));
 

@@ -13,16 +13,16 @@ import { authenticateToken, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
 
+// Public-ish (authenticated) reads
 router.get("/",        authenticateToken, getAcademicYears);
 router.get("/current", authenticateToken, getCurrentAcademicYear);
 router.get("/:id",     authenticateToken, getAcademicYearById);
 
-router.post("/",   authenticateToken, authorize(["admin"]), createAcademicYear);
-router.put("/:id", authenticateToken, authorize(["admin"]), updateAcademicYear);
-
-router.patch("/:id/set-current",                    authenticateToken, authorize(["admin"]), setCurrentAcademicYear);
+// Admin writes
+router.post("/",                                     authenticateToken, authorize(["admin"]), createAcademicYear);
+router.put("/:id",                                   authenticateToken, authorize(["admin"]), updateAcademicYear);
+router.patch("/:id/set-current",                     authenticateToken, authorize(["admin"]), setCurrentAcademicYear);
 router.patch("/:yearId/semesters/:semesterId/set-active", authenticateToken, authorize(["admin"]), setActiveSemester);
-
-router.delete("/:id", authenticateToken, authorize(["admin"]), deleteAcademicYear);
+router.delete("/:id",                                authenticateToken, authorize(["admin"]), deleteAcademicYear);
 
 export default router;
