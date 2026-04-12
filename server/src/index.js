@@ -62,7 +62,6 @@ if (env.NODE_ENV === "production") app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 /* ─── GLOBAL MIDDLEWARE ─────────────────────────────── */
-app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 app.use(
   helmet({
