@@ -28,29 +28,30 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-/** Client-side JWT expiry check */
-function isTokenExpired(token: string): boolean {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.exp * 1000 < Date.now() + 10_000;
-  } catch {
-    return true;
-  }
-}
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(getStoredUserMeta);
   const [loading, setLoading] = useState(true);
   const originalFetchRef = useRef<typeof fetch | null>(null);
 
-  /* ─── LOGOUT ─────────────────────────── */
+  /* ─── LOGOUT ─────────────────────────────────────────── */
+  // FIX: call logoutUser() so the server revokes the refresh-token cookie,
+  // then clear both in-memory state AND the localStorage fallback keys.
   const logout = useCallback(async () => {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    setUser(null);
+    try {
+      await logoutUser();
+    } catch {
+      // Never block logout on network error
+    } finally {
+      // Clear every storage location the app might have used
+      clearMemoryAuth();
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user_meta");
+      setUser(null);
+    }
   }, []);
 
-  /* ─── RESTORE SESSION ────────────────── */
+  /* ─── RESTORE SESSION ─────────────────────────────────── */
   useEffect(() => {
     let cancelled = false;
 
@@ -61,8 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (result) {
         setUser(result.user);
+        // Keep legacy localStorage keys in sync so components that read
+        // them directly (e.g. onboarding forms) still work.
+        localStorage.setItem("user",  JSON.stringify(result.user));
+        localStorage.setItem("token", result.accessToken);
       } else {
         clearMemoryAuth();
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
         setUser(null);
       }
 
@@ -71,19 +78,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     bootstrap();
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  /* ─── GLOBAL 401 INTERCEPTOR + TOKEN ATTACH ───────────────── */
+  /* ─── GLOBAL 401 INTERCEPTOR + TOKEN ATTACH ──────────── */
   useEffect(() => {
     originalFetchRef.current = window.fetch.bind(window);
 
     const intercepted: typeof fetch = async (input, init = {}) => {
-      const storedToken = localStorage.getItem("token");
+      // FIX: prefer in-memory token, fall back to localStorage so components
+      // that call fetch directly (outside apiFetch) still get a token attached.
+      const storedToken = getToken() || localStorage.getItem("token");
 
-      // ✅ Attach token WITHOUT changing logic
       const updatedInit = {
         ...init,
         headers: {
@@ -97,11 +103,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.status === 401) {
         const url = input?.toString() ?? "";
         const isApiCall = url.includes("/api/");
-        if (isApiCall) {
+        // Don't trigger logout on auth endpoints themselves (avoid loop)
+        const isAuthEndpoint = url.includes("/api/auth/");
+        if (isApiCall && !isAuthEndpoint) {
           setUser((currentUser) => {
             if (currentUser) {
+              clearMemoryAuth();
               localStorage.removeItem("token");
               localStorage.removeItem("user");
+              localStorage.removeItem("user_meta");
               return null;
             }
             return currentUser;
@@ -120,8 +130,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  /* ─── SET AUTH USER ──────────────────────────────────── */
+  /* ─── SET AUTH USER ───────────────────────────────────── */
   const setAuthUser = useCallback((user: User, token: string) => {
+    setMemoryAuth(token, user);
+    // Keep legacy localStorage keys in sync for components that read them directly
     localStorage.setItem("user",  JSON.stringify(user));
     localStorage.setItem("token", token);
     setUser(user);
@@ -138,11 +150,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
-}
-
-/* ── HELPER ───────────────── */
-function injectToken(init: RequestInit | undefined, token: string): RequestInit {
-  const headers = new Headers(init?.headers);
-  headers.set("Authorization", `Bearer ${token}`);
-  return { ...init, headers };
 }

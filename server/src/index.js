@@ -15,7 +15,8 @@ import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 
 // Custom (your project)
-import connectDB from "./config/db.js";
+// FIX: was `import connectDB` (default) but db.js exports `connectDB` as a named export
+import { connectDB } from "./config/db.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 // Env + CORS config

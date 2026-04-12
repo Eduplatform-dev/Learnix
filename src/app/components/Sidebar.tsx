@@ -2,7 +2,7 @@
   Home, BookOpen, PlayCircle, LineChart, FileText,
   Upload, DollarSign, MessageSquare, Users, Settings,
   BarChart3, FolderOpen, Shield, GraduationCap, CheckSquare,
-  Award, Calendar, ClipboardList,
+  Award, Calendar, ClipboardList, Building2,
 } from "lucide-react";
 import { Badge }    from "./ui/badge";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -35,27 +35,29 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/dashboard/progress",     label: "My Progress",   icon: LineChart },
     { path: "/dashboard/assignments",  label: "Assignments",   icon: FileText },
     { path: "/dashboard/submissions",  label: "Submissions",   icon: Upload },
+    { path: "/dashboard/attendance",   label: "Attendance",    icon: Calendar },
     { path: "/dashboard/exams",        label: "Exam Schedule", icon: Calendar },
     { path: "/dashboard/results",      label: "My Results",    icon: ClipboardList },
     { path: "/dashboard/certificates", label: "Certificates",  icon: Award },
     { path: "/dashboard/fees",         label: "Fee Payment",   icon: DollarSign },
-    { path: "/dashboard/ai-chat",      label: "AI Assistant",  icon: MessageSquare },
-
-    // Remaining valid pages
     { path: "/dashboard/documents",    label: "Documents",     icon: FolderOpen },
     { path: "/dashboard/timetable",    label: "Timetable",     icon: Calendar },
+    { path: "/dashboard/ai-chat",      label: "AI Assistant",  icon: MessageSquare },
   ];
 
   const adminMenu: MenuItem[] = [
     { path: "/admin/dashboard",   label: "Dashboard",   icon: BarChart3, exact: true },
     { path: "/admin/users",       label: "Users",       icon: Users },
+    { path: "/admin/departments", label: "Departments", icon: Building2 },
     { path: "/admin/courses",     label: "Courses",     icon: BookOpen },
+    { path: "/admin/content",     label: "Content",     icon: FolderOpen },
     { path: "/admin/exams",       label: "Exam Schedule", icon: Calendar },
     { path: "/admin/results",     label: "Results",     icon: ClipboardList },
-    { path: "/admin/analytics",   label: "Analytics",   icon: LineChart },
-    { path: "/admin/content",     label: "Content",     icon: FolderOpen },
-    { path: "/admin/fees",        label: "Fees",        icon: DollarSign },
     { path: "/admin/submissions", label: "Submissions", icon: Upload },
+    { path: "/admin/fees",        label: "Fees",        icon: DollarSign },
+    { path: "/admin/documents",   label: "Documents",   icon: FileText },
+    { path: "/admin/timetable",   label: "Timetable",   icon: Calendar },
+    { path: "/admin/analytics",   label: "Analytics",   icon: LineChart },
     { path: "/admin/audit-logs",  label: "Audit Logs",  icon: Shield },
     { path: "/admin/settings",    label: "Settings",    icon: Settings },
   ];
@@ -66,6 +68,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     { path: "/instructor/assignments", label: "Assignments",  icon: FileText },
     { path: "/instructor/submissions", label: "Grade Work",   icon: CheckSquare },
     { path: "/instructor/students",    label: "Students",     icon: Users },
+    { path: "/instructor/attendance",  label: "Attendance",   icon: Calendar },
     { path: "/instructor/content",     label: "Content",      icon: FolderOpen },
     { path: "/instructor/ai-chat",     label: "AI Assistant", icon: MessageSquare },
   ];
@@ -120,14 +123,19 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ? activePath === item.path
             : activePath === item.path || activePath.startsWith(item.path + "/");
 
+          const activeStyles = 
+            userRole === "admin"      ? "bg-violet-600 text-white" :
+            userRole === "instructor" ? "bg-emerald-600 text-white" :
+            "bg-indigo-600 text-white";
+
           return (
             <button
               key={item.path}
               onClick={() => { navigate(item.path); onClose(); }}
               className={[
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium",
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                 isActive
-                  ? "bg-indigo-600 text-white"
+                  ? activeStyles
                   : "text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-800",
               ].join(" ")}
             >

@@ -17,9 +17,6 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000
 
 /* ─────────────────────────────────────────────────────────
    IN-MEMORY ACCESS TOKEN STORE
-   The access token is kept only in this module-level variable.
-   It is never written to localStorage or sessionStorage, which
-   eliminates the XSS read vector for the short-lived token.
    ───────────────────────────────────────────────────────── */
 let _accessToken: string | null = null;
 let _currentUser: User | null   = null;
@@ -30,8 +27,6 @@ export const getCurrentUser = (): User | null   => _currentUser;
 export const setMemoryAuth = (token: string, user: User): void => {
   _accessToken  = token;
   _currentUser  = user;
-  // Store only non-sensitive user metadata in localStorage so the UI can
-  // repopulate before the silent-refresh completes (avoids flash of logged-out state).
   localStorage.setItem("user_meta", JSON.stringify(user));
 };
 
@@ -41,10 +36,10 @@ export const clearMemoryAuth = (): void => {
   localStorage.removeItem("user_meta");
 };
 
-/** Returns the last-known user from localStorage (used on initial render only) */
 export const getStoredUserMeta = (): User | null => {
   try {
-    const raw = localStorage.getItem("user_meta");
+    // FIX: try both 'user_meta' (new) and 'user' (legacy) keys
+    const raw = localStorage.getItem("user_meta") || localStorage.getItem("user");
     return raw ? (JSON.parse(raw) as User) : null;
   } catch {
     return null;
@@ -53,9 +48,11 @@ export const getStoredUserMeta = (): User | null => {
 
 /* ─────────────────────────────────────────────────────────
    AUTH HEADER HELPERS
+   FIX: fall back to localStorage "token" for components
+   that call fetch directly before silentRefresh completes.
    ───────────────────────────────────────────────────────── */
 export const getAuthHeader = (): Record<string, string> => {
-  const token = _accessToken;
+  const token = _accessToken || localStorage.getItem("token");
   return {
     "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -63,7 +60,7 @@ export const getAuthHeader = (): Record<string, string> => {
 };
 
 export const getAuthHeaderNoContentType = (): Record<string, string> => {
-  const token = _accessToken;
+  const token = _accessToken || localStorage.getItem("token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
@@ -83,6 +80,9 @@ const handleAuthResponse = async (res: Response): Promise<AuthResponse> => {
   const token = data.accessToken as string;
   const user  = data.user as User;
   setMemoryAuth(token, user);
+  // Keep legacy keys in sync for forms/components that read localStorage directly
+  localStorage.setItem("user",  JSON.stringify(user));
+  localStorage.setItem("token", token);
   return { accessToken: token, user };
 };
 
@@ -96,7 +96,7 @@ export const registerUser = async (
   const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
     method:      "POST",
     headers:     { "Content-Type": "application/json" },
-    credentials: "include",   // send/receive httpOnly cookies
+    credentials: "include",
     body:        JSON.stringify({ email, password, username, role }),
   });
   return handleAuthResponse(res);
@@ -126,11 +126,6 @@ export const loginWithEnrollment = async (
   return handleAuthResponse(res);
 };
 
-/**
- * Exchange the httpOnly refresh-token cookie for a new access token.
- * Called on app mount and transparently by the fetch interceptor.
- * Returns null if there is no valid session (user is logged out).
- */
 export const silentRefresh = async (): Promise<AuthResponse | null> => {
   try {
     const res = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
@@ -148,37 +143,36 @@ export const silentRefresh = async (): Promise<AuthResponse | null> => {
   }
 };
 
-/**
- * Revokes the current session's refresh token (server-side) and clears
- * the in-memory access token.  The httpOnly cookie is cleared by the server.
- */
 export const logoutUser = async (): Promise<void> => {
   try {
+    const token = _accessToken || localStorage.getItem("token");
     await fetch(`${API_BASE_URL}/api/auth/logout`, {
       method:      "POST",
-      headers:     getAuthHeader(),
+      headers:     token ? { Authorization: `Bearer ${token}` } : {},
       credentials: "include",
     });
   } catch {
-    // Even if the network call fails, clear the in-memory state
+    // Even on network failure, clear local state
   } finally {
     clearMemoryAuth();
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
   }
 };
 
-/**
- * Revokes ALL sessions for the current user across all devices.
- */
 export const logoutAllDevices = async (): Promise<void> => {
   try {
+    const token = _accessToken || localStorage.getItem("token");
     await fetch(`${API_BASE_URL}/api/auth/logout-all`, {
       method:      "POST",
-      headers:     getAuthHeader(),
+      headers:     token ? { Authorization: `Bearer ${token}` } : {},
       credentials: "include",
     });
   } catch {
-    // Ignore network errors — still clear local state
+    // Ignore
   } finally {
     clearMemoryAuth();
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
   }
 };

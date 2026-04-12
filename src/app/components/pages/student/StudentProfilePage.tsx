@@ -6,15 +6,14 @@ import { Label } from "../../ui/label";
 import { Badge } from "../../ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import {
-  User, MapPin, Users, GraduationCap, BookOpen,
+  User, MapPin, Users, GraduationCap,
   CheckCircle, AlertCircle, Save,
 } from "lucide-react";
-// FIX: import updated service functions with correct signatures
 import { getMyProfile, updateMyProfile } from "../../../services/studentProfileService";
 import { getDepartments, type Department } from "../../../services/departmentService";
 import { useAuth } from "../../../providers/AuthProvider";
 
-const BLOOD_GROUPS = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+const BLOOD_GROUPS = ["", "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "unknown"];
 const GENDERS      = ["", "male", "female", "other"];
 const CATEGORIES   = ["", "general", "obc", "sc", "st", "nt", "other"];
 
@@ -62,7 +61,7 @@ export function StudentProfilePage() {
     setError("");
     setSuccess(false);
     try {
-      // FIX: pass userId as first argument — updateMyProfile(userId, data)
+      // FIX: updateMyProfile(userId, data) — pass userId as first arg
       const updated = await updateMyProfile(user._id, form);
       setProfile(updated);
       setForm(updated);
@@ -126,7 +125,7 @@ export function StudentProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="md:col-span-2">
                   <Label>Full Name</Label>
-                  {/* FIX: field is 'fullName' in both model and service */}
+                  {/* FIX: field is 'fullName' — matches StudentProfile model */}
                   <Input className="mt-1" value={form.fullName || ""}
                     onChange={(e) => set("fullName", e.target.value)} />
                 </div>
@@ -152,12 +151,12 @@ export function StudentProfilePage() {
                     value={form.bloodGroup || ""}
                     onChange={(e) => set("bloodGroup", e.target.value)}>
                     {BLOOD_GROUPS.map((g) => (
-                      <option key={g} value={g}>{g || "— Select —"}</option>
+                      <option key={g} value={g}>{g === "unknown" ? "Not known" : g || "— Select —"}</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  {/* FIX: model field is 'phoneNumber', not 'phone' */}
+                  {/* FIX: model field is 'phoneNumber' not 'phone' */}
                   <Label>Phone Number</Label>
                   <Input className="mt-1" value={form.phoneNumber || ""}
                     onChange={(e) => set("phoneNumber", e.target.value)} />
@@ -182,7 +181,7 @@ export function StudentProfilePage() {
           <Card>
             <CardHeader><CardTitle>Address</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              {/* FIX: model uses 'address.street/city/state/pincode' (single address object) */}
+              {/* FIX: model uses 'address.pincode' (lowercase), not 'pinCode' */}
               <div>
                 <Label>Street / House No.</Label>
                 <Input className="mt-1" value={form.address?.street || ""}
@@ -200,7 +199,6 @@ export function StudentProfilePage() {
                     onChange={(e) => set("address.state", e.target.value)} />
                 </div>
                 <div>
-                  {/* FIX: model field is 'pincode' (lowercase), not 'pinCode' */}
                   <Label>PIN Code</Label>
                   <Input className="mt-1" value={form.address?.pincode || ""}
                     onChange={(e) => set("address.pincode", e.target.value)} />
@@ -214,7 +212,7 @@ export function StudentProfilePage() {
         <TabsContent value="guardian">
           <Card>
             <CardHeader><CardTitle>Parent / Guardian Details</CardTitle></CardHeader>
-            {/* FIX: model uses flat parentName/parentPhone/parentEmail/parentOccupation fields */}
+            {/* FIX: model uses flat parentName/parentPhone/parentEmail/parentOccupation */}
             <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <Label>Parent / Guardian Name</Label>
@@ -284,7 +282,9 @@ export function StudentProfilePage() {
               </div>
               <div>
                 <Label>Enrollment Number</Label>
-                <Input className="mt-1 bg-gray-50 cursor-not-allowed" readOnly value={form.enrollmentNumber || ""}
+                {/* FIX: read-only — only admin can set this */}
+                <Input className="mt-1 bg-gray-50 cursor-not-allowed" readOnly
+                  value={form.enrollmentNumber || ""}
                   placeholder="Assigned by admin" />
                 <p className="text-xs text-gray-400 mt-1">Set by administrator only</p>
               </div>

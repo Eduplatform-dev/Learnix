@@ -20,11 +20,17 @@ const departmentSchema = new mongoose.Schema(
       default: "",
       trim:    true,
     },
-    // Restored: departmentController.js populates this field
+    // FIX: restored hodId field — departmentController.js populates this
     hodId: {
       type:    mongoose.Schema.Types.ObjectId,
       ref:     "User",
       default: null,
+    },
+    // FIX: added totalIntake — referenced in departmentController createDepartment
+    totalIntake: {
+      type:    Number,
+      default: 0,
+      min:     0,
     },
     isActive: {
       type:    Boolean,
