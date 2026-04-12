@@ -180,7 +180,6 @@ export const login = async (req, res) => {
       enrollmentNumber ? "Login via enrollment number" : "Login via email");
 
     res.json({
-      accessToken,
       user: { _id: user._id, id: user._id, email: user.email, username: user.username, role: user.role },
     });
   } catch (err) {

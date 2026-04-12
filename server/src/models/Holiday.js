@@ -9,7 +9,7 @@ const holidaySchema = new mongoose.Schema(
       enum: ["national", "regional", "institute"],
       default: "national",
     },
-    // if true, recurs every year on the same month+day
+    // If recurring=true the year is ignored — only month+day matters
     recurring: { type: Boolean, default: true },
     description: { type: String, default: "" },
   },

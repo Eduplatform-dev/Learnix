@@ -11,9 +11,9 @@ const leaveRequestSchema = new mongoose.Schema(
       enum:    ["pending", "approved", "rejected"],
       default: "pending",
     },
-    reviewedBy:  { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
-    reviewNote:  { type: String, default: "" },
-    reviewedAt:  { type: Date, default: null },
+    reviewedBy:   { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    reviewNote:   { type: String, default: "" },
+    reviewedAt:   { type: Date, default: null },
   },
   { timestamps: true }
 );
